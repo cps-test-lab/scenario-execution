@@ -13,7 +13,7 @@ jobs:
     #TODO model dependency to image-workflow. Workaround: retrigger run after image-workflow finished.
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/cps-test-lab/scenario-execution:${{ github.event.pull_request.base.ref }}
+      image: ghcr.io/cps-test-lab/scenario-execution:latest
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -34,7 +34,7 @@ jobs:
           source install/setup.bash
       - name: Cache Build
         id: cache-test-id
-        uses: actions/cache/save@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
+        uses: actions/cache/save@d4323d4df104b026a6aa633fdb11d772146be0bf # v4.2.2
         with:
           path: .
           key: ${{ runner.os }}-build-${{ github.run_number }}
@@ -42,13 +42,13 @@ jobs:
     needs: [build]
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/cps-test-lab/scenario-execution:${{ github.event.pull_request.base.ref }}
+      image: ghcr.io/cps-test-lab/scenario-execution:latest
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Restore cache
-        uses: actions/cache/restore@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
+        uses: actions/cache/restore@d4323d4df104b026a6aa633fdb11d772146be0bf # v4.2.2
         with:
           key: ${{ runner.os }}-build-${{ github.run_number }}
           path: .
