@@ -79,7 +79,7 @@ jobs:
     needs: [build]
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/cps-test-lab/scenario-execution:${{ github.event.pull_request.base.ref }}
+      image: ghcr.io/cps-test-lab/scenario-execution:latest
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -114,7 +114,7 @@ jobs:
     needs: [build]
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/cps-test-lab/scenario-execution:${{ github.event.pull_request.base.ref }}
+      image: ghcr.io/cps-test-lab/scenario-execution:latest
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -137,7 +137,7 @@ jobs:
     needs: [build]
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/cps-test-lab/scenario-execution:${{ github.event.pull_request.base.ref }}
+      image: ghcr.io/cps-test-lab/scenario-execution:latest
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -164,7 +164,7 @@ jobs:
     needs: [build]
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/cps-test-lab/scenario-execution:${{ github.event.pull_request.base.ref }}
+      image: ghcr.io/cps-test-lab/scenario-execution:latest
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -191,7 +191,7 @@ jobs:
     needs: [build]
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/cps-test-lab/scenario-execution:${{ github.event.pull_request.base.ref }}
+      image: ghcr.io/cps-test-lab/scenario-execution:latest
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -219,7 +219,7 @@ jobs:
     needs: [build]
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/cps-test-lab/scenario-execution:${{ github.event.pull_request.base.ref }}
+      image: ghcr.io/cps-test-lab/scenario-execution:latest
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -252,7 +252,7 @@ jobs:
     needs: [build]
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/cps-test-lab/scenario-execution:${{ github.event.pull_request.base.ref }}
+      image: ghcr.io/cps-test-lab/scenario-execution:latest
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -285,7 +285,7 @@ jobs:
     needs: [build]
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/cps-test-lab/scenario-execution:${{ github.event.pull_request.base.ref }}
+      image: ghcr.io/cps-test-lab/scenario-execution:latest
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -337,7 +337,7 @@ jobs:
     needs: [build]
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/cps-test-lab/scenario-execution:${{ github.event.pull_request.base.ref }}
+      image: ghcr.io/cps-test-lab/scenario-execution:latest
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -366,7 +366,7 @@ jobs:
     needs: [build]
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/cps-test-lab/scenario-execution:${{ github.event.pull_request.base.ref }}
+      image: ghcr.io/cps-test-lab/scenario-execution:latest
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -400,7 +400,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     container:
-      image: ghcr.io/cps-test-lab/scenario-execution:${{ github.event.pull_request.base.ref }}
+      image: ghcr.io/cps-test-lab/scenario-execution:latest
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -433,7 +433,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     container:
-      image: ghcr.io/cps-test-lab/scenario-execution:${{ github.event.pull_request.base.ref }}
+      image: ghcr.io/cps-test-lab/scenario-execution:latest
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -479,7 +479,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     container:
-      image: ghcr.io/cps-test-lab/scenario-execution:${{ github.event.pull_request.base.ref }}
+      image: ghcr.io/cps-test-lab/scenario-execution:latest
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -509,7 +509,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     container:
-      image: ghcr.io/cps-test-lab/scenario-execution:${{ github.event.pull_request.base.ref }}
+      image: ghcr.io/cps-test-lab/scenario-execution:latest
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
