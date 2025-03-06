@@ -1358,6 +1358,10 @@ Compare received topic messages using the given ``comparison_operator``, against
    * - ``topic_type``
      - ``string``
      - 
+     - Name of the type member to check. If empty, the whole type is checked
+   * - ``expected_value``
+     - ``string``
+     - 
      - Class of the message type (e.g. ``std_msgs.msg.String``)
    * - ``qos_profile``
      - ``qos_preset_profiles``
@@ -1366,10 +1370,6 @@ Compare received topic messages using the given ``comparison_operator``, against
    * - ``member_name``
      - ``string``
      - ``''``
-     - Name of the type member to check. If empty, the whole type is checked
-   * - ``expected_value``
-     - ``string``
-     - 
      - Expected value
    * - ``comparison_operator``
      - ``comparison_operator``
