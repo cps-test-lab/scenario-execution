@@ -1340,7 +1340,7 @@ A common topic to record is ``/scenario_execution/snapshots`` which publishes ch
 ``check_data()``
 ^^^^^^^^^^^^^^^^
 
-Compare received topic messages using the given ``comparison_operator``, against the specified value. Either the whole message gets compared or a member defined by ``member_name``. If the value is a string, set ``eval_expected_value`` to ``true``.
+Compare received topic messages using the given ``comparison_operator``, against the specified value. Either the whole message gets compared or a member defined by ``member_name``. If the ``expected_value`` is a string, set ``eval_expected_value`` to ``true``.
 
 .. list-table:: 
    :widths: 15 15 5 65
