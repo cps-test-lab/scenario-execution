@@ -41,7 +41,7 @@ class Compare(BaseAction):
             left_value = self.left_value.get_value()
         else:
             left_value = self.left_value
-        
+
         if isinstance(self.right_value, VariableReference):
             right_value = self.right_value.get_value()
         else:
