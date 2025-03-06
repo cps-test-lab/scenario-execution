@@ -18,9 +18,9 @@ import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription
+from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import PathJoinSubstitution
+from launch.substitutions import PathJoinSubstitution, LaunchConfiguration
 
 
 def generate_launch_description():
@@ -29,13 +29,17 @@ def generate_launch_description():
     nav2_bringup_dir = get_package_share_directory('nav2_bringup')
     scenario_execution_ros_dir = get_package_share_directory('scenario_execution_ros')
 
+    scenario = LaunchConfiguration('scenario')
+    
     return LaunchDescription([
+        DeclareLaunchArgument('scenario', description='Scenario file to execute', default_value=PathJoinSubstitution([example_nav2_dir, 'scenarios', 'example_nav2.osc'])),
+        
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([PathJoinSubstitution([nav2_bringup_dir, 'launch', 'tb4_simulation_launch.py'])])
         ),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([PathJoinSubstitution([scenario_execution_ros_dir, 'launch', 'scenario_launch.py'])]),
-            launch_arguments={'scenario': PathJoinSubstitution([example_nav2_dir, 'scenarios', 'example_nav2.osc'])}.items()
+            launch_arguments={'scenario': scenario}.items()
         )
     ])
 
