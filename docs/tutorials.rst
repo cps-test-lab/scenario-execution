@@ -160,7 +160,8 @@ and control it with Nav2, can be found in :repo_link:`examples/example_nav2/exam
 
 This scenario files looks as follows:
 
-::
+.. code-block::
+
     import osc.helpers
     import osc.ros
     import osc.nav2
@@ -211,7 +212,8 @@ To try this example, run
 In case you want to run the navigation with SLAM instead of AMCL, update
 the above described scenario by setting the ``use_initial_pose`` to ``False``:
 
-::
+.. code-block::
+    
     import osc.helpers
     import osc.ros
     import osc.nav2
