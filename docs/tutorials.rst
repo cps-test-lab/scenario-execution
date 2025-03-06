@@ -172,7 +172,6 @@ This scenario files looks as follows:
             robot.init_nav2(pose_3d(position_3d(x: 0.0m, y: 0.0m)))
             robot.nav_to_pose(pose_3d(position_3d(x: 3.0m, y: -3.0m)))
 
-
 Let’s break down the individual components of the scenario. The
 following snippet defines the turtlebot4 amr-object.
 
@@ -223,7 +222,6 @@ the above described scenario by setting the ``use_initial_pose`` to ``False``:
         do serial:
             robot.init_nav2(pose_3d(position_3d(x: 0.0m, y: 0.0m)), use_initial_pose: false)
             robot.nav_to_pose(pose_3d(position_3d(x: 3.0m, y: -3.0m)))
-
 
 Then, run:
 
