@@ -1366,7 +1366,7 @@ Compare received topic messages using the given ``comparison_operator``, against
    * - ``eval_expected_value``
      - ``bool``
      - ``true``
-     - Should the expected value get evaluated (using ast.literal_eval). Set to ``false`` if expected value is a string
+     - Should the expected value get evaluated (using ``ast.literal_eval()``). Set to ``false`` if expected value is a string
    * - ``qos_profile``
      - ``qos_preset_profiles``
      - ``qos_preset_profiles!system_default``
