@@ -92,9 +92,9 @@ class ROSScenarioExecution(ScenarioExecution):
             tree [py_trees.behaviour.Behaviour]: root of the behaviour tree
 
         return:
-            py_trees_ros.trees.BehaviourTreeKwargs
+            py_trees_ros.trees.BehaviourTree
         """
-        return py_trees_ros.trees.BehaviourTreeKwargs(tree)
+        return py_trees_ros.trees.BehaviourTree(tree)
 
     def post_setup(self):
         request = OpenSnapshotStream.Request()
