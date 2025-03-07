@@ -18,5 +18,5 @@ Now, run the following command to launch the scenario:
 ros2 launch example_scenario_control example_scenario_control_launch.py
 ```
 
-For a more detailed understanding of the code structure and scenario implementation please refer to the [tutorial documentation](https://intellabs.github.io/scenario_execution/tutorials.html).
+For a more detailed understanding of the code structure and scenario implementation please refer to the [tutorial documentation](https://cps-test-lab.github.io/scenario-execution/tutorials.html).
 

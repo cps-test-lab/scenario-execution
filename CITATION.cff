@@ -15,7 +15,7 @@ authors:
   orcid: "https://orcid.org/0000-0001-6337-1798"
 title: "Scenario Execution for Robotics"
 date-released: "2024-03-05"
-url: "https://github.com/intellabs/scenario_execution"
+url: "https://github.com/cps-test-lab/scenario-execution"
 preferred-citation:
   type: article
   authors:

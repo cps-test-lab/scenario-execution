@@ -28,4 +28,4 @@ ros2 launch arm_sim_scenario sim_moveit_scenario_launch.py scenario:=examples/ex
 
 The arm initially moves to a specified joint position. Next, the gripper opens. Once the gripper is open, the arm moves to the designated end-effector position. Finally, the gripper closes.
 
-For a more detailed understanding of the code structure and scenario implementation please refer to the [tutorial documentation](https://intellabs.github.io/scenario_execution/tutorials.html).
+For a more detailed understanding of the code structure and scenario implementation please refer to the [tutorial documentation](https://cps-test-lab.github.io/scenario-execution/tutorials.html).
