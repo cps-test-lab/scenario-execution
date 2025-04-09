@@ -1785,7 +1785,7 @@ class FunctionApplicationExpression(ModelExpression):
             try:
                 params = body.external_name(**params)
             except Exception as e:
-                raise ValueError(f'Error while calling external method: {e}') from e
+                raise ValueError(f'Error while calling external method with parameters {params}: {e}') from e
 
         return params
 

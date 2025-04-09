@@ -7,6 +7,6 @@ action check_file_not_exists:
     file_name: string  # file to check
 
 struct os:
-    def abspath(path: string) -> string is external os.path.abspath()
-    def basename(p: string) -> string is external os.path.basename()
-    def dirname(p: string) -> string is external os.path.dirname()
+    def abspath(path: string) -> string is external scenario_execution_os.external_methods.path.abspath()
+    def basename(p: string) -> string is external scenario_execution_os.external_methods.path.basename()
+    def dirname(p: string) -> string is external scenario_execution_os.external_methods.path.dirname()
