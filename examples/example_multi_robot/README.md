@@ -19,4 +19,4 @@ To actually run the scenario, run the following command.
 ros2 launch tb4_sim_scenario sim_nav_scenario_launch.py scenario:=examples/example_multi_robot/example_multi_robot.osc
 ```
 
-For a more detailed understanding of the code structure and scenario implementation please refer to the [tutorial documentation](https://intellabs.github.io/scenario_execution/tutorials.html).
+For a more detailed understanding of the code structure and scenario implementation please refer to the [tutorial documentation](https://cps-test-lab.github.io/scenario-execution/tutorials.html).

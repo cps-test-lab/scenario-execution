@@ -35,7 +35,7 @@ Clone the scenario execution repository
 
 .. code-block:: bash
 
-   git clone https://github.com/IntelLabs/scenario_execution.git
+   git clone https://github.com/cps-test-lab/scenario-execution.git
 
 and install the necessary dependencies
 

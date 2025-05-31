@@ -28,17 +28,17 @@ sphinx_setup:
 	fi
 
 doc: sphinx_setup checklinks checkspelling
-	. venv/bin/activate && GITHUB_REF_NAME=local GITHUB_REPOSITORY=intellabs/scenario_execution python -m sphinx -b html -W docs build/html
+	. venv/bin/activate && GITHUB_REF_NAME=local GITHUB_REPOSITORY=cps-test-lab/scenario-execution python -m sphinx -b html -W docs build/html
 
 view_doc: doc
 	firefox build/html/index.html &
 
 checklinks: sphinx_setup
-	. venv/bin/activate && GITHUB_REF_NAME=local GITHUB_REPOSITORY=intellabs/scenario_execution python -m sphinx -b html -b linkcheck -W docs $(ALLSPHINXOPTS) $(LINKCHECKDIR)
+	. venv/bin/activate && GITHUB_REF_NAME=local GITHUB_REPOSITORY=cps-test-lab/scenario-execution python -m sphinx -b html -b linkcheck -W docs $(ALLSPHINXOPTS) $(LINKCHECKDIR)
 	@echo
 	@echo "Check finished. Report is in $(LINKCHECKDIR)."
 
 checkspelling: sphinx_setup
-	. venv/bin/activate && GITHUB_REF_NAME=local GITHUB_REPOSITORY=intellabs/scenario_execution python -m sphinx -b html -b spelling -W docs $(ALLSPHINXOPTS) $(LINKCHECKDIR)
+	. venv/bin/activate && GITHUB_REF_NAME=local GITHUB_REPOSITORY=cps-test-lab/scenario-execution python -m sphinx -b html -b spelling -W docs $(ALLSPHINXOPTS) $(LINKCHECKDIR)
 	@echo
 	@echo "Check finished. Report is in $(LINKCHECKDIR)."
