@@ -39,7 +39,8 @@ ScenarioView::ScenarioView(QWidget *parent)
   mScenarioView->setColumnWidth(1, 200);
 
   QStringList columnNames;
-  columnNames << "Action" << "Feedback";
+  columnNames << "Action"
+              << "Feedback";
   mScenarioView->setHeaderLabels(columnNames);
   collapsedStates = new QMap<QString, bool>;
   rowLayout->addWidget(mScenarioView);
