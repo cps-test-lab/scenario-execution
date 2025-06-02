@@ -61,7 +61,7 @@ class RunProcess(BaseAction):
                     self.command,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
-                    process_group=os.setsid
+                    process_group=os.setsid()
                 )
             except Exception as e:  # pylint: disable=broad-except
                 self.logger.error(str(e))
