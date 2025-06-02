@@ -1008,7 +1008,7 @@ Initialize nav2.
    * - ``wait_for_amcl``
      - ``bool``
      - ``true``
-     - If true, wait for amcl localizer to be ready (if using amcl for localization)
+     - If true, wait for amcl localization to be ready
 
 ``differential_drive_robot.nav_through_poses()``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
