@@ -1,0 +1,19 @@
+import osc.types
+import osc.helpers
+import osc.ros
+
+# Test service call
+scenario test_service_call:
+    var result: int
+    do serial:
+        timeout(10)
+        parallel:
+            ros_run('examples_rclpy_minimal_service', 'service_member_function')
+            service_call('/add_two_ints',
+                         'example_interfaces.srv.AddTwoInts',
+                         '{\"a\": 1, \"b\": 2}',
+                         response_variable: result,
+                         response_member_name: 'sum')
+            serial:
+                wait result == 3
+                emit end

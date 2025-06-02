@@ -26,6 +26,8 @@ import py_trees  # pylint: disable=import-error
 from action_msgs.msg import GoalStatus
 from scenario_execution.actions.base_action import BaseAction, ActionError
 from scenario_execution import ShutdownHandler
+from scenario_execution_ros.actions.conversions import get_ros_message_type, set_variable_if_available
+from scenario_execution.model.types import VariableReference
 
 
 class ActionCallActionState(Enum):
@@ -46,7 +48,7 @@ class RosActionCall(BaseAction):
     """
 
     def __init__(self, action_name: str, action_type: str, success_on_acceptance: bool = False, transient_local: bool = False):
-        super().__init__()
+        super().__init__(resolve_variable_reference_arguments_in_execute=False)
         self.node = None
         self.client = None
         self.send_goal_future = None
@@ -60,6 +62,8 @@ class RosActionCall(BaseAction):
         self.cb_group = ReentrantCallbackGroup()
         self.success_on_acceptance = success_on_acceptance
         self.transient_local = transient_local
+        self.result_variable = None
+        self.result_variable_member_name = None
 
     def setup(self, **kwargs):
         """
@@ -72,14 +76,8 @@ class RosActionCall(BaseAction):
             error_message = "didn't find 'node' in setup's kwargs [{}][{}]".format(
                 self.name, self.__class__.__name__)
             raise ActionError(error_message, action=self) from e
-
-        datatype_in_list = self.action_type_string.split(".")
-        try:
-            self.action_type = getattr(
-                importlib.import_module(".".join(datatype_in_list[0:-1])),
-                datatype_in_list[-1])
-        except ValueError as e:
-            raise ActionError(f"Invalid action_type '{self.action_type}': {e}", action=self) from e
+        
+        self.action_type = get_ros_message_type(self.action_type_string)
 
         client_kwargs = {
             "callback_group": self.cb_group,
@@ -92,8 +90,15 @@ class RosActionCall(BaseAction):
 
         self.client = ActionClient(self.node, self.action_type, self.action_name, **client_kwargs)
 
-    def execute(self, data: str):
+    def execute(self, data: str, result_variable, result_member_name: str):
         self.parse_data(data)
+
+        if result_variable:
+            if not isinstance(result_variable, VariableReference):
+                raise ActionError(f"'response_variable' is expected to be a variable reference.", action=self)
+            self.result_variable = result_variable
+            self.result_variable_member_name = result_member_name
+
         self.current_state = ActionCallActionState.IDLE
 
     def parse_data(self, data):
@@ -166,6 +171,10 @@ class RosActionCall(BaseAction):
         if self.current_state == ActionCallActionState.ACTION_ACCEPTED:
             if status == GoalStatus.STATUS_SUCCEEDED:
                 self.current_state = ActionCallActionState.DONE
+                print(f"AAAA {future.result().result}")
+                print(f"AAAA {type(future.result().result)}")
+                #self.result_variable.set_value([0,1,1])
+                set_variable_if_available(future.result().result, self.result_variable, self.result_variable_member_name)
                 self.goal_handle = None
             elif status == GoalStatus.STATUS_CANCELED:
                 self.current_state = ActionCallActionState.ERROR

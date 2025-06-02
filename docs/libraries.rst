@@ -1611,6 +1611,15 @@ Call a ROS service and wait for the reply.
      - ``string``
      - 
      - Service call content
+   * - ``response_variable``
+     - ``variable``
+     - 
+     - variable to store the response in
+   * - ``response_member_name``
+     - ``string``
+     - ``''``
+     - if not empty, only the value of the member is stored within the ``response_variable``
+
 
 ``set_node_parameter()``
 ^^^^^^^^^^^^^^^^^^^^^^^^

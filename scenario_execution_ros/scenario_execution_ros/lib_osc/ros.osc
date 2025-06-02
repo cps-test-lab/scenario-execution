@@ -15,7 +15,8 @@ enum qos_preset_profiles: [
     sensor_data,
     services_default,
     system_default,
-    system_default_reliable
+    system_default_reliable,
+    system_default_transient_local
 ]
 
 enum lifecycle_state: [
@@ -39,6 +40,8 @@ action action_call:
     data: string                         # call content
     success_on_acceptance: bool = false  # succeed on goal acceptance
     transient_local: bool = false
+    result_variable: string = ""       # variable to store the response in
+    result_member_name: string = ""    # if not empty, only the value of the member is stored within the variable
 
 action assert_lifecycle_state:
     # Checks for the state of a lifecycle-managed node.
@@ -150,6 +153,8 @@ action service_call:
     service_type: string                 # class of the message type (e.g. std_srvs.msg.Empty)
     data: string                         # call content
     transient_local: bool = false
+    response_variable: string = ""       # variable to store the response in
+    response_member_name: string = ""    # if not empty, only the value of the member is stored within the variable
 
 action set_node_parameter:
     # Set a parameter of a node.
