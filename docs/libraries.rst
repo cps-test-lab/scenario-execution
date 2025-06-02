@@ -1005,6 +1005,10 @@ Initialize nav2.
      - ``bool``
      - ``false``
      - If true the initial pose needs to be set externally (e.g. manually through rviz)
+   * - ``wait_for_amcl``
+     - ``bool``
+     - ``true``
+     - If true, wait for amcl localizer to be ready (if using amcl for localization)
 
 ``differential_drive_robot.nav_through_poses()``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
