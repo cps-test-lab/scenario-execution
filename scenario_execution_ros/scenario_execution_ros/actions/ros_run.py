@@ -14,14 +14,13 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from scenario_execution.actions.base_action import ActionError
 from scenario_execution.actions.run_process import RunProcess
 import signal
 
 
 class RosRun(RunProcess):
 
-    def execute(self, package_name: str, executable_name: str, wait_for_shutdown: bool, shutdown_timeout: float):  # pylint: disable=arguments-differ
+    def execute(self, package_name: str, executable_name: str, wait_for_shutdown: bool, shutdown_timeout: float):  # pylint: disable=arguments-differ,arguments-renamed
         super().execute(None, wait_for_shutdown, shutdown_timeout, shutdown_signal=("", signal.SIGINT))
         self.command = ["ros2", "run", package_name, executable_name]
         self.logger.info(f'Command: {" ".join(self.command)}')
