@@ -59,9 +59,9 @@ class RunProcess(BaseAction):
             try:
                 self.process = subprocess.Popen(
                     self.command,
+                    start_new_session=True,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
-                    process_group=os.setsid()
                 )
             except Exception as e:  # pylint: disable=broad-except
                 self.logger.error(str(e))
