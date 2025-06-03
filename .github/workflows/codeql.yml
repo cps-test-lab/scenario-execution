@@ -51,6 +51,7 @@ jobs:
         colcon build --packages-up-to scenario_execution_interfaces
         source install/setup.bash
         sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys F42ED6FBAB17C654
+        curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | sudo apt-key add -
         apt update
         rosdep update --rosdistro=humble
         rosdep install --rosdistro=humble --from-paths scenario_execution_rviz --ignore-src -r -y;
