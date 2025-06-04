@@ -84,17 +84,14 @@ class RosLogCheck(BaseAction):
     def _callback(self, msg):
         if self.found is None:
             return
-        print("1")
         if msg.name == self.node.get_name():  # skip own logs
             return
-
-        print("2")
+        print(f"LOG {msg.msg}")
         if self.module_name and self.module_name != msg.name:
             return
 
         for val in self.values:
-            print(f"HEARD {msg.msg} vs.{val}")
             if val in msg.msg:
-                self.feedback_message = f"Found string '{val}' in '{msg}'"  # pylint: disable= attribute-defined-outside-init
+                self.feedback_message = f"Found string '{val}' in '{msg.msg}'"  # pylint: disable= attribute-defined-outside-init
                 self.found = True
                 break

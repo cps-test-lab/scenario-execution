@@ -27,15 +27,12 @@ class RosTopicWaitForTopics(BaseAction):
     def __init__(self, topics: list):
         super().__init__()
         if not isinstance(topics, list):
-            raise TypeError(f'Topics needs to be list of topics, got {type(topics)}.')
+            raise TypeError(f'Topics needs to be list of strings, got {type(topics)}.')
         else:
             self.topics = topics
         self.node = None
 
     def setup(self, **kwargs):
-        """
-        Setup the publisher
-        """
         try:
             self.node: Node = kwargs['node']
         except KeyError as e:
@@ -44,12 +41,6 @@ class RosTopicWaitForTopics(BaseAction):
             raise ActionError(error_message, action=self) from e
 
     def update(self) -> py_trees.common.Status:
-        """
-        Publish the msg to topic
-
-        return:
-            py_trees.common.Status if published
-        """
         available_topics = self.node.get_topic_names_and_types()
         available_topics = [seq[0] for seq in available_topics]
         result = all(elem in available_topics for elem in self.topics)

@@ -19,6 +19,7 @@ from scenario_execution.model.error import OSC2ParsingError
 import sys
 import py_trees
 import operator as op
+import codecs
 
 
 def print_tree(elem, logger, whitespace=""):
@@ -2124,12 +2125,16 @@ class StringLiteral(ModelElement):
     def __init__(self, value):
         super().__init__()
         self.value = value
+        if (value.startswith("'") and value.endswith("'")) or (value.startswith('"') and value.endswith('"')):
+            value = value[1:-1]
+        value = codecs.decode(value, 'unicode_escape')
+        self.value = value
 
     def get_value_child(self):
         return self.value
 
     def get_resolved_value(self, blackboard=None):
-        return self.value.strip("\'").strip("\"")
+        return self.value
 
     def enter_node(self, listener):
         if hasattr(listener, "enter_string_literal"):

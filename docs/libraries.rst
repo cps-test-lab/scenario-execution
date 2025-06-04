@@ -1793,6 +1793,25 @@ Wait for nodes to get available.
      - 
      - List of nodes to wait for
 
+``wait_for_services()``
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Wait for ROS2 services to become available. This action succeeds once all services are available.
+
+.. list-table:: 
+   :widths: 15 15 5 65
+   :header-rows: 1
+   :class: tight-table   
+
+   * - Parameter
+     - Type
+     - Default
+     - Description
+   * - ``services``
+     - ``list of string``
+     - 
+     - List of service names to wait for (e.g. ``/my_service``).
+
 
 ``wait_for_topics()``
 ^^^^^^^^^^^^^^^^^^^^^
