@@ -58,5 +58,5 @@ class RosServiceWaitForServiceServer(BaseAction):
                         return py_trees.common.Status.SUCCESS
             except NodeNameNonExistentError:
                 pass
-        
+
         return py_trees.common.Status.RUNNING
