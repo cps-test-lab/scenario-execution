@@ -89,7 +89,7 @@ class RosActionCall(BaseAction):
 
         self.client = ActionClient(self.node, self.action_type, self.action_name, **client_kwargs)
 
-    def execute(self, data: str, result_variable, result_member_name: str):
+    def execute(self, data: str, result_variable: str = "", result_member_name: str = ""):
         self.parse_data(data)
 
         if result_variable:
