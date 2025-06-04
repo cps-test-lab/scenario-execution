@@ -25,8 +25,8 @@ import py_trees  # pylint: disable=import-error
 from action_msgs.msg import GoalStatus
 from scenario_execution.actions.base_action import BaseAction, ActionError
 from scenario_execution import ShutdownHandler
-from scenario_execution_ros.actions.conversions import get_ros_message_type, set_variable_if_available
 from scenario_execution.model.types import VariableReference
+from scenario_execution_ros.actions.conversions import get_ros_message_type, set_variable_if_available
 
 
 class ActionCallActionState(Enum):
@@ -75,7 +75,7 @@ class RosActionCall(BaseAction):
             error_message = "didn't find 'node' in setup's kwargs [{}][{}]".format(
                 self.name, self.__class__.__name__)
             raise ActionError(error_message, action=self) from e
-        
+
         self.action_type = get_ros_message_type(self.action_type_string)
 
         client_kwargs = {
