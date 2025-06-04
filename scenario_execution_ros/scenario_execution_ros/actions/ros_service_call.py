@@ -94,10 +94,11 @@ class RosServiceCall(BaseAction):
         except Exception as e:  # pylint: disable=broad-except
             raise ActionError(f"Error while parsing sevice call data: {e}", action=self) from e
         
-        if not isinstance(response_variable, VariableReference):
-            raise ActionError(f"'response_variable' is expected to be a variable reference.", action=self)
-        self.response_variable = response_variable
-        self.response_member_name = response_member_name
+        if response_variable:
+            if not isinstance(response_variable, VariableReference):
+                raise ActionError(f"'response_variable' is expected to be a variable reference.", action=self)
+            self.response_variable = response_variable
+            self.response_member_name = response_member_name
 
         self.current_state = ServiceCallActionState.IDLE
 

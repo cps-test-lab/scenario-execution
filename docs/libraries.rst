@@ -1813,6 +1813,52 @@ Wait for ROS2 services to become available. This action succeeds once all servic
      - List of service names to wait for (e.g. ``/my_service``).
 
 
+``wait_for_topic_publisher()``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Wait for a specific node to create a publisher for a topic.
+
+.. list-table:: 
+   :widths: 15 15 5 65
+   :header-rows: 1
+   :class: tight-table   
+
+   * - Parameter
+     - Type
+     - Default
+     - Description
+   * - ``topic``
+     - ``string``
+     - 
+     - Name of the topic to check for publishers (e.g. ``/topic``)
+   * - ``node_name``
+     - ``string``
+     - 
+     - Name of the node that should be publishing to the topic
+
+``wait_for_topic_subscription()``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Wait for a specific node to subscribe to a topic.
+
+.. list-table:: 
+   :widths: 15 15 5 65
+   :header-rows: 1
+   :class: tight-table   
+
+   * - Parameter
+     - Type
+     - Default
+     - Description
+   * - ``topic``
+     - ``string``
+     - 
+     - Name of the topic to check for subscribers (e.g. ``/topic``)
+   * - ``node_name``
+     - ``string``
+     - 
+     - Name of the node that should be subscribed to the topic
+
 ``wait_for_topics()``
 ^^^^^^^^^^^^^^^^^^^^^
 
