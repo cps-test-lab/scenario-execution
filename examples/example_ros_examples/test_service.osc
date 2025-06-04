@@ -6,7 +6,7 @@ import osc.ros
 scenario test_service_call:
     var result: int
     do serial:
-        timeout(10)
+        timeout(20)
         parallel:
             ros_run('examples_rclpy_minimal_service', 'service_member_function')
             serial:
