@@ -59,7 +59,7 @@ class RunProcess(BaseAction):
             try:
                 self.process = subprocess.Popen(
                     self.command,
-                    preexec_fn=os.setsid, # run in a new process group
+                    start_new_session=True,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                 )
