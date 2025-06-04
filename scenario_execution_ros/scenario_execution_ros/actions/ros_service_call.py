@@ -85,7 +85,7 @@ class RosServiceCall(BaseAction):
             **client_kwargs
         )
 
-    def execute(self, data: str, response_variable, response_member_name: str):
+    def execute(self, data: str, response_variable: str = "", response_member_name: str = ""):
         try:
             trimmed_data = data.encode('utf-8').decode('unicode_escape')
             print(trimmed_data)
