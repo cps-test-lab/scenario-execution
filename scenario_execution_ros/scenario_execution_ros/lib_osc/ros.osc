@@ -187,19 +187,24 @@ action wait_for_nodes:
     # Wait for nodes to get available.
     nodes: list of string                # list of nodes to wait for
 
+action wait_for_service_server:
+    # Wait for service to be provided by node
+    service: string                      # service to wait for
+    node_name: string                    # node name that provides the service
+
 action wait_for_services:
     # Wait for services to get available (i.e. service gets available).
     services: list of string             # list of services to wait for
 
 action wait_for_topic_publisher:
     # Wait for a specific node to create a publisher for a topic
-    topic: string               # topic, the node will publish on
-    node_name: string           # node name 
+    topic: string                        # topic, the node will publish on
+    node_name: string                    # node name 
 
 action wait_for_topic_subscription:
     # Wait for a node to subscribe to a topic
-    topic: string               # topic, the node is subscribed to
-    node_name: string           # node name 
+    topic: string                        # topic, the node is subscribed to
+    node_name: string                    # node name 
 
 action wait_for_topics:
     # Wait for topics to get available (i.e. publisher gets available).

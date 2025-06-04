@@ -10,7 +10,7 @@ scenario test_service_call:
         parallel:
             ros_run('examples_rclpy_minimal_service', 'service_member_function')
             serial:
-                wait_for_services(["/add_two_ints"])
+                wait_for_service_server("/add_two_ints", '/minimal_service')
                 service_call(service_name: '/add_two_ints',
                          service_type: 'example_interfaces.srv.AddTwoInts',
                          data: '{\"a\": 1, \"b\": 2}',
