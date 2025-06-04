@@ -1,4 +1,4 @@
-# Copyright (C) 2024 Intel Corporation
+# Copyright (C) 2025 Frederik Pasch
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -41,8 +41,7 @@ class RosTopicWaitForTopicPublisher(BaseAction):
     def update(self) -> py_trees.common.Status:
         publishers_info = self.node.get_publishers_info_by_topic(self.topic)
         publisher_node_names = [info.node_name for info in publishers_info]
-        print(f"Publisher node names for topic '{self.topic}': {publisher_node_names}")
-        
+
         if self.node_name in publisher_node_names:
             return py_trees.common.Status.SUCCESS
         else:

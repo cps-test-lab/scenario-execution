@@ -15,7 +15,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from ast import literal_eval
-import importlib
 from enum import Enum
 from rclpy.node import Node
 from rclpy.callback_groups import ReentrantCallbackGroup
@@ -70,7 +69,7 @@ class RosServiceCall(BaseAction):
             raise ActionError(error_message, action=self) from e
 
         self.service_type = get_ros_message_type(self.service_type_str)
-                                                 
+
         client_kwargs = {
             "callback_group": self.cb_group,
         }
@@ -93,7 +92,7 @@ class RosServiceCall(BaseAction):
             self.data = literal_eval(trimmed_data)
         except Exception as e:  # pylint: disable=broad-except
             raise ActionError(f"Error while parsing sevice call data: {e}", action=self) from e
-        
+
         if response_variable:
             if not isinstance(response_variable, VariableReference):
                 raise ActionError(f"'response_variable' is expected to be a variable reference.", action=self)

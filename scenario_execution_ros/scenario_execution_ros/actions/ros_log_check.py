@@ -86,7 +86,6 @@ class RosLogCheck(BaseAction):
             return
         if msg.name == self.node.get_name():  # skip own logs
             return
-        print(f"LOG {msg.msg}")
         if self.module_name and self.module_name != msg.name:
             return
 

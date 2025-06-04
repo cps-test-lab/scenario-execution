@@ -35,7 +35,7 @@ def get_ros_message_type(message_type_string):
         raise ValueError(f"Could not find message type {message_type_string}: {e}") from e
 
 
-def get_qos_preset_profile(qos_profile):
+def get_qos_preset_profile(qos_profile): # pylint: disable=too-many-return-statements
     """
     Get qos preset for enum value
     """

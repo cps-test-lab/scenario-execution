@@ -40,8 +40,8 @@ action action_call:
     data: string                         # call content
     success_on_acceptance: bool = false  # succeed on goal acceptance
     transient_local: bool = false
-    result_variable: string = ""       # variable to store the response in
-    result_member_name: string = ""    # if not empty, only the value of the member is stored within the variable
+    result_variable: string = ""         # variable to store the response in
+    result_member_name: string = ""      # if not empty, only the value of the member is stored within the variable
 
 action assert_lifecycle_state:
     # Checks for the state of a lifecycle-managed node.

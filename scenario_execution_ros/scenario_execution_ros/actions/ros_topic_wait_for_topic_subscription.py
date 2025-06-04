@@ -1,4 +1,4 @@
-# Copyright (C) 2024 Intel Corporation
+# Copyright (C) 2025 Frederik Pasch
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -41,7 +41,6 @@ class RosTopicWaitForTopicSubscription(BaseAction):
     def update(self) -> py_trees.common.Status:
         subscribers_info = self.node.get_subscriptions_info_by_topic(self.topic)
         subscriber_node_names = [info.node_name for info in subscribers_info]
-        print(f"Subscriber node names for topic '{self.topic}': {subscriber_node_names}")
 
         if self.node_name in subscriber_node_names:
             return py_trees.common.Status.SUCCESS

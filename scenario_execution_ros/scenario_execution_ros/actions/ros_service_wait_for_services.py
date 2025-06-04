@@ -1,4 +1,4 @@
-# Copyright (C) 2024 Intel Corporation
+# Copyright (C) 2025 Frederik Pasch
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ class RosServiceWaitForServices(BaseAction):
     def __init__(self, services: list):
         super().__init__()
         if not isinstance(services, list):
-            raise TypeError(f'Services needs to be list of strings, got {type(topics)}.')
+            raise TypeError(f'Services needs to be list of strings, got {type(services)}.')
         else:
             self.services = services
         self.node = None

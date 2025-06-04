@@ -15,7 +15,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from ast import literal_eval
-import importlib
 from enum import Enum
 from rclpy.node import Node
 from rclpy.callback_groups import ReentrantCallbackGroup
@@ -171,9 +170,6 @@ class RosActionCall(BaseAction):
         if self.current_state == ActionCallActionState.ACTION_ACCEPTED:
             if status == GoalStatus.STATUS_SUCCEEDED:
                 self.current_state = ActionCallActionState.DONE
-                print(f"AAAA {future.result().result}")
-                print(f"AAAA {type(future.result().result)}")
-                #self.result_variable.set_value([0,1,1])
                 set_variable_if_available(future.result().result, self.result_variable, self.result_variable_member_name)
                 self.goal_handle = None
             elif status == GoalStatus.STATUS_CANCELED:
