@@ -1793,6 +1793,29 @@ Wait for nodes to get available.
      - 
      - List of nodes to wait for
 
+``wait_for_service_server()``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Wait for a specific node to provide a ROS2 service.
+
+.. list-table:: 
+   :widths: 15 15 5 65
+   :header-rows: 1
+   :class: tight-table   
+
+   * - Parameter
+     - Type
+     - Default
+     - Description
+   * - ``service``
+     - ``string``
+     - 
+     - Name of the service to wait for (e.g. ``/my_service``)
+   * - ``node_name``
+     - ``string``
+     - 
+     - Name of the node that should provide the service
+
 ``wait_for_services()``
 ^^^^^^^^^^^^^^^^^^^^^^^
 
