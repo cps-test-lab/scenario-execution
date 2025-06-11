@@ -20,4 +20,4 @@ ros2 launch example_nav2 example_nav2_launch.py
 
 A turtlebot is initialsed with nav2 which drives to the scenario-specified goal.
 
-For a more detailed understanding of the code structure and scenario implementation please refer to the [tutorial documentation](https://intellabs.github.io/scenario_execution/tutorials.html).
+For a more detailed understanding of the code structure and scenario implementation please refer to the [tutorial documentation](https://cps-test-lab.github.io/scenario-execution/tutorials.html).

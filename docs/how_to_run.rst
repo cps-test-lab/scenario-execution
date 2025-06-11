@@ -101,7 +101,7 @@ First, build the packages:
 
    colcon build
 
-Now, open the root folder of the `scenario execution repository <https://github.com/intellabs/scenario_execution>`_ in Visual Studio Code by running 
+Now, open the root folder of the `scenario execution repository <https://github.com/cps-test-lab/scenario-execution>`_ in Visual Studio Code by running 
 
 .. code-block:: bash
 

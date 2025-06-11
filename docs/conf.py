@@ -23,7 +23,7 @@ release = '1.2.0'
 extensions = ['sphinx.ext.extlinks',
               'sphinxcontrib.spelling']
 
-extlinks = {'repo_link': ('https://github.com/intellabs/scenario_execution/blob/main/%s', '%s')}
+extlinks = {'repo_link': ('https://github.com/cps-test-lab/scenario-execution/blob/main/%s', '%s')}
 
 templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
@@ -31,7 +31,7 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 language = 'english'
 
 linkcheck_ignore = [
-    r'https://github.com/intellabs/scenario_execution/.*',
+    r'https://github.com/cps-test-lab/scenario-execution/.*',
 ]
 
 spelling_word_list_filename = 'dictionary.txt'
