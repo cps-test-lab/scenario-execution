@@ -31,6 +31,7 @@ class NavThroughPoses(RosActionCall):
             self.namespace = namespace_override
         self.goal_poses = None
         super().__init__(self.namespace + '/' + action_topic, "nav2_msgs.action.NavigateThroughPoses", success_on_acceptance=success_on_acceptance)
+        self.resolve_variable_reference_arguments_in_execute = True
 
     def execute(self, associated_actor, goal_poses: list) -> None:  # pylint: disable=arguments-differ,arguments-renamed
         self.goal_poses = goal_poses
