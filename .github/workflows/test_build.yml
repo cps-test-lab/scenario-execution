@@ -480,6 +480,7 @@ jobs:
           export -n CYCLONEDDS_URI
           export ROS_DOMAIN_ID=2
           export IGN_PARTITION=${HOSTNAME}:${GITHUB_RUN_ID}
+          apt install -y x11-utils
           make test_scenario_execution_nav2_test
       - name: Upload result
         uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
