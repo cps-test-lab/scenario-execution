@@ -14,6 +14,7 @@
   <depend>scenario_execution</depend>
 
   <exec_depend>ffmpeg</exec_depend>
+  <exec_depend>python3-xlib</exec_depend>
   
   <export>
     <build_type>ament_python</build_type>
