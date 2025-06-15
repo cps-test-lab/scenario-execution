@@ -14,7 +14,7 @@ scenario example_nav2:
                 ], wait_for_shutdown: false)
             bag_record(['/tf', '/tf_static', '/scenario_execution/snapshots', '/map', '/local_costmap/costmap'], use_sim_time: true)
             robot.init_nav2(pose_3d(position_3d(x: 0.0m, y: 0.0m)), wait_for_amcl: false)
-            run_process("xwininfo -root -children")
+            run_process("xwininfo -root -children -tree")
             serial:
                 #repeat(2)
                 robot.nav_through_poses([pose_3d(position_3d(x: 0.75m, y: -0.75m)), pose_3d(position_3d(x: 1.5m, y: -1.5m))])
