@@ -480,7 +480,6 @@ jobs:
           export -n CYCLONEDDS_URI
           export ROS_DOMAIN_ID=2
           export IGN_PARTITION=${HOSTNAME}:${GITHUB_RUN_ID}
-          apt install -y x11-utils
           make test_scenario_execution_nav2_test
       - name: Upload result
         uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
@@ -488,12 +487,6 @@ jobs:
         with:
           name: test-scenario-execution-nav2
           path: test_scenario_execution_nav2/test.xml
-      - name: Upload video
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
-        if: always()
-        with:
-          name: test-scenario-execution-nav2-video
-          path: test_scenario_execution_nav2/test_scenario_execution_nav2/capture.mp4
   test-scenario-execution-pybullet:
     needs: [build]
     runs-on: ubuntu-latest
