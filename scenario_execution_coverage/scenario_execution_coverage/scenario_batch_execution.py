@@ -77,7 +77,7 @@ class ScenarioBatchExecution(object):
         def log_output(out, logger):
             try:
                 for line in iter(out.readline, b''):
-                    msg = line.decode().strip()
+                    msg = line.decode().rstrip()
                     print(msg)
                     logger.info(msg)
                 out.close()
