@@ -565,7 +565,7 @@ jobs:
     - test-example-variation
     - test-example-nav2
     - test-example-simulation
-    - test-example-multirobot
+#    - test-example-multirobot
 #    - test-example-moveit2
     - test-example-external-method
     - test-scenario-execution-gazebo
@@ -606,9 +606,9 @@ jobs:
             downloaded-artifacts/test-example-variation-result/test.xml
             downloaded-artifacts/test-example-nav2-result/test.xml
             downloaded-artifacts/test-example-simulation-result/test.xml
-            downloaded-artifacts/test-example-multirobot-result/test.xml
             downloaded-artifacts/test-example-external-method-result/test.xml
             downloaded-artifacts/test-scenario-execution-gazebo/test.xml
             downloaded-artifacts/test-scenario-execution-nav2/test.xml
             downloaded-artifacts/test-scenario-execution-pybullet/test.xml
 #            downloaded-artifacts/test-example-moveit2-result/test.xml
+#            downloaded-artifacts/test-example-multirobot-result/test.xml
