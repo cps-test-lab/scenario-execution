@@ -121,7 +121,7 @@ class ScenarioExecution(object):
         self.scenario_file = scenario_file
         ScenarioExecutionConfig().scenario_file_directory = os.path.abspath(os.path.dirname(scenario_file)) if scenario_file else None
         self.output_dir = output_dir
-        ScenarioExecutionConfig().output_directory = output_dir
+        ScenarioExecutionConfig().output_directory = os.path.abspath(output_dir) if output_dir else None
         self.dry_run = dry_run
         self.render_dot = render_dot
         if self.output_dir and not self.dry_run:
