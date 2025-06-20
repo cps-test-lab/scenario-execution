@@ -1586,7 +1586,7 @@ Execute a ROS launch file.
    * - ``package_name``
      - ``string``
      - 
-     - Package that contains the launch file
+     - Package that contains the launch file, or empty if the launch file is specified as a path
    * - ``launch_file``
      - ``string``
      - 
