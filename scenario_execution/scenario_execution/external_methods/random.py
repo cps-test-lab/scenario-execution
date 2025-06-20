@@ -32,10 +32,3 @@ def get_random_list_element(elements_list: list):
     if not elements_list:
         return None  # Return None if the list is empty
     return rd.choice(elements_list)  # nosec B311
-
-def get_bla(b: int):
-    """
-    Returns the directory where scenario files are stored.
-    """
-    return 4 #ScenarioExecutionConfig().scenario_file_directory
-    
