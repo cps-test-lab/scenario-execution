@@ -4,3 +4,9 @@ action capture_screen:
     # Capture the screen content within a video
     output_filename: string = "capture.mp4" # name of the resulting video file (use ``--output-dir`` command-line argument to store the file within a specific directory)
     frame_rate: float = 25.0             # frame-rate of the resulting video
+
+action capture_window:
+    # Capture a specific window. Capturing is delayed until window exists.
+    window_name: string                  # name of window to capture
+    output_filename: string = "capture.mp4" # name of the resulting video file (use ``--output-dir`` command-line argument to store the file within a specific directory)
+    frame_rate: float = 25.0             # frame-rate of the resulting video

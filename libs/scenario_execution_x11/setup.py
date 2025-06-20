@@ -38,6 +38,7 @@ setup(
     entry_points={
         'scenario_execution.actions': [
             'capture_screen = scenario_execution_x11.actions.capture_screen:CaptureScreen',
+            'capture_window = scenario_execution_x11.actions.capture_window:CaptureWindow',
         ],
         'scenario_execution.osc_libraries': [
             'x11 = '
