@@ -1,4 +1,4 @@
-# Copyright (C) 2024 Intel Corporation
+# Copyright (C) 2025 Frederik Pasch
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,29 +13,17 @@
 # and limitations under the License.
 #
 # SPDX-License-Identifier: Apache-2.0
-import random as rd
 
-
-def seed(seed_value: int = 0):
-    rd.seed(seed_value)  # nosec B311
-
-
-def get_float(min_val: dict, max_val: float):
-    return rd.uniform(min_val, max_val)  # nosec B311
-
-
-def get_int(min_val: int, max_val: int):
-    return rd.randint(min_val, max_val)  # nosec B311
-
-
-def get_random_list_element(elements_list: list):
-    if not elements_list:
-        return None  # Return None if the list is empty
-    return rd.choice(elements_list)  # nosec B311
-
-def get_bla(b: int):
+from scenario_execution.scenario_execution_base import ScenarioExecutionConfig
+    
+def get_scenario_file_directory():
     """
     Returns the directory where scenario files are stored.
     """
-    return 4 #ScenarioExecutionConfig().scenario_file_directory
+    return ScenarioExecutionConfig().scenario_file_directory
     
+def get_output_directory():
+    """
+    Returns the output directory for scenario execution.
+    """
+    return ScenarioExecutionConfig().output_directory
