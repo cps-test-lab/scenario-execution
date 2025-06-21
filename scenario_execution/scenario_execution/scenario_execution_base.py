@@ -28,7 +28,7 @@ from dataclasses import dataclass
 from xml.sax.saxutils import escape  # nosec B406 # escape is only used on an internally generated error string
 from timeit import default_timer as timer
 import yaml
-import subprocess
+import subprocess  # nosec B404
 
 class ScenarioExecutionConfig:
     _instance = None
