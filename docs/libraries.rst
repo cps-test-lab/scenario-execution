@@ -1350,7 +1350,7 @@ Play back a ROS bag.
 ^^^^^^^^^^^^^^^^
 
 Record a ROS bag, stored in directory ``output_dir``, defined by command-line parameter (default: ``.``). 
-If ``timestamp_suffix`` is set to ``true``, the ROS bag directory ``rosbag2``will be suffixed with a timestamp. If ``timestamp_suffix`` is set to ``false``, the ROS bag directory might get overwritten.
+If ``timestamp_suffix`` is set to ``true``, the ROS bag directory ``rosbag2`` will be suffixed with a timestamp. If ``timestamp_suffix`` is set to ``false``, the ROS bag directory might get overwritten.
 
 If ``topics`` is specified, this action waits for all topics to be subscribed until it returns with success otherwise it immediately returns. The recording is active until the end of the scenario.
 
