@@ -131,7 +131,7 @@ class ScenarioExecution(object):
                 raise ValueError(f"Post-run command '{self.post_run}' does not exist.")
             if not os.access(self.post_run, os.X_OK):
                 raise ValueError(f"Post-run command '{self.post_run}' is not executable.")
-            self.post_run = os.path.abspath(self.post_run)  
+            self.post_run = os.path.abspath(self.post_run)
         if self.output_dir and not self.dry_run:
             self.output_dir = os.path.abspath(self.output_dir)
             if not os.path.isdir(self.output_dir):
@@ -341,7 +341,7 @@ class ScenarioExecution(object):
                 except Exception as e:  # pylint: disable=broad-except
                     # use print, as logger might not be available during shutdown
                     print(f"Could not write results to '{self.output_dir}': {e}")
-        
+
                 # Run post-run if specified
                 if self.post_run:
                     try:
