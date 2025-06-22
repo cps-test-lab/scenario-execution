@@ -39,7 +39,7 @@ class ROSScenarioExecution(ScenarioExecution):
         arg_parser = ScenarioExecution.get_arg_parser()
         arg_parser.add_argument('--snapshot-period', type=float, help='How often to publish behavior tree snapshots (default: only on status change)', default=sys.float_info.max)
         args, _ = arg_parser.parse_known_args(args_without_ros)
-    
+
         debug = args.debug
         log_model = args.log_model
         live_tree = args.live_tree

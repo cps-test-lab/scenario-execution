@@ -422,7 +422,7 @@ def main():
     """
     main function
     """
-    args = ScenarioExecution.get_arg_parser().parse_known_args(sys.argv[1:])
+    args, _ = ScenarioExecution.get_arg_parser().parse_known_args(sys.argv[1:])
     try:
         scenario_execution = ScenarioExecution(debug=args.debug,
                                                log_model=args.log_model,
