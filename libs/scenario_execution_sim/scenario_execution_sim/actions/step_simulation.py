@@ -22,7 +22,7 @@ class StepSimulation(RosServiceCall):
 
     def __init__(self, steps: int = 1):
         self.steps = steps
-        super().__init__(service_name='/simulation/step_simulation', 
+        super().__init__(service_name='/simulation/step_simulation',
                          service_type='simulation_interfaces.srv.StepSimulation')
 
     def execute(self):   # pylint: disable=arguments-differ,arguments-renamed

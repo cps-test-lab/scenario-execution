@@ -22,7 +22,7 @@ class SetSimulationState(RosServiceCall):
 
     def __init__(self, state: str):
         self.state = state
-        super().__init__(service_name='/simulation/set_simulation_state', 
+        super().__init__(service_name='/simulation/set_simulation_state',
                          service_type='simulation_interfaces.srv.SetSimulationState')
 
     def execute(self):   # pylint: disable=arguments-differ,arguments-renamed

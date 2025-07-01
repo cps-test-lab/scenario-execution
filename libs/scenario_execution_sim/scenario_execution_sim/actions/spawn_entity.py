@@ -16,7 +16,7 @@
 
 
 from scenario_execution_ros.actions.ros_service_call import RosServiceCall
-from simulation_interfaces.msg import Result
+
 
 class SpawnEntity(RosServiceCall):
 
@@ -27,7 +27,7 @@ class SpawnEntity(RosServiceCall):
         self.resource_string = resource_string
         self.entity_namespace = entity_namespace
         self.initial_pose = initial_pose
-        super().__init__(service_name='/simulation/spawn_entity', 
+        super().__init__(service_name='/simulation/spawn_entity',
                          service_type='simulation_interfaces.srv.SpawnEntity')
 
     def execute(self):   # pylint: disable=arguments-differ,arguments-renamed
@@ -48,9 +48,8 @@ class SpawnEntity(RosServiceCall):
         # }
         # if self.initial_pose:
         #     data["initial_pose"] = self.initial_pose
-        
+
         super().execute("{}")
-    
 
     def check_response(self, msg):
         """

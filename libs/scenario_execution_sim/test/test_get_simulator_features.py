@@ -26,7 +26,6 @@ from ament_index_python.packages import get_package_share_directory
 from antlr4.InputStream import InputStream
 import py_trees
 from simulation_interfaces.srv import GetSimulatorFeatures
-from simulation_interfaces.msg import Result
 
 os.environ["PYTHONUNBUFFERED"] = '1'
 
@@ -84,4 +83,4 @@ scenario test_get_simulator_features:
 """
         self.execute(scenario_content)
         self.assertTrue(self.scenario_execution_ros.process_results())
-        self.assertTrue(self.request_received != None)
+        self.assertTrue(self.request_received is not None)

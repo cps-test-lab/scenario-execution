@@ -22,7 +22,7 @@ class DeleteEntity(RosServiceCall):
 
     def __init__(self, entity: str):
         self.entity = entity
-        super().__init__(service_name='/simulation/delete_entity', 
+        super().__init__(service_name='/simulation/delete_entity',
                          service_type='simulation_interfaces.srv.DeleteEntity')
 
     def execute(self):   # pylint: disable=arguments-differ,arguments-renamed

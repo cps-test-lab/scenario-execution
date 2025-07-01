@@ -21,7 +21,7 @@ from simulation_interfaces.msg import Result
 class GetSpawnables(RosServiceCall):
 
     def __init__(self):
-        super().__init__(service_name='/simulation/get_spawnables', 
+        super().__init__(service_name='/simulation/get_spawnables',
                          service_type='simulation_interfaces.srv.GetSpawnables')
 
     def execute(self):   # pylint: disable=arguments-differ,arguments-renamed

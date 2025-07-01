@@ -22,7 +22,7 @@ class GetEntityBounds(RosServiceCall):
 
     def __init__(self, entity: str):
         self.entity = entity
-        super().__init__(service_name='/simulation/get_entity_bounds', 
+        super().__init__(service_name='/simulation/get_entity_bounds',
                          service_type='simulation_interfaces.srv.GetEntityBounds')
 
     def execute(self):   # pylint: disable=arguments-differ,arguments-renamed

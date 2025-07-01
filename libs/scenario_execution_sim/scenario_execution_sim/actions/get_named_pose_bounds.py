@@ -21,7 +21,7 @@ from simulation_interfaces.msg import Result
 class GetNamedPoseBounds(RosServiceCall):
 
     def __init__(self):
-        super().__init__(service_name='/simulation/get_named_pose_bounds', 
+        super().__init__(service_name='/simulation/get_named_pose_bounds',
                          service_type='simulation_interfaces.srv.GetNamedPoseBounds')
 
     def execute(self):   # pylint: disable=arguments-differ,arguments-renamed

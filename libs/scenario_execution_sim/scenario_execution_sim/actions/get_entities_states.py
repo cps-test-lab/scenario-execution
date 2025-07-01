@@ -22,7 +22,7 @@ class GetEntitiesStates(RosServiceCall):
 
     def __init__(self, entities: str = ""):
         self.entities = entities
-        super().__init__(service_name='/simulation/get_entities_states', 
+        super().__init__(service_name='/simulation/get_entities_states',
                          service_type='simulation_interfaces.srv.GetEntitiesStates')
 
     def execute(self):   # pylint: disable=arguments-differ,arguments-renamed

@@ -21,7 +21,7 @@ from simulation_interfaces.msg import Result
 class GetSimulationState(RosServiceCall):
 
     def __init__(self):
-        super().__init__(service_name='/simulation/get_simulation_state', 
+        super().__init__(service_name='/simulation/get_simulation_state',
                          service_type='simulation_interfaces.srv.GetSimulationState')
 
     def execute(self):   # pylint: disable=arguments-differ,arguments-renamed

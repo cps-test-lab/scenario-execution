@@ -21,7 +21,7 @@ from simulation_interfaces.msg import Result
 class GetNamedPoses(RosServiceCall):
 
     def __init__(self):
-        super().__init__(service_name='/simulation/get_named_poses', 
+        super().__init__(service_name='/simulation/get_named_poses',
                          service_type='simulation_interfaces.srv.GetNamedPoses')
 
     def execute(self):   # pylint: disable=arguments-differ,arguments-renamed

@@ -146,8 +146,8 @@ class ROSScenarioExecution(ScenarioExecution):
             # ensure behaviour tree threads are stopped before shutting down ROS
             try:
                 self.behaviour_tree.shutdown()
-            except Exception:
-                pass
+            except (AttributeError, RuntimeError) as e:
+                self.logger.debug(f"Exception during shutdown: {e}")
             rclpy.shutdown()
 
     def shutdown(self):

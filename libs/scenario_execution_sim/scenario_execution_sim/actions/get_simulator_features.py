@@ -16,12 +16,11 @@
 
 
 from scenario_execution_ros.actions.ros_service_call import RosServiceCall
-from simulation_interfaces.msg import SimulatorFeatures
 
 class GetSimulatorFeatures(RosServiceCall):
 
     def __init__(self):
-        super().__init__(service_name='/simulation/get_simulator_features', 
+        super().__init__(service_name='/simulation/get_simulator_features',
                          service_type='simulation_interfaces.srv.GetSimulatorFeatures')
 
     def execute(self):   # pylint: disable=arguments-differ,arguments-renamed

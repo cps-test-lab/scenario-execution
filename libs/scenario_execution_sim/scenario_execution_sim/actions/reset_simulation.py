@@ -22,7 +22,7 @@ class ResetSimulation(RosServiceCall):
 
     def __init__(self, scope: int = 0):
         self.scope = scope
-        super().__init__(service_name='/simulation/reset_simulation', 
+        super().__init__(service_name='/simulation/reset_simulation',
                          service_type='simulation_interfaces.srv.ResetSimulation')
 
     def execute(self):   # pylint: disable=arguments-differ,arguments-renamed

@@ -23,7 +23,7 @@ class SetEntityState(RosServiceCall):
     def __init__(self, entity: str, state: str):
         self.entity = entity
         self.state = state
-        super().__init__(service_name='/simulation/set_entity_state', 
+        super().__init__(service_name='/simulation/set_entity_state',
                          service_type='simulation_interfaces.srv.SetEntityState')
 
     def execute(self):   # pylint: disable=arguments-differ,arguments-renamed

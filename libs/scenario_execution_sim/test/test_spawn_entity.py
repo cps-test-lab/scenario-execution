@@ -85,4 +85,4 @@ scenario test_spawn_entity:
 """
         self.execute(scenario_content)
         self.assertTrue(self.scenario_execution_ros.process_results())
-        self.assertTrue(self.request_received != None)
+        self.assertTrue(self.request_received is not None)
