@@ -25,12 +25,10 @@ from scenario_execution.model.model_to_py_tree import create_py_tree
 from ament_index_python.packages import get_package_share_directory
 from antlr4.InputStream import InputStream
 import py_trees
-from std_srvs.srv import SetBool
-
-os.environ["PYTHONUNBUFFERED"] = '1'
+from simulation_interfaces.srv import DeleteEntity
 
 
-class TestRosServiceCall(unittest.TestCase):
+class TestDeleteEntity(unittest.TestCase):
     # pylint: disable=missing-function-docstring
 
     def setUp(self):
@@ -45,7 +43,7 @@ class TestRosServiceCall(unittest.TestCase):
 
         self.scenario_dir = get_package_share_directory('scenario_execution_ros')
 
-        self.srv = self.node.create_service(SetBool, "/bla", self.service_callback)
+        self.srv = self.node.create_service(DeleteEntity, "/simulation/delete_entity", self.service_callback)
         self.parser = OpenScenario2Parser(Logger('test', False))
         self.scenario_execution_ros = ROSScenarioExecution()
         self.tree = py_trees.composites.Sequence(name="", memory=True)
@@ -66,7 +64,7 @@ class TestRosServiceCall(unittest.TestCase):
         rclpy.try_shutdown()
 
     def service_callback(self, msg, response):
-        self.request_received = msg.data
+        self.request_received = msg
         return response
 
     def test_success(self):
@@ -77,17 +75,16 @@ class TestRosServiceCall(unittest.TestCase):
         self.assertTrue(self.scenario_execution_ros.process_results())
         self.assertTrue(self.request_received)
 
-    def test_success_repeat(self):
+    def test_success(self):
         scenario_content = """
 import osc.helpers
-import osc.ros
+import osc.sim
 
-scenario test_ros_service_call:
-    timeout(30s)
+scenario test_delete_entity:
+    timeout(10s)
     do serial:
-        repeat(2)
-        service_call('/bla', 'std_srvs.srv.SetBool', '{\\\"data\\\": True}')
-        emit end
+        delete_entity('/bla')
 """
         self.execute(scenario_content)
         self.assertTrue(self.scenario_execution_ros.process_results())
+        self.assertEqual(self.request_received.entity, '/bla')

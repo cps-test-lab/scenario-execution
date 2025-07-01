@@ -1,0 +1,7 @@
+import osc.types
+import osc.robotics
+
+
+action delete_entity:
+    # Remove an entity (a robot, other object) from the simulation.
+    entity: string  #  Entity identified by its unique name with a namespace, as returned by SpawnEntity or GetEntities

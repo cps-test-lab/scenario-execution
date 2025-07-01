@@ -143,6 +143,11 @@ class ROSScenarioExecution(ScenarioExecution):
         except Exception as e:  # pylint: disable=broad-except
             self.on_scenario_shutdown(False, "Run failed", f"{e}")
         finally:
+            # ensure behaviour tree threads are stopped before shutting down ROS
+            try:
+                self.behaviour_tree.shutdown()
+            except Exception:
+                pass
             rclpy.shutdown()
 
     def shutdown(self):
