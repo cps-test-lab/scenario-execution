@@ -16,7 +16,7 @@
 
 
 from scenario_execution_ros.actions.ros_service_call import RosServiceCall
-
+from simulation_interfaces.msg import Result
 
 class DeleteEntity(RosServiceCall):
 
@@ -27,3 +27,14 @@ class DeleteEntity(RosServiceCall):
 
     def execute(self):   # pylint: disable=arguments-differ,arguments-renamed
         super().execute(data='{ "entity": "' + self.entity + '" }')
+
+
+    def check_response(self, msg):
+        """
+        Check if the response is valid.
+        """
+        if not msg.result.result == Result.RESULT_OK:
+            self.feedback_message = f"Failed to delete entity {self.entity}: result {msg.result.result}, error_message {msg.result.error_message}"
+            return False
+        self.feedback_message = f"Entity {self.entity} deleted successfully"
+        return True

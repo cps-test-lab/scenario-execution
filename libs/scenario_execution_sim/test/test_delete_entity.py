@@ -26,7 +26,9 @@ from ament_index_python.packages import get_package_share_directory
 from antlr4.InputStream import InputStream
 import py_trees
 from simulation_interfaces.srv import DeleteEntity
+from simulation_interfaces.msg import Result
 
+os.environ["PYTHONUNBUFFERED"] = '1'
 
 class TestDeleteEntity(unittest.TestCase):
     # pylint: disable=missing-function-docstring
@@ -44,6 +46,8 @@ class TestDeleteEntity(unittest.TestCase):
         self.scenario_dir = get_package_share_directory('scenario_execution_ros')
 
         self.srv = self.node.create_service(DeleteEntity, "/simulation/delete_entity", self.service_callback)
+        self.srv_result = Result.RESULT_OK
+        self.request_received = None
         self.parser = OpenScenario2Parser(Logger('test', False))
         self.scenario_execution_ros = ROSScenarioExecution()
         self.tree = py_trees.composites.Sequence(name="", memory=True)
@@ -65,6 +69,7 @@ class TestDeleteEntity(unittest.TestCase):
 
     def service_callback(self, msg, response):
         self.request_received = msg
+        response.result.result = self.srv_result
         return response
 
     def test_success(self):
