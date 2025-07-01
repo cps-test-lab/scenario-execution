@@ -42,7 +42,23 @@ setup(
     include_package_data=True,
     entry_points={
         'scenario_execution.actions': [
-            'delete_entity = scenario_execution_sim.actions.delete_entity:DeleteEntity'
+            'delete_entity = scenario_execution_sim.actions.delete_entity:DeleteEntity',
+            'get_entities = scenario_execution_sim.actions.get_entities:GetEntities',
+            'get_entities_states = scenario_execution_sim.actions.get_entities_states:GetEntitiesStates',
+            'get_entity_bounds = scenario_execution_sim.actions.get_entity_bounds:GetEntityBounds',
+            'get_entity_info = scenario_execution_sim.actions.get_entity_info:GetEntityInfo',
+            'get_entity_state = scenario_execution_sim.actions.get_entity_state:GetEntityState',
+            'get_named_pose_bounds = scenario_execution_sim.actions.get_named_pose_bounds:GetNamedPoseBounds',
+            'get_named_poses = scenario_execution_sim.actions.get_named_poses:GetNamedPoses',
+            'get_simulation_state = scenario_execution_sim.actions.get_simulation_state:GetSimulationState',
+            'get_simulator_features = scenario_execution_sim.actions.get_simulator_features:GetSimulatorFeatures',
+            'get_spawnables = scenario_execution_sim.actions.get_spawnables:GetSpawnables',
+            'reset_simulation = scenario_execution_sim.actions.reset_simulation:ResetSimulation',
+            'set_entity_info = scenario_execution_sim.actions.set_entity_info:SetEntityInfo',
+            'set_entity_state = scenario_execution_sim.actions.set_entity_state:SetEntityState',
+            'set_simulation_state = scenario_execution_sim.actions.set_simulation_state:SetSimulationState',
+            'spawn_entity = scenario_execution_sim.actions.spawn_entity:SpawnEntity',
+            'step_simulation = scenario_execution_sim.actions.step_simulation:StepSimulation'
         ],
         'scenario_execution.osc_libraries': [
             'sim = '

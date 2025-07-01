@@ -1,4 +1,4 @@
-# Copyright (C) 2024 Intel Corporation
+# Copyright (C) 2025 Frederik Pasch
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,12 +25,12 @@ from scenario_execution.model.model_to_py_tree import create_py_tree
 from ament_index_python.packages import get_package_share_directory
 from antlr4.InputStream import InputStream
 import py_trees
-from simulation_interfaces.srv import DeleteEntity
+from simulation_interfaces.srv import GetEntities
 from simulation_interfaces.msg import Result
 
 os.environ["PYTHONUNBUFFERED"] = '1'
 
-class TestDeleteEntity(unittest.TestCase):
+class TestGetEntities(unittest.TestCase):
     # pylint: disable=missing-function-docstring
 
     def setUp(self):
@@ -45,7 +45,7 @@ class TestDeleteEntity(unittest.TestCase):
 
         self.scenario_dir = get_package_share_directory('scenario_execution_ros')
 
-        self.srv = self.node.create_service(DeleteEntity, "/simulation/delete_entity", self.service_callback)
+        self.srv = self.node.create_service(GetEntities, "/simulation/get_entities", self.service_callback)
         self.srv_result = Result.RESULT_OK
         self.request_received = None
         self.parser = OpenScenario2Parser(Logger('test', False))
@@ -77,11 +77,11 @@ class TestDeleteEntity(unittest.TestCase):
 import osc.helpers
 import osc.sim
 
-scenario test_delete_entity:
+scenario test_get_entities:
     timeout(10s)
     do serial:
-        delete_entity('/bla')
+        get_entities()
 """
         self.execute(scenario_content)
         self.assertTrue(self.scenario_execution_ros.process_results())
-        self.assertEqual(self.request_received.entity, '/bla')
+        self.assertTrue(self.request_received)
