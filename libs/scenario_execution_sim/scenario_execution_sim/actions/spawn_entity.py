@@ -31,7 +31,7 @@ class SpawnEntity(RosServiceCall):
                          service_type='simulation_interfaces.srv.SpawnEntity')
 
     def execute(self):   # pylint: disable=arguments-differ,arguments-renamed
-        
+
         # TODO
         # data = {
         #     "name": self.entity_name,
