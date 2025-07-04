@@ -16,7 +16,7 @@
 
 import py_trees  # pylint: disable=import-error
 from scenario_execution.actions.base_action import BaseAction, ActionError
-from scenario_execution.model.types import VariableReference
+from scenario_execution.model.types import VariableReference, ParameterDeclaration
 
 import operator as op
 
@@ -39,11 +39,15 @@ class Compare(BaseAction):
     def update(self) -> py_trees.common.Status:
         if isinstance(self.left_value, VariableReference):
             left_value = self.left_value.get_value()
+        elif isinstance(self.left_value, ParameterDeclaration):
+            left_value = self.left_value.get_resolved_value()
         else:
             left_value = self.left_value
 
         if isinstance(self.right_value, VariableReference):
             right_value = self.right_value.get_value()
+        elif isinstance(self.right_value, ParameterDeclaration):
+            right_value = self.right_value.get_resolved_value()
         else:
             right_value = self.right_value
 

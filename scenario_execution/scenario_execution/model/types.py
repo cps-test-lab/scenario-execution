@@ -1536,12 +1536,20 @@ class BehaviorInvocation(StructuredDeclaration):
             if isinstance(child, PositionalArgument):
                 if isinstance(child.get_child(0), IdentifierReference):
                     if param_keys[pos] not in skip_keys:
-                        params[param_keys[pos]] = child.get_child(0).get_blackboard_reference(blackboard)
+                        var_ref = child.get_child(0).get_variable_reference(blackboard)
+                        if var_ref is not None:
+                            params[param_keys[pos]] = var_ref
+                        else:
+                            params[param_keys[pos]] = child.get_child(0).get_resolved_value(blackboard)
                 pos += 1
             elif isinstance(child, NamedArgument):
                 if isinstance(child.get_child(0), IdentifierReference):
                     if child.name not in skip_keys:
-                        params[child.name] = child.get_child(0).get_blackboard_reference(blackboard)
+                        var_ref = child.get_child(0).get_variable_reference(blackboard)
+                        if var_ref is not None:
+                            params[child.name] = var_ref
+                        else:
+                            params[child.name] = child.get_child(0).get_resolved_value(blackboard)
         for k in skip_keys:
             if k in params:
                 del params[k]
