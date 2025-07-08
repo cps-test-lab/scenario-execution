@@ -51,11 +51,11 @@ class BaseAction(py_trees.behaviour.Behaviour):
     #############
 
     def initialise(self):
-        if isinstance(self.parent, BaseActionSubtree):
-            # in case the parent action is a composite, get required values there
-            final_args = self.parent.get_execution_args(self)
-        else:
-            if self.execute_method is not None:
+        if self.execute_method is not None:
+            if isinstance(self.parent, BaseActionSubtree):
+                # in case the parent action is a composite, get required values there
+                final_args = self.parent.get_execution_args(self)
+            else:
                 if self.resolve_variable_reference_arguments_in_execute:
                     final_args = self._model.get_resolved_value(self.get_blackboard_client(), skip_keys=self.execute_skip_args)
                 else:
@@ -68,7 +68,8 @@ class BaseAction(py_trees.behaviour.Behaviour):
                 if self._model.actor:
                     final_args["associated_actor"] = self._model.actor.get_resolved_value(self.get_blackboard_client())
                     final_args["associated_actor"]["name"] = self._model.actor.name
-        self.execute(**final_args)  # pylint: disable=no-member
+
+            self.execute(**final_args)  # pylint: disable=no-member
 
     def _set_base_properities(self, name, model, logger):
         self.name = name
