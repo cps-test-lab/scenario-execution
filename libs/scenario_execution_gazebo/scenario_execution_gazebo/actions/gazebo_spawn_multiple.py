@@ -14,13 +14,10 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import py_trees
-from enum import Enum
-import time
 from .gazebo_spawn_actor import GazeboSpawnActor
-from scenario_execution.actions.base_action import BaseAction, ActionError
+from scenario_execution.actions.base_action import ActionError
 from scenario_execution.actions.base_action_subtree import BaseActionSubtree
-from scenario_execution.actions.log import Log
+
 class GazeboSpawnMultiple(BaseActionSubtree):
     
     def __init__(self, entities: list, world_name: str):

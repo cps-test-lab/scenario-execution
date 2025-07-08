@@ -38,10 +38,10 @@ class BaseActionSubtree(py_trees.composites.Sequence):
 
     def get_execution_args(self, child):
         raise NotImplementedError("Subclasses must implement get_execution_args()")
-  
+
     def initialise(self):
         pass
-    
+
     def _set_base_properities(self, name, model, logger):
         self.name = name
         self._model = model
