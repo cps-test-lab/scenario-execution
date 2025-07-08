@@ -19,7 +19,7 @@ from scenario_execution.actions.base_action import ActionError
 from scenario_execution.actions.base_action_subtree import BaseActionSubtree
 
 class GazeboSpawnMultiple(BaseActionSubtree):
-    
+
     def __init__(self, entities: list, world_name: str):
         super().__init__()
         self.entities = entities
@@ -28,7 +28,7 @@ class GazeboSpawnMultiple(BaseActionSubtree):
     def get_execution_args(self, child):
         if child not in self.children:
             raise ActionError(
-                f"Child {child} is not part of this GazeboSpawnMultiple action!")
+                f"Child {child} is not part of this GazeboSpawnMultiple action!", action=self)
         idx = self.children.index(child)
         return {"associated_actor": {'name': self.entities[idx]["entity_name"]},
                 "spawn_pose": self.entities[idx]["spawn_pose"],
@@ -40,6 +40,6 @@ class GazeboSpawnMultiple(BaseActionSubtree):
                 associated_actor={'name': entity["entity_name"]},
                 xacro_arguments=entity["xacro_arguments"],
                 model=entity["model"])
-            spawn_action._set_base_properities(
+            spawn_action._set_base_properities(   # pylint: disable=protected-access
                 self.name, None, self.logger)
             self.add_child(spawn_action)
