@@ -46,6 +46,7 @@ setup(
             'osc_actor.spawn = scenario_execution_gazebo.actions.gazebo_spawn_actor:GazeboSpawnActor',
             'actor_exists = scenario_execution_gazebo.actions.gazebo_actor_exists:GazeboActorExists',
             'osc_actor.delete = scenario_execution_gazebo.actions.gazebo_delete_actor:GazeboDeleteActor',
+            'spawn_multiple = scenario_execution_gazebo.actions.gazebo_spawn_multiple:GazeboSpawnMultiple',
             'wait_for_sim = scenario_execution_gazebo.actions.gazebo_wait_for_sim:GazeboWaitForSim',
         ],
         'scenario_execution.osc_libraries': [
