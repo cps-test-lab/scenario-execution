@@ -1,0 +1,72 @@
+import osc.types
+import osc.robotics
+
+action delete_entity:
+    # Remove an entity (a robot, other object) from the simulation.
+    entity: string  #  Entity identified by its unique name with a namespace, as returned by SpawnEntity or GetEntities
+
+action get_entities:
+    # Get a list of entities in the simulation.
+    filters: list of string  # Optional filters to apply when retrieving entities
+
+action get_entities_states:
+    # Get states of specified entities in the simulation.
+    entities: list of string  # List of entities to get states for
+
+action get_entity_bounds:
+    # Get the bounds of a specific entity.
+    entity: string  # Entity identified by its unique name
+
+action get_entity_info:
+    # Get information about a specific entity.
+    entity: string  # Entity identified by its unique name
+
+action get_entity_state:
+    # Get the state of a specific entity.
+    entity: string  # Entity identified by its unique name
+
+action get_named_pose_bounds
+    # Get bounds for named poses in the simulation.
+
+action get_named_poses
+    # Get all named poses available in the simulation.
+
+action get_simulation_state
+    # Get the current state of the simulation.
+
+action get_simulator_features
+    # Get the features supported by the simulator.
+
+action get_spawnables
+    # Get a list of entities that can be spawned.
+
+action reset_simulation:
+    # Reset the simulation to the start.
+    scope: int = 0  # Scope of the reset operation
+
+action set_entity_info:
+    # Set information for a specific entity.
+    entity: string  # Entity identified by its unique name
+    info: string    # Entity information to set
+
+action set_entity_state:
+    # Set the state of a specific entity.
+    entity: string  # Entity identified by its unique name
+    state: string   # Entity state to set
+
+action set_simulation_state:
+    # Set the state of the simulation.
+    state: string   # Simulation state to set
+
+action spawn_entity:
+    # Spawn an entity in the simulation.
+    entity_name: string = ''             # Name to give to the spawned entity
+    allow_renaming: bool = true          # Whether to allow renaming if name is not unique
+    uri: string = ''                     # Resource URI (SDFormat, URDF, etc.)
+    resource_string: string = ''         # Entity definition as string
+    entity_namespace: string = ''        # Namespace for the entity
+    initial_pose: string = ''            # Initial pose for the entity
+
+action step_simulation:
+    # Step the simulation a specific number of steps.
+    steps: int = 1  # Number of steps to simulate
