@@ -173,14 +173,25 @@ class ModelToPyTree(object):
             self.__cur_behavior = parent
 
         def visit_wait_directive(self, node: WaitDirective):
-            child = node.get_only_child()
-
-            if isinstance(child, (EventCondition, EventReference)):
-                behavior = self.visit(child)
-
-                self.__cur_behavior.add_child(behavior)
+            condition = None
+            reference = None
+            for child in node.get_children():
+                if isinstance(child, EventCondition):
+                    condition = self.visit(child)
+                elif isinstance(child, EventReference):
+                    reference = self.visit(child)
+                else:
+                    raise OSC2ParsingError(msg="Invalid wait directive.", context=node.get_ctx())
+            
+            if condition is None:
+                self.__cur_behavior.add_child(reference)
+            elif reference is None:
+                self.__cur_behavior.add_child(condition)
             else:
-                raise OSC2ParsingError(msg="Invalid wait directive.", context=node.get_ctx())
+                conditional_wait = py_trees.composites.Sequence(name="wait conditional", memory=False)
+                conditional_wait.add_child(reference)
+                conditional_wait.add_child(condition)
+                self.__cur_behavior.add_child(conditional_wait)
 
         def visit_emit_directive(self, node: EmitDirective):
             if node.event_name in ['start', 'end', 'fail']:
