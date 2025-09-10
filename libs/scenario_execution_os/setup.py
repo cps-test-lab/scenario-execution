@@ -28,7 +28,10 @@ setup(
             ['resource/' + PACKAGE_NAME]),
         ('share/' + PACKAGE_NAME, ['package.xml'])
     ],
-    install_requires=['setuptools'],
+    install_requires=[
+        'setuptools',
+        'psutil'
+    ],
     zip_safe=True,
     maintainer='Frederik Pasch',
     maintainer_email='fred-labs@mailbox.org',
@@ -40,6 +43,7 @@ setup(
         'scenario_execution.actions': [
             'check_file_exists = scenario_execution_os.actions.check_file_exists:CheckFileExists',
             'check_file_not_exists = scenario_execution_os.actions.check_file_not_exists:CheckFileNotExists',
+            'check_process_running = scenario_execution_os.actions.check_process_running:CheckProcessRunning',
         ],
         'scenario_execution.osc_libraries': [
             'os = '

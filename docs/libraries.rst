@@ -1160,6 +1160,30 @@ Report success if a file exists.
      - File to check
 
 
+``check_process_running()``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Report success if a process is running.
+
+.. list-table:: 
+   :widths: 15 15 5 65
+   :header-rows: 1
+   :class: tight-table   
+
+   * - Parameter
+     - Type
+     - Default
+     - Description
+   * - ``process_name``
+     - ``string``
+     -
+     - Name of the process to check
+   * - ``regex``
+     - ``bool``
+     - ``false``
+     - If true, the process_name is treated as a regular expression
+
+
 Robotics
 --------
 
