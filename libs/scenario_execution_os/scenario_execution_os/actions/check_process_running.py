@@ -14,7 +14,6 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import os
 import py_trees
 import re
 import psutil
@@ -69,6 +68,6 @@ class CheckProcessRunning(BaseAction):
                 except (psutil.NoSuchProcess, psutil.AccessDenied):
                     continue
             return False
-        except Exception as e:
+        except Exception as e: # pylint: disable=broad-except
             self.feedback_message = f"Error checking process: {e}"
             return False
