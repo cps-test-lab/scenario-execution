@@ -1,0 +1,10 @@
+import osc.types
+
+###########
+# Actions
+###########
+
+action http_get:
+    # Perform an HTTP GET request to the specified URL
+    url: string                          # URL to send the GET request to
+    parameters: list of key_value            # Optional query parameters for the request
