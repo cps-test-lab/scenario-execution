@@ -21,7 +21,6 @@ from scenario_execution.model.osc2_parser import OpenScenario2Parser
 from scenario_execution.model.model_to_py_tree import create_py_tree
 from scenario_execution.utils.logging import Logger
 from antlr4.InputStream import InputStream
-from datetime import datetime
 from .common import DebugLogger
 
 
@@ -39,7 +38,7 @@ class TestOSC2Parser(unittest.TestCase):
 
     def execute(self, scenario_content):
         self.logger.reset()
-        parsed_tree = self.parser.parse_input_stream(InputStream(scenario_content))
+        parsed_tree = self.parser.parse_input_stream(InputStream(scenario_content), enable_extensions=True)
         model = self.parser.create_internal_model(parsed_tree, self.tree, "test.scx", False)
         self.tree = create_py_tree(model, self.tree, self.logger, False)
         self.scenario_execution.tree = self.tree

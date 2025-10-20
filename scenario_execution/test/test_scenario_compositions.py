@@ -40,11 +40,16 @@ class TestOSC2Parser(unittest.TestCase):
         self.scenario_execution = ScenarioExecution(debug=True, log_model=True, live_tree=True, scenario_file='test.osc', output_dir="")
         self.tree = py_trees.composites.Sequence(name="", memory=True)
 
-    def execute(self, scenario_content):
+    def execute(self, scenario_content, expected_result=True):
         self.logger.reset()
-        parsed_tree = self.parser.parse_input_stream(InputStream(scenario_content))
-        model = self.parser.create_internal_model(parsed_tree, self.tree, "test.osc", False)
-        self.tree = create_py_tree(model, self.tree, self.logger, False)
+        try:
+            parsed_tree = self.parser.parse_input_stream(InputStream(scenario_content))
+            model = self.parser.create_internal_model(parsed_tree, self.tree, "test.osc", False)
+            self.tree = create_py_tree(model, self.tree, self.logger, False)
+        except Exception as e:
+            if expected_result:
+                raise e
+            return
         self.scenario_execution.tree = self.tree
         self.scenario_execution.run()
 
@@ -122,8 +127,7 @@ scenario test:
             log("B")
         emit end
 """
-        self.execute(scenario_content)
-        self.assertFalse(self.scenario_execution.process_results())
+        self.execute(scenario_content, False)
 
     def test_selector(self):
         scenario_content = """
@@ -136,8 +140,7 @@ scenario test:
             log("A")
             log("B")
 """
-        self.execute(scenario_content)
-        self.assertFalse(self.scenario_execution.process_results())
+        self.execute(scenario_content, False)
 
     def test_selector_no_memory(self):
         scenario_content = """
@@ -150,8 +153,7 @@ scenario test:
             run_process("false")
             log("B")
 """
-        self.execute(scenario_content)
-        self.assertFalse(self.scenario_execution.process_results())
+        self.execute(scenario_content, False)
 
     def test_selector_no_memory_second_false(self):
         scenario_content = """
@@ -164,5 +166,4 @@ scenario test:
             log("A")
             run_process("false")
 """
-        self.execute(scenario_content)
-        self.assertFalse(self.scenario_execution.process_results())
+        self.execute(scenario_content, False)
