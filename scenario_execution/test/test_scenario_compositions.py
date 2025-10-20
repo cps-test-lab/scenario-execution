@@ -1,4 +1,4 @@
-# Copyright (C) 2024 Intel Corporation
+# Copyright (C) 2025 Frederik Pasch
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,9 +14,6 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""
-Test parallel parsing
-"""
 import unittest
 import py_trees
 from scenario_execution.scenario_execution_base import ScenarioExecution
@@ -40,18 +37,17 @@ class TestOSC2Parser(unittest.TestCase):
         self.scenario_execution = ScenarioExecution(debug=True, log_model=True, live_tree=True, scenario_file='test.osc', output_dir="")
         self.tree = py_trees.composites.Sequence(name="", memory=True)
 
-    def execute(self, scenario_content, expected_result=True):
+    def execute(self, scenario_content):
         self.logger.reset()
         try:
             parsed_tree = self.parser.parse_input_stream(InputStream(scenario_content))
             model = self.parser.create_internal_model(parsed_tree, self.tree, "test.osc", False)
             self.tree = create_py_tree(model, self.tree, self.logger, False)
-        except Exception as e:
-            if expected_result:
-                raise e
-            return
+        except Exception as e: # pylint: disable=broad-except
+            return False
         self.scenario_execution.tree = self.tree
         self.scenario_execution.run()
+        return True
 
     def test_parallel(self):
         scenario_content = """
@@ -69,7 +65,7 @@ scenario test:
         wait elapsed(1s)
         emit fail
 """
-        self.execute(scenario_content)
+        self.assertTrue(self.execute(scenario_content))
         self.assertTrue(self.scenario_execution.process_results())
 
     def test_oneof(self):
@@ -109,7 +105,7 @@ scenario test:
             log("B")
         emit end
 """
-        self.execute(scenario_content)
+        self.assertTrue(self.execute(scenario_content))
         self.assertTrue(self.scenario_execution.process_results())
         self.assertEqual(len(self.logger.logs_info), 2)
         self.assertEqual(self.logger.logs_info[0], "A")
@@ -127,7 +123,7 @@ scenario test:
             log("B")
         emit end
 """
-        self.execute(scenario_content, False)
+        self.assertFalse(self.execute(scenario_content))
 
     def test_selector(self):
         scenario_content = """
@@ -140,7 +136,7 @@ scenario test:
             log("A")
             log("B")
 """
-        self.execute(scenario_content, False)
+        self.assertFalse(self.execute(scenario_content))
 
     def test_selector_no_memory(self):
         scenario_content = """
@@ -153,7 +149,7 @@ scenario test:
             run_process("false")
             log("B")
 """
-        self.execute(scenario_content, False)
+        self.assertFalse(self.execute(scenario_content))
 
     def test_selector_no_memory_second_false(self):
         scenario_content = """
@@ -166,4 +162,4 @@ scenario test:
             log("A")
             run_process("false")
 """
-        self.execute(scenario_content, False)
+        self.assertFalse(self.execute(scenario_content))
