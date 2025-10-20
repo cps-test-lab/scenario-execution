@@ -22,6 +22,8 @@ Beside ``osc.standard`` and ``osc.types`` provided by OpenSCENARIO DSL, multiple
      - ROS Moveit2  manipulation stack Library (provided with :repo_link:`libs/scenario_execution_moveit2`)
    * - ``osc.nav2``
      - ROS Nav2 navigation stack Library (provided with :repo_link:`libs/scenario_execution_nav2`)
+   * - ``osc.network``
+     - Network Library (provided with :repo_link:`libs/scenario_execution_network`)
    * - ``osc.os``
      - Library to interact with the operating system (provided with :repo_link:`libs/scenario_execution_os`)
    * - ``osc.robotics``
@@ -1116,6 +1118,35 @@ Use nav2 to navigate to goal pose.
      - ``bool``
      - ``false``
      -  succeed on goal acceptance
+
+Network
+-------
+
+The library contains actions to interact with the network. Import it with ``import osc.network``. It is provided by the package :repo_link:`libs/scenario_execution_network`.
+
+``http_get()``
+^^^^^^^^^^^^^^
+
+Perform an HTTP GET request to the specified URL.
+
+
+.. list-table:: 
+   :widths: 15 15 5 65
+   :header-rows: 1
+   :class: tight-table   
+   
+   * - Parameter
+     - Type
+     - Default
+     - Description
+   * - ``url``
+     - ``string``
+     -
+     - URL to send the GET request to
+   * - ``parameters``
+     - ``list of key_value``
+     -
+     - Optional query parameters for the request
 
 OS
 --
