@@ -241,7 +241,7 @@ class ScenarioExecution(object):
             return False
         start = datetime.now()
         file_extension = os.path.splitext(self.scenario_file)[1]
-        if file_extension == '.osc' or file_extension == '.scx':
+        if file_extension in ('.osc', '.scx'):
             parser = OpenScenario2Parser(self.logger)
         elif file_extension == '.sce':
             parser = ModelFileLoader(self.logger)
