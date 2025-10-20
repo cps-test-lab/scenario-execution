@@ -35,8 +35,8 @@ class OpenScenario2Parser(object):
     Helper class for parsing OpenSCENARIO 2 files with optional extensions.
     
     File extension determines default extension behavior:
-    - .osc files: Standard OpenSCENARIO 2.0 (extensions=False)
-    - .scx files: Extended OpenSCENARIO 2 (extensions=True)
+    - .osc files: Standard OpenSCENARIO 2 (extensions=False)
+    - .scx files: OpenSCENARIO 2 + Extensions (extensions=True)
     
     Extensions can be explicitly overridden via enable_extensions parameter.
     """
@@ -352,11 +352,11 @@ class OpenScenario2Parser(object):
         if file in self.parsed_files:  # skip already parsed/imported files
             return None
         self.parsed_files.append(file)
-        
+
         # Auto-detect extensions based on file extension if not explicitly set
         if enable_extensions is None:
             enable_extensions = file.lower().endswith('.scx')
-            
+
         try:
             input_stream = FileStream(file)
         except (OSError, UnicodeDecodeError) as e:
@@ -366,11 +366,11 @@ class OpenScenario2Parser(object):
     def parse_input_stream(self, input_stream, log_model=False, error_prefix="", enable_extensions=False):
         """ Execute the parsing """
         lexer = OpenSCENARIO2Lexer(input_stream)
-        
+
         # Enable extensions in lexer if needed
         if enable_extensions:
             lexer.extensions_enabled = True
-            
+
         stream = CommonTokenStream(lexer)
 
         parser = OpenSCENARIO2Parser(stream)
