@@ -241,7 +241,7 @@ class ScenarioExecution(object):
             return False
         start = datetime.now()
         file_extension = os.path.splitext(self.scenario_file)[1]
-        if file_extension == '.osc':
+        if file_extension == '.osc' or file_extension == '.scx':
             parser = OpenScenario2Parser(self.logger)
         elif file_extension == '.sce':
             parser = ModelFileLoader(self.logger)
@@ -249,7 +249,7 @@ class ScenarioExecution(object):
             self.add_result(ScenarioResult(name=f'Parsing of {self.scenario_file}',
                                            result=False,
                                            failure_message="parsing failed",
-                                           failure_output=f"File has unknown extension '{file_extension}'. Allowed [.osc, .sce]",
+                                           failure_output=f"File has unknown extension '{file_extension}'. Allowed [.osc, .sce, .scx]",
                                            processing_time=datetime.now() - start))
             return False
 

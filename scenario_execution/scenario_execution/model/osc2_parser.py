@@ -367,13 +367,13 @@ class OpenScenario2Parser(object):
         """ Execute the parsing """
         lexer = OpenSCENARIO2Lexer(input_stream)
 
-        # Enable extensions in lexer if needed
-        if enable_extensions:
-            lexer.extensions_enabled = True
+        lexer.extensions_enabled = enable_extensions
 
         stream = CommonTokenStream(lexer)
 
         parser = OpenSCENARIO2Parser(stream)
+        parser.extensions_enabled = enable_extensions
+
         # if quiet:
         parser.removeErrorListeners()
 

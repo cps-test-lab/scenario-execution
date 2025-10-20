@@ -7685,9 +7685,9 @@ class OpenSCENARIO2Parser ( Parser ):
         try:
             self.enterOuterAlt(localctx, 1)
             self.state = 943
-            if not self._input.LT(1).getInputStream().getSourceName() != '<unknown>' and self.extensions_enabled:
+            if not self._input.LT(1).getInputStream().name != '<unknown>' and self.extensions_enabled:
                 from antlr4.error.Errors import FailedPredicateException
-                raise FailedPredicateException(self, "self._input.LT(1).getInputStream().getSourceName() != '<unknown>' and self.extensions_enabled")
+                raise FailedPredicateException(self, "self._input.LT(1).getInputStream().name != '<unknown>' and self.extensions_enabled")
             self.state = 944
             _la = self._input.LA(1)
             if not((((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << OpenSCENARIO2Parser.T__57) | (1 << OpenSCENARIO2Parser.T__58) | (1 << OpenSCENARIO2Parser.T__59))) != 0)):
@@ -11621,7 +11621,7 @@ class OpenSCENARIO2Parser ( Parser ):
 
     def extendedCompositionOperator_sempred(self, localctx:ExtendedCompositionOperatorContext, predIndex:int):
             if predIndex == 1:
-                return self._input.LT(1).getInputStream().getSourceName() != '<unknown>' and self.extensions_enabled
+                return self._input.LT(1).getInputStream().name != '<unknown>' and self.extensions_enabled
          
 
     def relation_sempred(self, localctx:RelationContext, predIndex:int):

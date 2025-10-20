@@ -466,7 +466,7 @@ standardCompositionOperator
 	: 'serial' | 'one_of' | 'parallel';
 
 extendedCompositionOperator
-	: {self._input.LT(1).getInputStream().getSourceName() != '<unknown>' and self.extensions_enabled}? ('serial_no_memory' | 'selector' | 'selector_no_memory');
+	: {self._input.LT(1).getInputStream().name != '<unknown>' and self.extensions_enabled}? ('serial_no_memory' | 'selector' | 'selector_no_memory');
 
 behaviorInvocation 
 	: (actorExpression '.')? behaviorName OPEN_PAREN (argumentList)? CLOSE_PAREN (behaviorWithDeclaration | NEWLINE);
@@ -778,3 +778,4 @@ fragment
 HexDigit
 	: [0-9A-Fa-f]
 	;
+
