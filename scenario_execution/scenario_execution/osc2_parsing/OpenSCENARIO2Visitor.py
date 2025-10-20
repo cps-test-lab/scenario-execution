@@ -469,6 +469,16 @@ class OpenSCENARIO2Visitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by OpenSCENARIO2Parser#standardCompositionOperator.
+    def visitStandardCompositionOperator(self, ctx:OpenSCENARIO2Parser.StandardCompositionOperatorContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by OpenSCENARIO2Parser#extendedCompositionOperator.
+    def visitExtendedCompositionOperator(self, ctx:OpenSCENARIO2Parser.ExtendedCompositionOperatorContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by OpenSCENARIO2Parser#behaviorInvocation.
     def visitBehaviorInvocation(self, ctx:OpenSCENARIO2Parser.BehaviorInvocationContext):
         return self.visitChildren(ctx)

@@ -635,12 +635,25 @@ class OpenSCENARIO2Lexer(Lexer):
     def lastToken(self, value):
         self._lastToken = value
 
+    @property
+    def extensions_enabled(self):
+        try:
+            return self._extensions_enabled
+        except AttributeError:
+            self._extensions_enabled = False
+            return self._extensions_enabled
+
+    @extensions_enabled.setter
+    def extensions_enabled(self, value):
+        self._extensions_enabled = value
+
     def reset(self):
         super().reset()
         self.tokens = []
         self.indents = []
         self.opened = 0
         self.lastToken = None
+        self.extensions_enabled = False
 
     def emitToken(self, t):
         super().emitToken(t)

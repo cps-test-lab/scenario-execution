@@ -836,6 +836,24 @@ class OpenSCENARIO2Listener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by OpenSCENARIO2Parser#standardCompositionOperator.
+    def enterStandardCompositionOperator(self, ctx:OpenSCENARIO2Parser.StandardCompositionOperatorContext):
+        pass
+
+    # Exit a parse tree produced by OpenSCENARIO2Parser#standardCompositionOperator.
+    def exitStandardCompositionOperator(self, ctx:OpenSCENARIO2Parser.StandardCompositionOperatorContext):
+        pass
+
+
+    # Enter a parse tree produced by OpenSCENARIO2Parser#extendedCompositionOperator.
+    def enterExtendedCompositionOperator(self, ctx:OpenSCENARIO2Parser.ExtendedCompositionOperatorContext):
+        pass
+
+    # Exit a parse tree produced by OpenSCENARIO2Parser#extendedCompositionOperator.
+    def exitExtendedCompositionOperator(self, ctx:OpenSCENARIO2Parser.ExtendedCompositionOperatorContext):
+        pass
+
+
     # Enter a parse tree produced by OpenSCENARIO2Parser#behaviorInvocation.
     def enterBehaviorInvocation(self, ctx:OpenSCENARIO2Parser.BehaviorInvocationContext):
         pass
