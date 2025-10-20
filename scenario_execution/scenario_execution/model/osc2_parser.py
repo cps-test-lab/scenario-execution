@@ -31,16 +31,28 @@ import py_trees
 
 
 class OpenScenario2Parser(object):
-    """ Helper class for parsing openscenario 2 files """
+    """ 
+    Helper class for parsing OpenSCENARIO 2 files with optional extensions.
+    
+    File extension determines default extension behavior:
+    - .osc files: Standard OpenSCENARIO 2 (extensions=False)
+    - .scx files: OpenSCENARIO 2 + Extensions (extensions=True)
+    
+    Extensions can be explicitly overridden via enable_extensions parameter.
+    """
 
     def __init__(self, logger) -> None:
         self.logger = logger
         self.parsed_files = []
 
-    def process_file(self, file, log_model: bool = False, debug: bool = False, scenario_parameter_overrides: dict = None):
+    def process_file(self, file, log_model: bool = False, debug: bool = False, scenario_parameter_overrides: dict = None, enable_extensions: bool = None):
         """ Convenience method to execute the parsing and print out tree """
 
-        parsed_model = self.parse_file(file, log_model)
+        # Auto-detect extensions based on file extension if not explicitly set
+        if enable_extensions is None:
+            enable_extensions = file.lower().endswith('.scx')
+
+        parsed_model = self.parse_file(file, log_model, enable_extensions=enable_extensions)
 
         tree = py_trees.composites.Sequence(name="", memory=True)
         model = self.create_internal_model(parsed_model, tree, file, log_model, debug, scenario_parameter_overrides)
@@ -335,23 +347,33 @@ class OpenScenario2Parser(object):
             raise ValueError(
                 f"Unknown override type (supported: FunctionApplicationExpression, BaseLiteral, PhysicalLiteral, ListExpression) {param}")
 
-    def parse_file(self, file: str, log_model: bool = False, error_prefix=""):
+    def parse_file(self, file: str, log_model: bool = False, error_prefix="", enable_extensions: bool = None):
         """ Execute the parsing """
         if file in self.parsed_files:  # skip already parsed/imported files
             return None
         self.parsed_files.append(file)
+
+        # Auto-detect extensions based on file extension if not explicitly set
+        if enable_extensions is None:
+            enable_extensions = file.lower().endswith('.scx')
+
         try:
             input_stream = FileStream(file)
         except (OSError, UnicodeDecodeError) as e:
             raise ValueError(f'{e}') from e
-        return self.parse_input_stream(input_stream, log_model, error_prefix)
+        return self.parse_input_stream(input_stream, log_model, error_prefix, enable_extensions)
 
-    def parse_input_stream(self, input_stream, log_model=False, error_prefix=""):
+    def parse_input_stream(self, input_stream, log_model=False, error_prefix="", enable_extensions=False):
         """ Execute the parsing """
         lexer = OpenSCENARIO2Lexer(input_stream)
+
+        lexer.extensions_enabled = enable_extensions
+
         stream = CommonTokenStream(lexer)
 
         parser = OpenSCENARIO2Parser(stream)
+        parser.extensions_enabled = enable_extensions
+
         # if quiet:
         parser.removeErrorListeners()
 

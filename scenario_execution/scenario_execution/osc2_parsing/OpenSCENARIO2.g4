@@ -95,12 +95,25 @@ def lastToken(self):
 def lastToken(self, value):
     self._lastToken = value
 
+@property
+def extensions_enabled(self):
+    try:
+        return self._extensions_enabled
+    except AttributeError:
+        self._extensions_enabled = False
+        return self._extensions_enabled
+
+@extensions_enabled.setter
+def extensions_enabled(self, value):
+    self._extensions_enabled = value
+
 def reset(self):
     super().reset()
     self.tokens = []
     self.indents = []
     self.opened = 0
     self.lastToken = None
+    self.extensions_enabled = False
 
 def emitToken(self, t):
     super().emitToken(t)
@@ -446,7 +459,14 @@ composition : compositionOperator (OPEN_PAREN argumentList? CLOSE_PAREN)?':' NEW
 	doMember+ DEDENT (behaviorWithDeclaration)?;
 
 compositionOperator 
+	: standardCompositionOperator 
+	| extendedCompositionOperator;
+
+standardCompositionOperator
 	: 'serial' | 'one_of' | 'parallel';
+
+extendedCompositionOperator
+	: {self._input.LT(1).getInputStream().name != '<unknown>' and self.extensions_enabled}? ('serial_no_memory' | 'selector' | 'selector_no_memory');
 
 behaviorInvocation 
 	: (actorExpression '.')? behaviorName OPEN_PAREN (argumentList)? CLOSE_PAREN (behaviorWithDeclaration | NEWLINE);
@@ -758,3 +778,4 @@ fragment
 HexDigit
 	: [0-9A-Fa-f]
 	;
+

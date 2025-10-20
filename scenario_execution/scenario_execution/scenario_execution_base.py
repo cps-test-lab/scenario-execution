@@ -152,6 +152,8 @@ class ScenarioExecution(object):
             py_trees.logging.level = py_trees.logging.Level.DEBUG
         self.setup_timeout = setup_timeout
         self.tick_period = tick_period
+        self.logger.info(f"Tick period (in seconds): {self.tick_period}")
+        self.logger.info(f"Setup timeout (in seconds): {self.setup_timeout}")
         self.scenarios = None
         self.blackboard = None
         self.behaviour_tree = None
@@ -241,7 +243,7 @@ class ScenarioExecution(object):
             return False
         start = datetime.now()
         file_extension = os.path.splitext(self.scenario_file)[1]
-        if file_extension == '.osc':
+        if file_extension in ('.osc', '.scx'):
             parser = OpenScenario2Parser(self.logger)
         elif file_extension == '.sce':
             parser = ModelFileLoader(self.logger)
@@ -249,7 +251,7 @@ class ScenarioExecution(object):
             self.add_result(ScenarioResult(name=f'Parsing of {self.scenario_file}',
                                            result=False,
                                            failure_message="parsing failed",
-                                           failure_output=f"File has unknown extension '{file_extension}'. Allowed [.osc, .sce]",
+                                           failure_output=f"File has unknown extension '{file_extension}'. Allowed [.osc, .sce, .scx]",
                                            processing_time=datetime.now() - start))
             return False
 
@@ -410,7 +412,7 @@ class ScenarioExecution(object):
         parser.add_argument('-o', '--output-dir', type=str, help='Directory for output (e.g. test results)')
         parser.add_argument('-n', '--dry-run', action='store_true', help='Parse and resolve scenario, but do not execute')
         parser.add_argument('--dot', action='store_true', help='Render dot trees of resulting py-tree')
-        parser.add_argument('-s', '--step-duration', type=float, help='Duration between the behavior tree step executions', default=0.1)
+        parser.add_argument('-s', '--step-duration', type=float, help='Duration in seconds between the behavior tree step executions', default=0.1)
         parser.add_argument('--scenario-parameter-file', type=str,
                             help='File specifying scenario parameter. These will override default values.')
         parser.add_argument('--post-run', type=str, help='Command to run after scenario execution (expected commandline: <command> <output_dir>)')

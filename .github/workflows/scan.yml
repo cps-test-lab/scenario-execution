@@ -72,7 +72,7 @@ jobs:
       - name: Check for license tags
         shell: bash
         run: |
-            find . -type f \( -name "*.py" -o -name "*.cpp" -o -name "*.h" \) -exec /go/bin/addlicense -check {} +
+            find . -regextype posix-extended -type f \( \( -name "*.py" -a ! -regex '\./scenario_execution/scenario_execution/osc2_parsing/.*\.py' \) -o -name "*.cpp" -o -name "*.h" \) -exec /go/bin/addlicense -check {} +
       - name: Run ros_license_toolkit for each Package
         shell: bash
         run: |

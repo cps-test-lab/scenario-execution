@@ -21,6 +21,9 @@ class DebugLogger(BaseLogger):
 
     def __init__(self, name):
         super().__init__(name, False)
+        self.reset()
+
+    def reset(self):
         self.logs = []
         self.logs_info = []
         self.logs_debug = []
