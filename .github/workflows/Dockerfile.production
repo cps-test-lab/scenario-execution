@@ -1,0 +1,17 @@
+ARG ROS_DISTRO=humble
+
+FROM osrf/ros:${ROS_DISTRO}-desktop-full
+SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
+
+# Install system dependencies
+# hadolint ignore=DL3008
+RUN --mount=type=bind,source=.,target=/scenario_execution \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+        python3-pip && \
+    xargs -a /scenario_execution/deb_requirements.txt apt-get install -y --no-install-recommends && \
+    rosdep update --rosdistro=${ROS_DISTRO} && \
+    rosdep install --rosdistro=${ROS_DISTRO} --from-paths /scenario_execution/ --ignore-src -r -y && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /scenario_execution
