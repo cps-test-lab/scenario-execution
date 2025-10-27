@@ -6,6 +6,11 @@ action check_file_not_exists:
     # report success if a file does not exist
     file_name: string  # file to check
 
+action check_process_running:
+    # report sucess if a process is running
+    process_name: string # name of process
+    regex: bool = false   # is the specified process_name a regular expression
+
 struct os:
     def abspath(path: string) -> string is external os.path.abspath()
     def basename(p: string) -> string is external os.path.basename()
