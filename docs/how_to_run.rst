@@ -24,8 +24,10 @@ Runtime Parameters
      - Parse and resolve scenario, but do not execute
    * - ``-o OUTPUT_DIR`` ``--output-dir OUTPUT_DIR``
      - Directory for output (e.g. test results)
-   * - ``--scenario_parameter_file YAML_FILE``
+   * - ``--scenario-parameter-file YAML_FILE``
      - Parameter definition used to override default scenario parameter definitions. See `Override scenario parameters`_ for details.
+   * - ``--create-scenario-parameter-file-template``
+     - Create a template yaml file for overriding scenario parameters. The file will be named like specified by ``--scenario-parameter-file``.
    * - ``-t`` ``--live-tree``
      - (For debugging) Show current state of py tree
    * - ``--post-run POST_RUN_COMMAND``
@@ -276,3 +278,5 @@ The following command executes the scenario with the defined override.
    ros2 run scenario_execution_ros scenario_execution_ros --scenario-parameter-file overrides.yaml my_scenario.osc 
 
 If physical literals get overridden, the values are expected in SI base units: For example specify value in meter (e.g. ``42.0``) for ``length``; specify value in seconds for ``time``.
+
+An initial override template file can be created using the command-line parameter ``--create-scenario-parameter-file-template``. This will create a yaml file named by ``--scenario-parameter-file`` in the current working directory.

@@ -1,4 +1,5 @@
 # Copyright (C) 2024 Intel Corporation
+# Copyright (C) 2025 Frederik Pasch
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,7 +27,7 @@ class ModelFileLoader(object):
     def __init__(self, logger) -> None:
         self.logger = logger
 
-    def process_file(self, file_name, log_tree: bool = False, debug: bool = False, _=None):
+    def process_file(self, file_name, log_tree: bool = False, debug: bool = False, _=None, create_scenario_parameter_file_template: bool=False):
         model = self.load_file(file_name, log_tree)
         tree = py_trees.composites.Sequence(name="", memory=True)
         resolve_internal_model(model, tree, self.logger, log_tree)

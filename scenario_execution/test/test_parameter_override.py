@@ -1,4 +1,5 @@
 # Copyright (C) 2024 Intel Corporation
+# Copyright (C) 2025 Frederik Pasch
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,7 +15,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+import os
 import unittest
+import tempfile
 
 from scenario_execution.scenario_execution_base import ScenarioExecution
 from scenario_execution.model.osc2_parser import OpenScenario2Parser
@@ -22,6 +25,7 @@ from scenario_execution.model.model_to_py_tree import create_py_tree
 from .common import DebugLogger
 from antlr4.InputStream import InputStream
 import py_trees
+import yaml
 
 
 class TestParameterOverride(unittest.TestCase):
@@ -36,13 +40,99 @@ class TestParameterOverride(unittest.TestCase):
                                                     scenario_file='test.osc', output_dir="", logger=self.logger)
         self.tree = py_trees.composites.Sequence(name="", memory=True)
 
-    def execute(self, scenario_content, override_parameters):
+    def execute(self, scenario_content, override_parameters, create_scenario_parameter_file_template: bool = False):
+        result_scenario_parameter_values = None
+        scenario_parameter_file = tempfile.NamedTemporaryFile(suffix=".yaml")
+        file_name = scenario_parameter_file.name
+        if not create_scenario_parameter_file_template:
+            scenario_parameter_file.write(yaml.safe_dump(override_parameters).encode("utf-8"))
+            scenario_parameter_file.flush()
+        else:
+            os.unlink(file_name)
+
         parsed_tree = self.parser.parse_input_stream(InputStream(scenario_content))
         model = self.parser.create_internal_model(parsed_tree, self.tree, "test.osc", False,
-                                                  scenario_parameter_overrides=override_parameters)
+                                                  scenario_parameter_file=file_name,
+                                                  create_scenario_parameter_file_template=create_scenario_parameter_file_template)
         self.tree = create_py_tree(model, self.tree, self.parser.logger, False)
         self.scenario_execution.tree = self.tree
         self.scenario_execution.run()
+
+        result_scenario_parameter_values = None
+        if create_scenario_parameter_file_template:
+            try:
+                with open(file_name, "r", encoding="utf-8") as f:
+                    file_content = f.read()
+                    if file_content.strip():
+                        result_scenario_parameter_values = yaml.safe_load(file_content)
+            finally:
+                try:
+                    scenario_parameter_file.close()
+                except Exception: # pylint: disable=broad-except
+                    pass
+
+        return result_scenario_parameter_values
+
+    def test_base_params_template(self):
+        scenario_content = """
+import osc.types
+
+scenario nav_scenario:
+    
+    list_val_struct: list of pose_3d = [pose_3d(position_3d(1.0, 2.0, 3.0), orientation_3d(0.1rad, 0.2rad, 0.3rad))]
+    list_no_val_struct: list of pose_3d
+    list_base_val: list of int = [1, 2, 3]
+    list_no_base_val: list of int
+    float_val: float = 3.1
+    float_no_val: float
+    bool_val: bool = true
+    bool_no_val: bool
+    int_val: int = 42
+    int_no_val: int
+    str_val: string = 'hello'
+    str_no_val: string
+    time_val: time = 42ms
+    time_no_val: time
+    struct_val: pose_3d = pose_3d(position_3d(1.0, 2.0, 3.0), orientation_3d(0.1rad, 0.2rad, 0.3rad))
+    struct_no_val: pose_3d
+
+    do parallel:
+        wait elapsed(0.5s)
+"""
+        override_parameters = {"test": {
+            "test_string": "override",
+            "test_bool": False,
+            "test_float": 99.0,
+            "test_integer": 42}}
+        result = self.execute(scenario_content, override_parameters, create_scenario_parameter_file_template=True)
+        expected = {'nav_scenario': {'bool_no_val': False,
+                  'bool_val': True,
+                  'float_no_val': 0.0,
+                  'float_val': 3.1,
+                  'int_no_val': 0,
+                  'int_val': 42,
+                  'list_base_val': [1, 2, 3],
+                  'list_no_base_val': [],
+                  'list_no_val_struct': [],
+                  'list_val_struct': [{'orientation': {'pitch': 0.2,
+                                                       'roll': 0.1,
+                                                       'yaw': 0.3},
+                                       'position': {'x': 1.0,
+                                                    'y': 2.0,
+                                                    'z': 3.0}}],
+                  'str_no_val': '',
+                  'str_val': 'hello',
+                  'struct_no_val': {'orientation': {'pitch': 0.0,
+                                                    'roll': 0.0,
+                                                    'yaw': 0.0},
+                                    'position': {'x': 0.0, 'y': 0.0, 'z': 0.0}},
+                  'struct_val': {'orientation': {'pitch': 0.2,
+                                                 'roll': 0.1,
+                                                 'yaw': 0.3},
+                                 'position': {'x': 1.0, 'y': 2.0, 'z': 3.0}},
+                  'time_no_val': 0.0,
+                  'time_val': 0.042}}
+        self.assertEqual(result, expected)
 
     def test_base_params_success(self):
         scenario_content = """
