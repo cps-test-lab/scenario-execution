@@ -48,6 +48,7 @@ class ROSScenarioExecution(ScenarioExecution):
         self.dry_run = args.dry_run
         self.render_dot = args.dot
         self.scenario_parameter_file = args.scenario_parameter_file
+        self.create_scenario_parameter_file_template = args.create_scenario_parameter_file_template
         self.post_run = args.post_run
         self.snapshot_period = args.snapshot_period
 
@@ -60,6 +61,7 @@ class ROSScenarioExecution(ScenarioExecution):
         self.node.declare_parameter('dry_run', False)
         self.node.declare_parameter('dot', False)
         self.node.declare_parameter('scenario_parameter_file', "")
+        self.node.declare_parameter('create_scenario_parameter_file_template', False)
         self.node.declare_parameter('post_run', "")
         self.node.declare_parameter('snapshot_period', 1.0)
 
@@ -79,6 +81,8 @@ class ROSScenarioExecution(ScenarioExecution):
             self.render_dot = self.node.get_parameter('dot').value
         if self.node.get_parameter('scenario_parameter_file').value:
             self.scenario_parameter_file = self.node.get_parameter('scenario_parameter_file').value
+        if self.node.get_parameter('create_scenario_parameter_file_template').value:
+            self.create_scenario_parameter_file_template = self.node.get_parameter('create_scenario_parameter_file_template').value
         if self.node.get_parameter('post_run').value:
             self.post_run = self.node.get_parameter('post_run').value
         if self.node.get_parameter('snapshot_period').value:
@@ -92,6 +96,7 @@ class ROSScenarioExecution(ScenarioExecution):
                          dry_run=self.dry_run,
                          render_dot=self.render_dot,
                          scenario_parameter_file=self.scenario_parameter_file,
+                         create_scenario_parameter_file_template=self.create_scenario_parameter_file_template,
                          post_run=self.post_run,
                          logger=self.logger)
 
@@ -170,9 +175,12 @@ def main():
 
     result = scenario_execution_ros.parse()
 
-    if result and not scenario_execution_ros.dry_run:
+    if result and not scenario_execution_ros.dry_run and not scenario_execution_ros.create_scenario_parameter_file_template:
         scenario_execution_ros.run()
-    result = scenario_execution_ros.process_results()
+    if scenario_execution_ros.create_scenario_parameter_file_template:
+        result = True
+    else:
+        result = scenario_execution_ros.process_results()
     rclpy.try_shutdown()
     if result:
         sys.exit(0)

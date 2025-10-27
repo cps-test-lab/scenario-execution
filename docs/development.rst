@@ -30,6 +30,19 @@ To run only specific tests:
    #manual run
    colcon build --packages-up-to scenario_execution_ros && reset && ros2 launch scenario_execution_ros scenario_launch.py scenario:=<...> debug:=True
 
+   #using colcon
+   colcon test --packages-select scenario_execution \
+      --event-handlers console_direct+ \
+      --return-code-on-test-failure \
+      --pytest-args -k <TEST> \
+      -s
+
+   #using colcon with filtered test
+   colcon test --packages-select scenario_execution \
+  --event-handlers console_direct+ \
+  --return-code-on-test-failure \
+  --pytest-args test/test_parameter_override.py::TestParameterOverride::test_base_params_success \
+  -s
 
 Developing and Debugging with Visual Studio Code
 ------------------------------------------------
