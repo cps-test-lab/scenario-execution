@@ -14,7 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-""" Main entry for scenario execution gazebo"""
+""" Main entry for scenario execution sim"""
 
 from . import actions
 
