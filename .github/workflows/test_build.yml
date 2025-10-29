@@ -4,16 +4,170 @@ on:
   pull_request:
     branches: [main, humble, jazzy]
   workflow_dispatch:
+  workflow_run:
+    workflows: ["test-image"]
+    types:
+      - completed
 concurrency: 
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 permissions: read-all
 jobs:
-  build:
-    #TODO model dependency to image-workflow. Workaround: retrigger run after image-workflow finished.
+  build-and-push-testing:
     runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    outputs:
+      image_tag: ${{ steps.generate_tag.outputs.image_tag }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 #v4.1.1
+      with:
+        fetch-depth: 0
+    - name: Check if PR affects Docker image
+      id: check
+      run: |
+        # Check if PR modifies files that affect the Docker image
+        git fetch origin ${{ github.base_ref }}
+        
+        CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+        
+        echo "Changed files:"
+        echo "$CHANGED_FILES"
+        
+        # Files that trigger image rebuild
+        IMAGE_AFFECTING_PATTERNS=(
+          "deb_requirements.txt"
+          ".github/workflows/Dockerfile"
+          ".github/workflows/Dockerfile.testing"
+          ".github/workflows/image.yml"
+          ".devcontainer/Dockerfile"
+          "package.xml"
+        )
+        
+        BUILD_IMAGE="false"
+        
+        for pattern in "${IMAGE_AFFECTING_PATTERNS[@]}"; do
+          if echo "$CHANGED_FILES" | grep -q "$pattern"; then
+            echo "✅ Found changes affecting Docker image: $pattern"
+            BUILD_IMAGE="true"
+            break
+          fi
+        done
+        echo "build_image=$BUILD_IMAGE" >> "$GITHUB_OUTPUT"
+    - name: Log in to GitHub Container Registry
+      uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d #v3.0.0
+      with:
+        registry: ghcr.io
+        username: ${{ github.repository_owner }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@f95db51fddba0c2d1ec667646a06c2ce06100226 #v3.0.0
+    - name: Generate image tag
+      id: generate_tag
+      shell: bash
+      run: |
+        if [ "${{ github.event_name }}" == "pull_request" ]; then
+          IMAGE_TAG="ghcr.io/cps-test-lab/scenario-execution-testing:pr-${{ github.event.pull_request.number }}"
+        else
+          IMAGE_TAG="ghcr.io/cps-test-lab/scenario-execution-testing:latest"
+        fi
+        echo "image_tag=$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+    - name: Build and push Docker testing image
+      if: steps.check.outputs.build_image == 'true'
+      id: build_image
+      uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 #v5.0.0
+      with:
+        context: .
+        file: .github/workflows/Dockerfile.testing
+        push: true
+        tags: ${{ steps.generate_tag.outputs.image_tag }}
+        build-args: |
+          ROS_DISTRO=jazzy
+    - name: Tag and push latest image
+      if: steps.check.outputs.build_image == 'false'
+      id: tag_image
+      run: |
+        docker pull ghcr.io/cps-test-lab/scenario-execution-testing:latest
+        docker tag ghcr.io/cps-test-lab/scenario-execution-testing:latest ${{ steps.generate_tag.outputs.image_tag }}
+        docker push ${{ steps.generate_tag.outputs.image_tag }}
+        # Get the digest of the pushed image
+        DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ${{ steps.generate_tag.outputs.image_tag }} | cut -d'@' -f2)
+        echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+    - name: Delete untagged image versions
+      if: github.event_name == 'pull_request'
+      continue-on-error: true
+      run: |
+        PACKAGE_NAME="scenario-execution-testing"
+        ORG="cps-test-lab"
+        IMAGE_TAG="${{ steps.generate_tag.outputs.image_tag }}"
+        
+        # Get the digest from either build or tag step
+        IMAGE_DIGEST="${{ steps.build_image.outputs.digest || steps.tag_image.outputs.digest }}"
+        
+        echo "Waiting for newly pushed image to be available in registry..."
+        echo "Image tag: $IMAGE_TAG"
+        echo "Image digest: $IMAGE_DIGEST"
+        
+        # Wait for the image digest to be available (max 30s)
+        for i in {1..30}; do
+          if [ -n "$IMAGE_DIGEST" ]; then
+            # Check if the digest is available in the registry
+            if docker pull "${IMAGE_TAG%:*}@${IMAGE_DIGEST}" > /dev/null 2>&1; then
+              echo "✅ Image digest $IMAGE_DIGEST is available in registry"
+              break
+            fi
+          else
+            exit 1
+          fi
+          echo "⏳ Waiting for image to be available (attempt $i/24)..."
+          sleep 2
+        done
+        
+        echo "Checking for untagged image versions..."
+        
+        VERSIONS=$(curl -s -L \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          "https://api.github.com/orgs/${ORG}/packages/container/${PACKAGE_NAME}/versions" 2>/dev/null || echo "[]")
+        
+        # Get current time and calculate threshold (5 minutes ago)
+        THRESHOLD_DATE=$(date -u -d '5 minutes ago' +%Y-%m-%dT%H:%M:%SZ)
+        
+        # Find untagged versions older than 5 minutes
+        UNTAGGED_IDS=$(echo "$VERSIONS" | jq -r --arg threshold "$THRESHOLD_DATE" '.[] | select(.metadata.container.tags | length == 0) | select(.created_at < $threshold) | .id')
+        
+        if [ -n "$UNTAGGED_IDS" ]; then
+          echo "Found old untagged versions, deleting..."
+          for VERSION_ID in $UNTAGGED_IDS; do
+            echo "Deleting untagged version ID: $VERSION_ID"
+            
+            HTTP_CODE=$(curl -s -w "%{http_code}" -o /dev/null -L \
+              -X DELETE \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/orgs/${ORG}/packages/container/${PACKAGE_NAME}/versions/${VERSION_ID}")
+            
+            if [ "$HTTP_CODE" = "204" ] || [ "$HTTP_CODE" = "200" ]; then
+              echo "✅ Deleted untagged version $VERSION_ID"
+            else
+              echo "⚠️ Failed to delete version $VERSION_ID (HTTP $HTTP_CODE)"
+            fi
+          done
+        else
+          echo "ℹ️ No old untagged versions found"
+        fi
+  
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: [build-and-push-testing]
+    env:
+      IMAGE_TAG: ${{ needs.build-and-push-testing.outputs.image_tag }}
     container:
-      image: ghcr.io/cps-test-lab/scenario-execution:latest
+      image: ${{ needs.build-and-push-testing.outputs.image_tag }}
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -39,10 +193,11 @@ jobs:
           path: .
           key: ${{ runner.os }}-build-${{ github.run_number }}
   test-scenario-execution:
-    needs: [build]
+    needs: [build, build-and-push-testing]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     container:
-      image: ghcr.io/cps-test-lab/scenario-execution:latest
+      image: ${{ needs.build-and-push-testing.outputs.image_tag }}
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -76,10 +231,11 @@ jobs:
           name: test-scenario-execution
           path: ./**/TEST.xml
   test-scenario-execution-ros:
-    needs: [build]
+    needs: [build, build-and-push-testing]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     container:
-      image: ghcr.io/cps-test-lab/scenario-execution:latest
+      image: ${{ needs.build-and-push-testing.outputs.image_tag }}
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -111,10 +267,11 @@ jobs:
           name: test-scenario-execution-ros
           path: ./**/TEST.xml
   scenario-files-validation:
-    needs: [build]
+    needs: [build, build-and-push-testing]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     container:
-      image: ghcr.io/cps-test-lab/scenario-execution:latest
+      image: ${{ needs.build-and-push-testing.outputs.image_tag }}
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -134,10 +291,11 @@ jobs:
             ros2 run scenario_execution scenario_execution "$file" -n; 
           done
   test-example-ros-examples:
-    needs: [build]
+    needs: [build, build-and-push-testing]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     container:
-      image: ghcr.io/cps-test-lab/scenario-execution:latest
+      image: ${{ needs.build-and-push-testing.outputs.image_tag }}
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -161,10 +319,11 @@ jobs:
           name: test-example-ros-examples-result
           path: test_example_ros-examples/test.xml
   test-example-scenario:
-    needs: [build]
+    needs: [build, build-and-push-testing]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     container:
-      image: ghcr.io/cps-test-lab/scenario-execution:latest
+      image: ${{ needs.build-and-push-testing.outputs.image_tag }}
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -188,10 +347,11 @@ jobs:
           name: test-example-scenario-result
           path: test_example_scenario/test.xml
   test-example-library:
-    needs: [build]
+    needs: [build, build-and-push-testing]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     container:
-      image: ghcr.io/cps-test-lab/scenario-execution:latest
+      image: ${{ needs.build-and-push-testing.outputs.image_tag }}
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -215,10 +375,11 @@ jobs:
           name: test-example-library-result
           path: test_example_library/test.xml
   test-example-variation:
-    needs: [build]
+    needs: [build, build-and-push-testing]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     container:
-      image: ghcr.io/cps-test-lab/scenario-execution:latest
+      image: ${{ needs.build-and-push-testing.outputs.image_tag }}
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -243,10 +404,11 @@ jobs:
           name: test-example-variation-result
           path: test_example_variation/test.xml
   test-example-nav2:
-    needs: [build]
+    needs: [build, build-and-push-testing]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     container:
-      image: ghcr.io/cps-test-lab/scenario-execution:latest
+      image: ${{ needs.build-and-push-testing.outputs.image_tag }}
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -276,7 +438,7 @@ jobs:
           name: test-example-nav2-result
           path: test_example_nav2/test.xml
   # test-example-simulation:
-  #   needs: [build]
+  #   needs: [build, build-and-push-testing]
   #   runs-on: ubuntu-latest
   #   container:
   #     image: ghcr.io/cps-test-lab/scenario-execution:latest
@@ -309,7 +471,7 @@ jobs:
   #         name: test-example-simulation-result
   #         path: test_example_simulation/test.xml
   # test-example-multirobot:
-  #   needs: [build]
+  #   needs: [build, build-and-push-testing]
   #   runs-on: ubuntu-latest
   #   container:
   #     image: ghcr.io/cps-test-lab/scenario-execution:latest
@@ -360,11 +522,13 @@ jobs:
   #       with:
   #         name: test-example-multirobot-ros-bag
   #         path: test_example_multirobot/**/rosbag*
+  #         path: test_example_multirobot/example_multi_robot/example-multi-robot.mp4
   test-example-external-method:
-    needs: [build]
+    needs: [build, build-and-push-testing]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     container:
-      image: ghcr.io/cps-test-lab/scenario-execution:latest
+      image: ${{ needs.build-and-push-testing.outputs.image_tag }}
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -390,7 +554,7 @@ jobs:
           name: test-example-external-method-result
           path: test_example_external_method/test.xml
 #  test-example-moveit2:
-#    needs: [build]
+#    needs: [build, build-and-push-testing]
 #    runs-on: ubuntu-latest
 #    container:
 #      image: ghcr.io/cps-test-lab/scenario-execution:latest
@@ -421,13 +585,13 @@ jobs:
 #        if: always()
 #        with:
 #          name: test-example-moveit2-result
-#          path: test_example_moveit2/test.xml
+  #         path: test_example_moveit2/test.xml
   test-scenario-execution-gazebo:
-    needs: [build]
+    needs: [build, build-and-push-testing]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     container:
-      image: ghcr.io/cps-test-lab/scenario-execution:latest
+      image: ${{ needs.build-and-push-testing.outputs.image_tag }}
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -455,11 +619,11 @@ jobs:
           name: test-scenario-execution-gazebo
           path: test_scenario_execution_gazebo/test.xml
   test-scenario-execution-nav2:
-    needs: [build]
+    needs: [build, build-and-push-testing]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     container:
-      image: ghcr.io/cps-test-lab/scenario-execution:latest
+      image: ${{ needs.build-and-push-testing.outputs.image_tag }}
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -487,11 +651,11 @@ jobs:
           name: test-scenario-execution-nav2
           path: test_scenario_execution_nav2/test.xml
   test-scenario-execution-pybullet:
-    needs: [build]
+    needs: [build, build-and-push-testing]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     container:
-      image: ghcr.io/cps-test-lab/scenario-execution:latest
+      image: ${{ needs.build-and-push-testing.outputs.image_tag }}
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -517,11 +681,11 @@ jobs:
           name: test-scenario-execution-pybullet
           path: test_scenario_execution_pybullet/test.xml
   test-scenario-execution-x11:
-    needs: [build]
+    needs: [build, build-and-push-testing]
     runs-on: ubuntu-latest
     timeout-minutes: 3
     container:
-      image: ghcr.io/cps-test-lab/scenario-execution:latest
+      image: ${{ needs.build-and-push-testing.outputs.image_tag }}
       credentials:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
