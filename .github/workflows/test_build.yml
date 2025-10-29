@@ -3,6 +3,8 @@ name: test-build
 on:
   pull_request:
     branches: [main, humble, jazzy]
+  push:
+    branches: [main]
   workflow_dispatch:
   workflow_run:
     workflows: ["test-image"]
