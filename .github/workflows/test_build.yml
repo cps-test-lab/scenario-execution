@@ -28,9 +28,10 @@ jobs:
       id: check
       run: |
         # Check if PR modifies files that affect the Docker image
-        git fetch origin ${{ github.base_ref }}
+        BASE_REF="${{ github.base_ref || 'main' }}"
+        git fetch origin "$BASE_REF"
         
-        CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+        CHANGED_FILES=$(git diff --name-only origin/$BASE_REF...HEAD)
         
         echo "Changed files:"
         echo "$CHANGED_FILES"
@@ -74,7 +75,7 @@ jobs:
         fi
         echo "image_tag=$IMAGE_TAG" >> "$GITHUB_OUTPUT"
     - name: Build and push Docker testing image
-      if: steps.check.outputs.build_image == 'true'
+      if: steps.check.outputs.build_image == 'true' || github.event_name != 'pull_request'
       id: build_image
       uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 #v5.0.0
       with:
@@ -85,7 +86,7 @@ jobs:
         build-args: |
           ROS_DISTRO=jazzy
     - name: Tag and push latest image
-      if: steps.check.outputs.build_image == 'false'
+      if: steps.check.outputs.build_image == 'false' && github.event_name == 'pull_request'
       id: tag_image
       run: |
         docker pull ghcr.io/cps-test-lab/scenario-execution-testing:latest
