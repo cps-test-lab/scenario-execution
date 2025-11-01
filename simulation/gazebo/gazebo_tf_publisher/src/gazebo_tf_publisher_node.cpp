@@ -46,36 +46,23 @@ GazeboTFPublisher::GazeboTFPublisher() : Node("gazebo_tf_publisher") {
 }
 
 void GazeboTFPublisher::simulationCallback(const gz::msgs::Pose_V &poses) {
-  auto tf_msg = std::make_shared<tf2_msgs::msg::TFMessage>();
-  auto ros2_clock = get_clock()->now();
-  for (int i = 0; i < poses.pose_size(); i++) {
-    if (poses.pose(i).name() == base_frame_id) {
-      // each robot_frame_id is expected to have corresponding
-      // base_link_id -1 in gazebo pose topic.
-      unsigned int robot_frame_id = poses.pose(i).id() - 1;
-      if (std::find(robot_frame_ids.begin(), robot_frame_ids.end(),
-                    robot_frame_id) == robot_frame_ids.end()) {
-        // storing each unique id into robot_frame_ids
-        robot_frame_ids.push_back(robot_frame_id);
-      }
-    }
-  }
 
-  // Extracting the ID of each robot from the list of
-  // robot frame Ids
-  for (unsigned int robot_frame_id : robot_frame_ids) {
-    for (int i = 0; i < poses.pose_size(); i++) {
-      // Looking for pose with the specific robot_frame_id
-      if (poses.pose(i).id() == robot_frame_id) {
+  for (int i = 0; i < poses.pose_size(); i++) {
+    RCLCPP_INFO(this->get_logger(), "Pose ID: %s", poses.pose(i).name().c_str());
+
+    auto tf_msg = std::make_shared<tf2_msgs::msg::TFMessage>();
+    bool publish = false;
+    if (poses.pose(i).name() == base_frame_id) {
+      auto ros2_clock = get_clock()->now();
+      RCLCPP_INFO(this->get_logger(), "FOUND ID: %s", poses.pose(i).name().c_str());
+  
         geometry_msgs::msg::TransformStamped tf_frame;
         tf_frame.header.stamp = ros2_clock;
         const gz::msgs::Pose *pp = &poses.pose(i);
         const gz::msgs::Vector3d *previous_pv = &pp->position();
         const gz::msgs::Quaternion *previous_pq = &pp->orientation();
         tf_frame.header.frame_id = "map";
-        tf_frame.child_frame_id =
-            pp->name() + "_" + base_frame_id +
-            "_gt"; // Frame Id convention: robot_name + _base_link + _gt
+        tf_frame.child_frame_id = pp->name() + "_gt"; 
         tf_frame.transform.translation.x = previous_pv->x();
         tf_frame.transform.translation.y = previous_pv->y();
         tf_frame.transform.translation.z = previous_pv->z();
@@ -84,9 +71,11 @@ void GazeboTFPublisher::simulationCallback(const gz::msgs::Pose_V &poses) {
         tf_frame.transform.rotation.z = previous_pq->z();
         tf_frame.transform.rotation.w = previous_pq->w();
         tf_msg->transforms.push_back(tf_frame);
-      }
+        publish = true;
     }
-    mPublisher->publish(*tf_msg);
+    if (publish) {
+      mPublisher->publish(*tf_msg);
+    }
   }
 }
 
