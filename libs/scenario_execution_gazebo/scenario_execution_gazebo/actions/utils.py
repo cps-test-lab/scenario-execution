@@ -39,7 +39,7 @@ class SpawnUtils(object):
         if "IGN_GAZEBO_RESOURCE_PATH" in os.environ:
             self.ign_gazebo_resource_paths = os.environ["IGN_GAZEBO_RESOURCE_PATH"].split(':')
 
-    def parse_model_file(self, model_file: str, entity_name: str, xacro_arguments: str) -> str:
+    def parse_model_file(self, model_file: str, entity_name: str, xacro_arguments: str) -> str: # pylint: disable=too-many-return-statements
         """
         Parse model file to str:
 
@@ -55,7 +55,10 @@ class SpawnUtils(object):
             elif model_file.startswith('file://'):
                 # specifying sdf_filename seems to be broken, therefore load sdf
                 model_file = model_file.replace('file://', '', 1)
-                return self.read_model_file(model_file)
+                if model_file.lower().endswith('.xacro'):
+                    return self.xacro_to_urdf(model_file, xacro_arguments)
+                else:
+                    return self.read_model_file(model_file)
             elif model_file.lower().endswith('.xacro'):
                 return self.xacro_to_urdf(self.get_packaged_model_file_path(model_file), xacro_arguments)
             elif model_file.lower().endswith(('.sdf', '.urdf')):
