@@ -48,9 +48,8 @@ class CaptureScreen(RunProcess):
     def execute(self, output_filename: str, frame_rate: float):  # pylint: disable=arguments-differ
         super().execute(None, wait_for_shutdown=True)
         self.current_state = CaptureScreenState.IDLE
-        
         output_path = os.path.join(self.output_dir, output_filename)
-        
+
         if output_filename.endswith('.webm'):
             cmd = ["ffmpeg",
                    "-f", "x11grab",
@@ -75,7 +74,7 @@ class CaptureScreen(RunProcess):
                    "-f", "mp4",
                    "-nostdin",
                    "-y", output_path]
-        
+
         self.set_command(cmd)
 
     def get_logger_stdout(self):
