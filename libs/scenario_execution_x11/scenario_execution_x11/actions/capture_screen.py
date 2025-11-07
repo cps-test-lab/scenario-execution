@@ -48,16 +48,34 @@ class CaptureScreen(RunProcess):
     def execute(self, output_filename: str, frame_rate: float):  # pylint: disable=arguments-differ
         super().execute(None, wait_for_shutdown=True)
         self.current_state = CaptureScreenState.IDLE
-        cmd = ["ffmpeg",
-               "-f", "x11grab",
-               "-draw_mouse", "0",
-               "-framerate", str(frame_rate),
-               "-i", os.environ["DISPLAY"],
-               "-c:v", "libx264",
-               "-preset", "veryfast",
-               "-f", "mp4",
-               "-nostdin",
-               "-y", os.path.join(self.output_dir, output_filename)]
+        
+        output_path = os.path.join(self.output_dir, output_filename)
+        
+        if output_filename.endswith('.webm'):
+            cmd = ["ffmpeg",
+                   "-f", "x11grab",
+                   "-draw_mouse", "0",
+                   "-framerate", str(frame_rate),
+                   "-i", os.environ["DISPLAY"],
+                   "-c:v", "libvpx",
+                   "-quality", "realtime",
+                   "-speed", "16",
+                   "-threads", "2",
+                   "-f", "webm",
+                   "-nostdin",
+                   "-y", output_path]
+        else:
+            cmd = ["ffmpeg",
+                   "-f", "x11grab",
+                   "-draw_mouse", "0",
+                   "-framerate", str(frame_rate),
+                   "-i", os.environ["DISPLAY"],
+                   "-c:v", "libx264",
+                   "-preset", "veryfast",
+                   "-f", "mp4",
+                   "-nostdin",
+                   "-y", output_path]
+        
         self.set_command(cmd)
 
     def get_logger_stdout(self):

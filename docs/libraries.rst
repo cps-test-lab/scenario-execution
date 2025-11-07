@@ -2027,7 +2027,7 @@ Capture the screen content within a video.
    * - ``output_filename``
      - ``string``
      - ``capture.mp4``
-     - Name of the resulting video file (use ``--output-dir`` command-line argument to store the file within a specific directory)
+     - Name of the resulting video file (use ``--output-dir`` command-line argument to store the file within a specific directory). Supports ``.mp4`` (libx264 codec) and ``.webm`` (libvpx codec) formats.
    * - ``frame_rate``
      - ``float``
      - ``25.0``
