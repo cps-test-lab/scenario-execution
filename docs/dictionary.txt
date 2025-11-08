@@ -39,3 +39,6 @@ replan
 effector
 mnt
 subtree
+libx
+codec
+libvpx
