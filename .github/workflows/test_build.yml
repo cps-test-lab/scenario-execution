@@ -90,6 +90,7 @@ jobs:
     - name: Tag and push latest image
       if: steps.check.outputs.build_image == 'false' && github.event_name == 'pull_request'
       id: tag_image
+      continue-on-error: true
       run: |
         docker pull ghcr.io/cps-test-lab/scenario-execution-testing:latest
         docker tag ghcr.io/cps-test-lab/scenario-execution-testing:latest ${{ steps.generate_tag.outputs.image_tag }}
@@ -97,6 +98,17 @@ jobs:
         # Get the digest of the pushed image
         DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ${{ steps.generate_tag.outputs.image_tag }} | cut -d'@' -f2)
         echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+    - name: Build image if tag failed
+      if: steps.check.outputs.build_image == 'false' && github.event_name == 'pull_request' && steps.tag_image.outcome == 'failure'
+      id: fallback_build_image
+      uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 #v5.0.0
+      with:
+        context: .
+        file: .github/workflows/Dockerfile.testing
+        push: true
+        tags: ${{ steps.generate_tag.outputs.image_tag }}
+        build-args: |
+          ROS_DISTRO=jazzy
     - name: Delete untagged image versions
       if: github.event_name == 'pull_request'
       continue-on-error: true
@@ -105,8 +117,8 @@ jobs:
         ORG="cps-test-lab"
         IMAGE_TAG="${{ steps.generate_tag.outputs.image_tag }}"
         
-        # Get the digest from either build or tag step
-        IMAGE_DIGEST="${{ steps.build_image.outputs.digest || steps.tag_image.outputs.digest }}"
+        # Get the digest from either build, tag, or fallback build step
+        IMAGE_DIGEST="${{ steps.build_image.outputs.digest || steps.tag_image.outputs.digest || steps.fallback_build_image.outputs.digest }}"
         
         echo "Waiting for newly pushed image to be available in registry..."
         echo "Image tag: $IMAGE_TAG"
