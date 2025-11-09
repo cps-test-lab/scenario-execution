@@ -1,4 +1,3 @@
-# Copyright (C) 2024 Intel Corporation
 # Copyright (C) 2025 Frederik Pasch
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -51,7 +50,6 @@ def get_scenario_parameters(scenario_file: str, logger=None):
         as a dictionary containing:
         - 'name': parameter name
         - 'type': parameter type as string
-        - 'default_value': default value if specified, None otherwise
         - 'is_list': boolean indicating if the parameter is a list
         
     Raises:

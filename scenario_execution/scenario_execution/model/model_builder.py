@@ -124,7 +124,6 @@ class ModelBuilder(OpenSCENARIO2Listener):  # pylint: disable=too-many-public-me
             lib_class = libraries_found[0].load()
             resource, filename = lib_class()
 
-            # Use importlib.resources instead of pkg_resources.resource_filename
             lib_osc_dir = str(files(resource).joinpath('lib_osc'))
             file = os.path.join(lib_osc_dir, filename)
 
