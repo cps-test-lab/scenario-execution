@@ -1,4 +1,5 @@
 # Copyright (C) 2024 Intel Corporation
+# Copyright (C) 2025 Frederik Pasch
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,6 +20,7 @@ from . import utils
 from . import model
 from scenario_execution.scenario_execution_base import ScenarioExecution, ShutdownHandler
 from scenario_execution.utils.logging import BaseLogger, Logger
+from scenario_execution.model.external_interface import get_scenario_parameters
 
 __all__ = [
     'actions',
@@ -27,5 +29,8 @@ __all__ = [
     'BaseLogger',
     "Logger",
     'ScenarioExecution',
-    'ShutdownHandler'
+    'ShutdownHandler',
+    'get_scenario_parameters'
 ]
+
+__version__ = '1.3.0'

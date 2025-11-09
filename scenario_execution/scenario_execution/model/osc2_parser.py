@@ -58,8 +58,8 @@ class OpenScenario2Parser(object):
 
         return create_py_tree(model, tree, self.logger, log_model)
 
-    def load_internal_model(self, tree, file_name: str, log_model: bool = False, debug: bool = False):
-        model_builder = ModelBuilder(self.logger, self.parse_file, file_name, log_model)
+    def load_internal_model(self, tree, file_name: str, log_model: bool = False, debug: bool = False, skip_imports: bool = False):
+        model_builder = ModelBuilder(self.logger, self.parse_file, file_name, log_model, skip_imports)
         walker = ParseTreeWalker()
 
         model = None

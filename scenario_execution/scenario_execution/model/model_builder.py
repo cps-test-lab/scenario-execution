@@ -31,7 +31,7 @@ from pkg_resources import iter_entry_points, resource_filename
 
 class ModelBuilder(OpenSCENARIO2Listener):  # pylint: disable=too-many-public-methods
 
-    def __init__(self, logger, parse_file_fct, file_name, log_model):
+    def __init__(self, logger, parse_file_fct, file_name, log_model, skip_external_imports=False):
         super().__init__()
         self.__node_stack = []
         self.__cur_node = None
@@ -41,6 +41,7 @@ class ModelBuilder(OpenSCENARIO2Listener):  # pylint: disable=too-many-public-me
         self.parse_file = parse_file_fct
         self.current_file = file_name
         self.log_model = log_model
+        self.skip_external_imports = skip_external_imports
 
     def get_model(self):
         return self.model
@@ -91,6 +92,9 @@ class ModelBuilder(OpenSCENARIO2Listener):  # pylint: disable=too-many-public-me
                     msg=f'import_reference can only be of format osc.<library-name>, found "{import_reference}', context=ctx)
 
             library_name = ".".join(import_reference[1:])
+            if self.skip_external_imports and library_name not in  ['helpers', 'robotics', 'standard', 'types']:
+                self.logger.debug(f'Skipping external import library: {library_name}')
+                return
             # iterate through all packages
             libraries_found = []
             for entry_point in iter_entry_points(group='scenario_execution.osc_libraries', name=None):
