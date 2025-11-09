@@ -91,7 +91,12 @@ jobs:
       if: steps.check.outputs.build_image == 'false' && github.event_name == 'pull_request'
       id: tag_image
       run: |
-        docker pull ghcr.io/cps-test-lab/scenario-execution-testing:latest
+        # Try to pull the latest image, if it fails, pull the main image
+        if ! docker pull ghcr.io/cps-test-lab/scenario-execution-testing:latest; then
+          echo "Failed to pull latest tag, pulling main tag instead."
+          docker pull ghcr.io/cps-test-lab/scenario-execution-testing:main
+          docker tag ghcr.io/cps-test-lab/scenario-execution-testing:main ghcr.io/cps-test-lab/scenario-execution-testing:latest
+        fi
         docker tag ghcr.io/cps-test-lab/scenario-execution-testing:latest ${{ steps.generate_tag.outputs.image_tag }}
         docker push ${{ steps.generate_tag.outputs.image_tag }}
         # Get the digest of the pushed image
