@@ -87,29 +87,27 @@ jobs:
         tags: ${{ steps.generate_tag.outputs.image_tag }}
         build-args: |
           ROS_DISTRO=jazzy
-    - name: Debug available tags
-      if: steps.check.outputs.build_image == 'false' && github.event_name == 'pull_request'
-      run: |
-        echo "Fetching available tags for ghcr.io/cps-test-lab/scenario-execution-testing"
-        VERSIONS=$(curl -s -L \
-          -H "Accept: application/vnd.github+json" \
-          -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-          -H "X-GitHub-Api-Version: 2022-11-28" \
-          "https://api.github.com/orgs/cps-test-lab/packages/container/scenario-execution-testing/versions")
-        echo "Available versions and tags:"
-        echo "$VERSIONS" | jq -r '.[] | {id: .id, name: .name, tags: .metadata.container.tags, created: .created_at}'
     - name: Tag and push latest image
       if: steps.check.outputs.build_image == 'false' && github.event_name == 'pull_request'
       id: tag_image
       run: |
-        # Try to pull the latest image, if it fails, pull the main image
-        if ! docker pull ghcr.io/cps-test-lab/scenario-execution-testing:latest; then
-          echo "Failed to pull latest tag, pulling main tag instead."
-          docker pull ghcr.io/cps-test-lab/scenario-execution-testing:main
-          docker tag ghcr.io/cps-test-lab/scenario-execution-testing:main ghcr.io/cps-test-lab/scenario-execution-testing:latest
+        # Fetch the digest for the 'latest' tag
+        LATEST_DIGEST=$(curl -s -L \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          "https://api.github.com/orgs/cps-test-lab/packages/container/scenario-execution-testing/versions" | jq -r '.[] | select(.metadata.container.tags[] | contains("latest")) | .name' | head -n 1)
+
+        if [ -z "$LATEST_DIGEST" ]; then
+          echo "::error::Could not find digest for latest tag. No fallback image available."
+          exit 1
         fi
-        docker tag ghcr.io/cps-test-lab/scenario-execution-testing:latest ${{ steps.generate_tag.outputs.image_tag }}
+
+        echo "Found digest for latest tag: $LATEST_DIGEST"
+        docker pull "ghcr.io/cps-test-lab/scenario-execution-testing@$LATEST_DIGEST"
+        docker tag "ghcr.io/cps-test-lab/scenario-execution-testing@$LATEST_DIGEST" ${{ steps.generate_tag.outputs.image_tag }}
         docker push ${{ steps.generate_tag.outputs.image_tag }}
+        
         # Get the digest of the pushed image
         DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ${{ steps.generate_tag.outputs.image_tag }} | cut -d'@' -f2)
         echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
