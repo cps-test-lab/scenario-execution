@@ -18,7 +18,7 @@
 import copy
 import py_trees
 from py_trees.common import Access, Status
-from pkg_resources import iter_entry_points
+from importlib.metadata import entry_points
 import inspect
 
 from scenario_execution.model.types import KeepConstraintDeclaration, visit_expression, ActionDeclaration, BinaryExpression, EventReference, Expression, FunctionApplicationExpression, ModifierInvocation, ScenarioDeclaration, DoMember, WaitDirective, EmitDirective, BehaviorInvocation, EventCondition, EventDeclaration, RelationExpression, LogicalExpression, ElapsedExpression, PhysicalLiteral, ModifierDeclaration
@@ -265,7 +265,9 @@ class ModelToPyTree(object):
             elif isinstance(node.behavior, ActionDeclaration):
                 behavior_name = node.behavior.name
                 available_plugins = []
-                for entry_point in iter_entry_points(group='scenario_execution.actions', name=None):
+                action_eps = entry_points(group='scenario_execution.actions')
+
+                for entry_point in action_eps:
                     # self.logger.debug(f'entry_point.name is {entry_point.name}')
                     if entry_point.name == behavior_name:
                         available_plugins.append(entry_point)

@@ -26,12 +26,13 @@ import ast
 
 from antlr4.tree.Tree import ParseTreeWalker
 import os
-from pkg_resources import iter_entry_points, resource_filename
+from importlib.metadata import entry_points
+from importlib.resources import files
 
 
 class ModelBuilder(OpenSCENARIO2Listener):  # pylint: disable=too-many-public-methods
 
-    def __init__(self, logger, parse_file_fct, file_name, log_model):
+    def __init__(self, logger, parse_file_fct, file_name, log_model, skip_external_imports=False):
         super().__init__()
         self.__node_stack = []
         self.__cur_node = None
@@ -41,6 +42,7 @@ class ModelBuilder(OpenSCENARIO2Listener):  # pylint: disable=too-many-public-me
         self.parse_file = parse_file_fct
         self.current_file = file_name
         self.log_model = log_model
+        self.skip_external_imports = skip_external_imports
 
     def get_model(self):
         return self.model
@@ -91,9 +93,15 @@ class ModelBuilder(OpenSCENARIO2Listener):  # pylint: disable=too-many-public-me
                     msg=f'import_reference can only be of format osc.<library-name>, found "{import_reference}', context=ctx)
 
             library_name = ".".join(import_reference[1:])
+            if self.skip_external_imports and library_name not in  ['helpers', 'robotics', 'standard', 'types']:
+                self.logger.debug(f'Skipping external import library: {library_name}')
+                return
             # iterate through all packages
             libraries_found = []
-            for entry_point in iter_entry_points(group='scenario_execution.osc_libraries', name=None):
+            # Get entry points using importlib.metadata
+            library_eps = entry_points(group='scenario_execution.osc_libraries')
+
+            for entry_point in library_eps:
                 if entry_point.name == library_name:
                     libraries_found.append(entry_point)
             if not libraries_found:
@@ -116,7 +124,7 @@ class ModelBuilder(OpenSCENARIO2Listener):  # pylint: disable=too-many-public-me
             lib_class = libraries_found[0].load()
             resource, filename = lib_class()
 
-            lib_osc_dir = resource_filename(resource, 'lib_osc')
+            lib_osc_dir = str(files(resource).joinpath('lib_osc'))
             file = os.path.join(lib_osc_dir, filename)
 
         try:
