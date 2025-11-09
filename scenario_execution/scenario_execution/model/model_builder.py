@@ -26,7 +26,8 @@ import ast
 
 from antlr4.tree.Tree import ParseTreeWalker
 import os
-from pkg_resources import iter_entry_points, resource_filename
+from importlib.metadata import entry_points
+from importlib.resources import files
 
 
 class ModelBuilder(OpenSCENARIO2Listener):  # pylint: disable=too-many-public-methods
@@ -97,7 +98,10 @@ class ModelBuilder(OpenSCENARIO2Listener):  # pylint: disable=too-many-public-me
                 return
             # iterate through all packages
             libraries_found = []
-            for entry_point in iter_entry_points(group='scenario_execution.osc_libraries', name=None):
+            # Get entry points using importlib.metadata
+            library_eps = entry_points(group='scenario_execution.osc_libraries')
+
+            for entry_point in library_eps:
                 if entry_point.name == library_name:
                     libraries_found.append(entry_point)
             if not libraries_found:
@@ -120,7 +124,8 @@ class ModelBuilder(OpenSCENARIO2Listener):  # pylint: disable=too-many-public-me
             lib_class = libraries_found[0].load()
             resource, filename = lib_class()
 
-            lib_osc_dir = resource_filename(resource, 'lib_osc')
+            # Use importlib.resources instead of pkg_resources.resource_filename
+            lib_osc_dir = str(files(resource).joinpath('lib_osc'))
             file = os.path.join(lib_osc_dir, filename)
 
         try:

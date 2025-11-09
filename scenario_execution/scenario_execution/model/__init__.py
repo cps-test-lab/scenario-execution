@@ -13,9 +13,3 @@
 # and limitations under the License.
 #
 # SPDX-License-Identifier: Apache-2.0
-
-from .external_interface import get_scenario_parameters
-
-__all__ = [
-    'get_scenario_parameters'
-]

@@ -17,6 +17,7 @@ except FileNotFoundError:
 setup(
     name=package_name,
     version='1.3.0',
+    python_requires='>=3.10',
     packages=[
         package_name,
         package_name + '.actions',
