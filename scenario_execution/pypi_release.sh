@@ -147,12 +147,30 @@ upload_testpypi() {
 upload_pypi() {
     echo "⚠️  WARNING: You are about to upload to the REAL PyPI!"
     echo "This action cannot be undone for this version."
+
+    # Extract version from setup.py
+    if [ -f "$PACKAGE_DIR/setup.py" ]; then
+        ORIGINAL_VERSION=$(grep "version=" "$PACKAGE_DIR/setup.py" | head -1 | sed "s/.*version='\([^']*\)'.*/\1/")
+        echo "Version to upload: ${ORIGINAL_VERSION}"
+    else
+        echo "Error: setup.py not found"
+        return 1
+    fi
+
     read -p "Are you sure you want to continue? (yes/no): " confirm
     if [ "$confirm" != "yes" ]; then
         echo "Upload cancelled"
         return
     fi
-    
+
+    echo "Ensuring clean build with version ${ORIGINAL_VERSION}..."
+    # Clean and rebuild to ensure no test version suffix
+    rm -rf "$PACKAGE_DIR/dist/"
+    rm -rf "$PACKAGE_DIR/build/"
+    rm -rf "$PACKAGE_DIR"/*.egg-info
+    python3 -m build
+
+    echo ""
     echo "Uploading to PyPI..."
     echo "You'll need your PyPI API token"
     python3 -m twine upload "$PACKAGE_DIR/dist/*"
