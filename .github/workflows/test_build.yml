@@ -91,26 +91,40 @@ jobs:
       if: steps.check.outputs.build_image == 'false' && github.event_name == 'pull_request'
       id: tag_image
       run: |
-        # Fetch the digest for the 'latest' tag
-        LATEST_DIGEST=$(curl -s -L \
-          -H "Accept: application/vnd.github+json" \
-          -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-          -H "X-GitHub-Api-Version: 2022-11-28" \
-          "https://api.github.com/orgs/cps-test-lab/packages/container/scenario-execution-testing/versions" | jq -r '.[] | select(.metadata.container.tags[] | contains("latest")) | .name' | head -n 1)
+        IMAGE_TO_PULL=""
+        # Try to get the digest for the 'latest' tag first
+        LATEST_DIGEST=$(curl -s -L -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "X-GitHub-Api-Version: 2022-11-28" "https://api.github.com/orgs/cps-test-lab/packages/container/scenario-execution-testing/versions" | jq -r '.[] | select(.metadata.container.tags[] | contains("latest")) | .name' | head -n 1)
+        
+        if [ -n "$LATEST_DIGEST" ]; then
+          echo "Found digest for latest tag: $LATEST_DIGEST"
+          IMAGE_TO_PULL="ghcr.io/cps-test-lab/scenario-execution-testing@$LATEST_DIGEST"
+        else
+          echo "Could not find digest for latest tag. Trying 'main' tag."
+          MAIN_DIGEST=$(curl -s -L -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "X-GitHub-Api-Version: 2022-11-28" "https://api.github.com/orgs/cps-test-lab/packages/container/scenario-execution-testing/versions" | jq -r '.[] | select(.metadata.container.tags[] | contains("main")) | .name' | head -n 1)
+          if [ -n "$MAIN_DIGEST" ]; then
+            echo "Found digest for main tag: $MAIN_DIGEST"
+            IMAGE_TO_PULL="ghcr.io/cps-test-lab/scenario-execution-testing@$MAIN_DIGEST"
+          fi
+        fi
 
-        if [ -z "$LATEST_DIGEST" ]; then
-          echo "::error::Could not find digest for latest tag. No fallback image available."
+        if [ -z "$IMAGE_TO_PULL" ]; then
+          echo "::error::Could not find digest for latest or main tag. No fallback image available."
           exit 1
         fi
 
-        echo "Found digest for latest tag: $LATEST_DIGEST"
-        docker pull "ghcr.io/cps-test-lab/scenario-execution-testing@$LATEST_DIGEST"
-        docker tag "ghcr.io/cps-test-lab/scenario-execution-testing@$LATEST_DIGEST" ${{ steps.generate_tag.outputs.image_tag }}
+        docker pull "$IMAGE_TO_PULL"
+        docker tag "$IMAGE_TO_PULL" ${{ steps.generate_tag.outputs.image_tag }}
         docker push ${{ steps.generate_tag.outputs.image_tag }}
         
         # Get the digest of the pushed image
         DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ${{ steps.generate_tag.outputs.image_tag }} | cut -d'@' -f2)
         echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+        echo "image_pulled=$IMAGE_TO_PULL" >> "$GITHUB_OUTPUT"
+    - name: Inspect image
+      if: steps.tag_image.outputs.image_pulled
+      run: |
+        echo "Inspecting pulled image: ${{ steps.tag_image.outputs.image_pulled }}"
+        docker inspect ${{ steps.tag_image.outputs.image_pulled }} | jq -r '.[0].Architecture'
     - name: Delete untagged image versions
       if: github.event_name == 'pull_request'
       continue-on-error: true
@@ -604,7 +618,7 @@ jobs:
 #          name: test-example-moveit2-result
   #         path: test_example_moveit2/test.xml
   test-scenario-execution-gazebo:
-    needs: [build, build-and-push-testing]
+    needs: [build-and-push-testing]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     container:
