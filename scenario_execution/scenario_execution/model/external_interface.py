@@ -36,42 +36,32 @@ from scenario_execution.utils.logging import Logger
 def get_scenario_parameters(scenario_file: str, logger=None):
     """
     Extract scenario parameters from an OpenSCENARIO 2 file without resolving dependencies.
-    
+
     This function parses the scenario file and loads the internal model to extract parameter
     information. It does not require external dependencies to be loaded, making it suitable
     for querying scenario parameters before full execution.
-    
+
     Args:
         scenario_file: Path to the .osc or .sce scenario file
         logger: Optional logger instance. If None, a default logger will be created.
-    
+
     Returns:
         A dictionary mapping scenario names to their parameters. Each parameter is represented
         as a dictionary containing:
         - 'name': parameter name
         - 'type': parameter type as string
         - 'is_list': boolean indicating if the parameter is a list
-        
+
     Raises:
         ValueError: If the file does not exist, has unknown extension, or parsing fails
-    
-    Example:
-        >>> params = get_scenario_parameters("my_scenario.osc")
-        >>> print(params)
-        {
-            'my_scenario': [
-                {'name': 'speed', 'type': 'speed', 'default_value': 5.0, 'is_list': False},
-                {'name': 'waypoints', 'type': 'position', 'default_value': None, 'is_list': True}
-            ]
-        }
     """
     if logger is None:
         logger = Logger('get_scenario_parameters', False)
-    
+
     # Check file exists
     if not os.path.isfile(scenario_file):
         raise ValueError(f"Scenario file does not exist: {scenario_file}")
-    
+
     # Check file extension
     file_extension = os.path.splitext(scenario_file)[1]
     if file_extension == '.osc':
@@ -80,28 +70,28 @@ def get_scenario_parameters(scenario_file: str, logger=None):
         parser = ModelFileLoader(logger)
     else:
         raise ValueError(f"File has unknown extension '{file_extension}'. Allowed [.osc, .sce]")
-    
+
     # Parse and load internal model (no dependency resolution)
     try:
         parsed_model = parser.parse_file(scenario_file, log_model=False)
         model = parser.load_internal_model(parsed_model, scenario_file, log_model=False, debug=False, skip_imports=True)
     except Exception as e:
         raise ValueError(f"Failed to parse scenario file: {e}") from e
-    
+
     # Extract parameters from all scenarios
     result = {}
     scenarios = model.find_children_of_type(ScenarioDeclaration)
-    
+
     if not scenarios:
         raise ValueError("No scenario definitions found in file")
-    
+
     for scenario in scenarios:
         scenario_params = []
         parameters = scenario.find_children_of_type(ParameterDeclaration)
-        
+
         for param in parameters:
             param_type, is_list = param.get_type()
-            
+
             # Get type string
             if isinstance(param_type, str):
                 type_str = param_type
@@ -111,13 +101,13 @@ def get_scenario_parameters(scenario_file: str, logger=None):
                 type_str = param_type.name
             else:
                 type_str = str(param_type)
-            
+
             scenario_params.append({
                 'name': param.name,
                 'type': type_str,
                 'is_list': is_list
             })
-        
+
         result[scenario.name] = scenario_params
-    
+
     return result

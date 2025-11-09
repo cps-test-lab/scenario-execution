@@ -32,4 +32,3 @@ __all__ = [
     'ShutdownHandler',
     'get_scenario_parameters'
 ]
-
