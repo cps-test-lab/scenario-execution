@@ -151,7 +151,7 @@ class SpawnUtils(object):
                 f'Parsing xacro: {path_to_xacro}, args: {xacro_arguments}')
         else:
             print(f'Parsing xacro: {path_to_xacro}, args: {xacro_arguments}')
-        
+
         cmd = ['xacro', path_to_xacro]
         if xacro_arguments:
             cmd.extend(xacro_arguments.split(','))
