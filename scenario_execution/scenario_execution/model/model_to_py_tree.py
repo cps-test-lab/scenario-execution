@@ -356,11 +356,7 @@ class ModelToPyTree(object):
                         instance = behavior_cls()
                     instance._set_base_properities(action_name, node, self.logger)  # pylint: disable=protected-access
                 except Exception as e:
-                    if node:
-                        ctx = node.get_ctx()
-                    else:
-                        ctx = None
-                    raise OSC2ParsingError(msg=f'Error while initializing plugin {behavior_name}: {e}', context=ctx) from e
+                    raise OSC2ParsingError(msg=f'Error while initializing plugin {behavior_name}: {e}', context=node.get_ctx()) from e
                 self.__cur_behavior.add_child(instance)
                 previous = self.__cur_behavior
                 self.__cur_behavior = instance
