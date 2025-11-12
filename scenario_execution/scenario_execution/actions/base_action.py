@@ -107,4 +107,6 @@ class ActionError(OSC2Error):
     def __init__(self, msg: str, action: BaseAction, *args) -> None:
         if action is not None and action._model is not None:
             ctx = action._model.get_ctx()
+        else:
+            ctx = None
         super().__init__(msg, ctx, *args)
