@@ -25,6 +25,13 @@ class GazeboSpawnMultiple(BaseActionSubtree):
         self.entities = entities
         self.world_name = world_name
 
+        # Check for duplicate entity names
+        entity_names = [entity["entity_name"] for entity in entities]
+        duplicates = [name for name in entity_names if entity_names.count(name) > 1]
+        if duplicates:
+            raise ActionError(
+                f"Duplicate entity_name(s) found: {set(duplicates)}. Each entity must have a unique name.", action=self)
+
     def get_execution_args(self, child):
         if child not in self.children:
             raise ActionError(
