@@ -152,9 +152,11 @@ class SpawnUtils(object):
         else:
             print(f'Parsing xacro: {path_to_xacro}, args: {xacro_arguments}')
 
-        arg_list = xacro_arguments.split(',')
+        cmd = ['xacro', path_to_xacro]
+        if xacro_arguments:
+            cmd.extend(xacro_arguments.split(','))
         try:
-            with subprocess.Popen(['xacro', path_to_xacro] + arg_list, stdout=subprocess.PIPE,
+            with subprocess.Popen(cmd, stdout=subprocess.PIPE,
                                   stderr=subprocess.PIPE, text=True) as process:
                 stdout, stderr = process.communicate()
                 if stderr:
