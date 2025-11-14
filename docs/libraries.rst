@@ -38,8 +38,8 @@ Beside ``osc.standard`` and ``osc.types`` provided by OpenSCENARIO DSL, multiple
 Additional features can be implemented by defining your own library.
 
 
-Dataops
--------
+Data Operations
+---------------
 
 The library contains actions for data operations like manipulating YAML files. Import it with ``import osc.dataops``. It's provided by the package :repo_link:`libs/scenario_execution_dataops`.
 
