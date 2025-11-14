@@ -14,7 +14,6 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import os
 import yaml
 import json
 import py_trees
@@ -121,15 +120,15 @@ class SetYamlValue(BaseAction):
         path = Path(self.file_path)
         if not path.is_file():
             result = False
-        
+
         if result:
             # Load YAML
             with open(path, 'r') as f:
                 data = yaml.safe_load(f) or {}
-            
+
             # Parse the key_path
             keys = parse_yaml_path(self.key_path)
-        
+
             # Navigate to the target location
             current = data
             for key in keys[:-1]:

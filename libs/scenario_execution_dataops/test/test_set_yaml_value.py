@@ -185,4 +185,3 @@ config:
         }
 
         self.assertEqual(file_dict, expected_dict)
-        
