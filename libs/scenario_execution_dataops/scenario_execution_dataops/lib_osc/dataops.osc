@@ -1,0 +1,8 @@
+
+action set_yaml_value:
+    file_path: string                    # path to the yaml file
+    output_file: string = ""             # optional output file, if different from input
+    key_path: string                     # path to value in yaml, use '.' for sub-values (example: "config.database.host")
+    value: string                        # value to set
+    value_type: string = "str"           # type of the value: str, int, float, bool, list, dict
+    create_missing: bool = true          # whether to create missing keys
