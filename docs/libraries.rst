@@ -10,6 +10,8 @@ Beside ``osc.standard`` and ``osc.types`` provided by OpenSCENARIO DSL, multiple
    
    * - Name
      - Description
+   * - ``osc.dataops``
+     - Data Operations Library (provided with :repo_link:`libs/scenario_execution_dataops`)
    * - ``osc.docker``
      - Docker Library (provided with :repo_link:`libs/scenario_execution_docker`)
    * - ``osc.gazebo``
@@ -35,6 +37,50 @@ Beside ``osc.standard`` and ``osc.types`` provided by OpenSCENARIO DSL, multiple
 
 Additional features can be implemented by defining your own library.
 
+
+Data Operations
+---------------
+
+The library contains actions for data operations like manipulating YAML files. Import it with ``import osc.dataops``. It's provided by the package :repo_link:`libs/scenario_execution_dataops`.
+
+``set_yaml_value()``
+^^^^^^^^^^^^^^^^^^^^
+
+Set a value within a YAML file. The value is specified by a dot-separated path (e.g., ``config.database.host`` to access the ``host`` key within ``config.database``). The value type can be explicitly specified to ensure proper type conversion.
+
+.. list-table::
+   :widths: 15 15 5 65
+   :header-rows: 1
+   :class: tight-table
+
+   * - Parameter
+     - Type
+     - Default
+     - Description
+   * - ``file_path``
+     - ``string``
+     -
+     - Path to the YAML file
+   * - ``output_file``
+     - ``string``
+     - ``""``
+     - Optional output file path. If empty, the input file is modified in place
+   * - ``key_path``
+     - ``string``
+     -
+     - Path to the value in YAML using dot notation (e.g., ``config.database.host``)
+   * - ``value``
+     - ``string``
+     -
+     - Value to set
+   * - ``value_type``
+     - ``string``
+     - ``str``
+     - Type of the value. Allowed values: ``str``, ``int``, ``float``, ``bool``, ``list``, ``dict``
+   * - ``create_missing``
+     - ``bool``
+     - ``true``
+     - Whether to create missing keys in the path
 
 Docker
 ------
