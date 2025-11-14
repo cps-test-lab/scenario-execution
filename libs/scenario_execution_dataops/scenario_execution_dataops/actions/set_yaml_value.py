@@ -49,7 +49,7 @@ class SetYamlValue(BaseAction):
         self.value_type = value_type
         self.create_missing = create_missing
 
-    def convert_value(self, value, value_type):
+    def convert_value(self, value, value_type): # pylint: disable=too-many-return-statements
         """
         Convert the value to the specified type.
 
