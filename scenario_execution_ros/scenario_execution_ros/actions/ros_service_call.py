@@ -56,6 +56,7 @@ class RosServiceCall(BaseAction):
         self.transient_local = transient_local
         self.response_variable = None
         self.response_member_name = None
+        self.result_message = None
 
     def setup(self, **kwargs):
         """
@@ -87,12 +88,15 @@ class RosServiceCall(BaseAction):
         )
 
     def execute(self, data: str, response_variable: str = "", response_member_name: str = ""):
-        try:
-            trimmed_data = data.encode('utf-8').decode('unicode_escape')
-            print(trimmed_data)
-            self.data = literal_eval(trimmed_data)
-        except Exception as e:  # pylint: disable=broad-except
-            raise ActionError(f"Error while parsing sevice call data: {e}", action=self) from e
+        self.result_message = None
+        if isinstance(data, dict):
+            self.data = data
+        else:
+            try:
+                trimmed_data = data.encode('utf-8').decode('unicode_escape')
+                self.data = literal_eval(trimmed_data)
+            except Exception as e:  # pylint: disable=broad-except
+                raise ActionError(f"Error while parsing sevice call data: {e}", action=self) from e
 
         if response_variable:
             if not isinstance(response_variable, VariableReference):
@@ -109,6 +113,7 @@ class RosServiceCall(BaseAction):
         self.logger.debug(f"Current State {self.current_state}")
         result = py_trees.common.Status.FAILURE
         if self.current_state == ServiceCallActionState.IDLE:
+            self.feedback_message = self.get_feedback_message()  # pylint: disable= attribute-defined-outside-init
             self.current_state = ServiceCallActionState.SERVICE_CALLED
             if self.future:
                 self.future.cancel()
@@ -116,18 +121,36 @@ class RosServiceCall(BaseAction):
             set_message_fields(req, self.data)
             self.future = self.client.call_async(req)
             self.future.add_done_callback(self.done_callback)
-            self.feedback_message = f"service request sent to {self.service_name}"  # pylint: disable= attribute-defined-outside-init
             result = py_trees.common.Status.RUNNING
         elif self.current_state == ServiceCallActionState.SERVICE_CALLED:
-            self.feedback_message = f"waiting for response from {self.service_name}"  # pylint: disable= attribute-defined-outside-init
+            self.feedback_message = self.get_feedback_message()  # pylint: disable= attribute-defined-outside-init
             result = py_trees.common.Status.RUNNING
         elif self.current_state == ServiceCallActionState.DONE:
-            self.feedback_message = f"service response received"  # pylint: disable= attribute-defined-outside-init
+            self.feedback_message = self.get_feedback_message()  # pylint: disable= attribute-defined-outside-init
             result = py_trees.common.Status.SUCCESS
         else:
             self.logger.error(f"Invalid state {self.current_state}")
 
         return result
+
+    def get_feedback_message(self) -> str: # pylint: disable=too-many-return-statements
+        """
+        Get feedback message
+        """
+        if self.current_state == ServiceCallActionState.IDLE:
+            return f"Preparing to call service {self.service_name}"
+        elif self.current_state == ServiceCallActionState.SERVICE_CALLED:
+            return f"waiting for response from {self.service_name}"
+        elif self.current_state == ServiceCallActionState.DONE:
+            if self.result_message:
+                return f"{self.result_message}"
+            else:
+                return f"service response received"
+        elif self.current_state == ServiceCallActionState.ERROR:
+            if self.result_message:
+                return f"service call to {self.service_name} failed: {self.result_message}"
+            return f"service call to {self.service_name} failed"
+        return ""
 
     def done_callback(self, future):
         """
@@ -135,17 +158,34 @@ class RosServiceCall(BaseAction):
         """
         self.logger.debug(f"Received state {future.result()}")
         if self.current_state == ServiceCallActionState.SERVICE_CALLED:
-            if self.check_response(future.result()):
-                self.current_state = ServiceCallActionState.DONE
+            result = self.check_response(future.result())
+            # Support both bool and tuple (bool, result_message) return types
+            if isinstance(result, tuple):
+                success, error_msg = result # pylint: disable=unpacking-non-sequence
+                if success:
+                    self.current_state = ServiceCallActionState.DONE
+                else:
+                    self.current_state = ServiceCallActionState.ERROR
+                self.result_message = error_msg
             else:
-                self.current_state = ServiceCallActionState.ERROR
+                # bool return
+                if result:
+                    self.current_state = ServiceCallActionState.DONE
+                else:
+                    self.current_state = ServiceCallActionState.ERROR
         else:
             self.current_state = ServiceCallActionState.ERROR
+        if self.current_state == ServiceCallActionState.ERROR:
+            self.feedback_message = self.get_feedback_message()  # pylint: disable= attribute-defined-outside-init
 
     def check_response(self, msg):
         """
         Check the result of a service call
         Can be overriden by subclasses
+
+        Returns:
+            bool: True if successful, False otherwise
+            tuple(bool, str): Success status and optional error message
         """
         set_variable_if_available(msg, self.response_variable, self.response_member_name)
         return True

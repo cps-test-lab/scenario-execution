@@ -271,6 +271,7 @@ jobs:
           colcon test --packages-select \
           scenario_execution_ros \
           scenario_execution_ros_test \
+          scenario_execution_sim \
           --event-handlers console_direct+ \
           --return-code-on-test-failure \
           --pytest-args \
@@ -780,6 +781,7 @@ jobs:
             downloaded-artifacts/test-scenario-execution/test/scenario_execution_test/TEST.xml
             downloaded-artifacts/test-scenario-execution-ros/scenario_execution_ros/TEST.xml
             downloaded-artifacts/test-scenario-execution-ros/test/scenario_execution_ros_test/TEST.xml
+            downloaded-artifacts/test-scenario-execution-ros/libs/scenario_execution_sim/TEST.xml
             downloaded-artifacts/test-example-ros-examples-result/test.xml
             downloaded-artifacts/test-example-scenario-result/test.xml
             downloaded-artifacts/test-example-library-result/test.xml
