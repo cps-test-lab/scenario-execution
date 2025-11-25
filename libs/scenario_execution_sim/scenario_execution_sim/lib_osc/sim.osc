@@ -1,0 +1,44 @@
+import osc.types
+
+action delete_entity:
+    # Remove an entity (a robot, other object) from the simulation.
+    entity: string                       #  Entity identified by its unique name with a namespace, as returned by SpawnEntity or GetEntities
+
+action load_world:
+    # Step the simulation a specific number of steps.
+    uri: string                          # World to load
+
+action reset_simulation
+    # Reset the simulation to the start.
+
+action set_entity_state:
+    # Set the state of a specific entity.
+    entity: string                       # Entity identified by its unique name
+    pose: pose_3d = pose_3d()            # 3D pose of the entity
+    twist: velocity_6d = velocity_6d()   # 6D velocity of the entity
+    acceleration: acceleration_6d = acceleration_6d() # 6D acceleration of the entity
+
+enum simulation_state: [
+    stopped,
+    playing,
+    paused
+]
+
+action set_simulation_state:
+    # Set the state of the simulation.
+    state: simulation_state              # Simulation state to set
+
+action spawn_entity:
+    # Spawn an entity in the simulation.
+    entity_name: string                  # Name to give to the spawned entity
+    uri: string                          # URI of the resource to spawn
+    initial_pose: pose_3d                # Initial pose for the entity
+    allow_renaming: bool = false         # Whether to allow renaming if name is not unique
+    entity_namespace: string = ''        # Namespace for the entity
+    
+action step_simulation:
+    # Step the simulation a specific number of steps.
+    steps: int = 1                       # Number of steps to simulate
+
+action unload_world
+    # Unload the current world

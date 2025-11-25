@@ -32,6 +32,8 @@ Beside ``osc.standard`` and ``osc.types`` provided by OpenSCENARIO DSL, multiple
      - Robotics Library (provided with :repo_link:`scenario_execution`)
    * - ``osc.ros``
      - ROS Library (provided with :repo_link:`scenario_execution_ros`)
+   * - ``osc.sim``
+     - Simulation Library (provided with :repo_link:`scenario_execution_sim`)
    * - ``osc.x11``
      - X11 Library (provided with :repo_link:`libs/scenario_execution_x11`)
 
@@ -2049,6 +2051,165 @@ Wait for topics to get available (i.e. publisher gets available).
      - ``list of string``
      - 
      - List of topics to wait for
+
+
+Simulation
+----------
+
+The library contains actions to interact with simulation environments. Import it with ``import osc.sim``. It is provided by the package :repo_link:`libs/scenario_execution_sim`.
+
+``delete_entity()``
+^^^^^^^^^^^^^^^^^^^
+
+Remove an entity (a robot or other object) from the simulation.
+
+.. list-table::
+   :widths: 15 15 5 65
+   :header-rows: 1
+   :class: tight-table
+
+   * - Parameter
+     - Type
+     - Default
+     - Description
+   * - ``entity``
+     - ``string``
+     -
+     - Entity identified by its unique name with a namespace, as returned by SpawnEntity or GetEntities
+
+``load_world()``
+^^^^^^^^^^^^^^^^
+
+Load a world into the simulation.
+
+.. list-table::
+   :widths: 15 15 5 65
+   :header-rows: 1
+   :class: tight-table
+
+   * - Parameter
+     - Type
+     - Default
+     - Description
+   * - ``uri``
+     - ``string``
+     -
+     - World to load
+
+``reset_simulation()``
+^^^^^^^^^^^^^^^^^^^^^^
+
+Reset the simulation to the start.
+
+``set_entity_state()``
+^^^^^^^^^^^^^^^^^^^^^^
+
+Set the state of a specific entity in the simulation.
+
+.. list-table::
+   :widths: 15 15 5 65
+   :header-rows: 1
+   :class: tight-table
+
+   * - Parameter
+     - Type
+     - Default
+     - Description
+   * - ``entity``
+     - ``string``
+     -
+     - Entity identified by its unique name
+   * - ``pose``
+     - ``pose_3d``
+     - ``pose_3d()``
+     - 3D pose of the entity
+   * - ``twist``
+     - ``velocity_6d``
+     - ``velocity_6d()``
+     - 6D velocity of the entity
+   * - ``acceleration``
+     - ``acceleration_6d``
+     - ``acceleration_6d()``
+     - 6D acceleration of the entity
+
+``set_simulation_state()``
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Set the state of the simulation.
+
+.. list-table::
+   :widths: 15 15 5 65
+   :header-rows: 1
+   :class: tight-table
+
+   * - Parameter
+     - Type
+     - Default
+     - Description
+   * - ``state``
+     - ``simulation_state``
+     -
+     - Simulation state to set. Allowed values: ``simulation_state!stopped``, ``simulation_state!playing``, ``simulation_state!paused``
+
+``spawn_entity()``
+^^^^^^^^^^^^^^^^^^
+
+Spawn an entity in the simulation.
+
+.. list-table::
+   :widths: 15 15 5 65
+   :header-rows: 1
+   :class: tight-table
+
+   * - Parameter
+     - Type
+     - Default
+     - Description
+   * - ``entity_name``
+     - ``string``
+     -
+     - Name to give to the spawned entity
+   * - ``uri``
+     - ``string``
+     -
+     - URI of the resource to spawn
+   * - ``initial_pose``
+     - ``pose_3d``
+     -
+     - Initial pose for the entity
+   * - ``allow_renaming``
+     - ``bool``
+     - ``false``
+     - Whether to allow renaming if name is not unique
+   * - ``entity_namespace``
+     - ``string``
+     - ``''``
+     - Namespace for the entity
+
+``step_simulation()``
+^^^^^^^^^^^^^^^^^^^^^
+
+Step the simulation a specific number of steps.
+
+.. list-table::
+   :widths: 15 15 5 65
+   :header-rows: 1
+   :class: tight-table
+
+   * - Parameter
+     - Type
+     - Default
+     - Description
+   * - ``steps``
+     - ``int``
+     - ``1``
+     - Number of steps to simulate
+
+``unload_world()``
+^^^^^^^^^^^^^^^^^^
+
+Unload the current world from the simulation.
+
 
 
 X11

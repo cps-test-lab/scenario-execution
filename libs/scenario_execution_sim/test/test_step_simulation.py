@@ -1,4 +1,4 @@
-# Copyright (C) 2024 Intel Corporation
+# Copyright (C) 2025 Frederik Pasch
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,12 +25,12 @@ from scenario_execution.model.model_to_py_tree import create_py_tree
 from ament_index_python.packages import get_package_share_directory
 from antlr4.InputStream import InputStream
 import py_trees
-from std_srvs.srv import SetBool
+from simulation_interfaces.srv import StepSimulation
+from simulation_interfaces.msg import Result
 
 os.environ["PYTHONUNBUFFERED"] = '1'
 
-
-class TestRosServiceCall(unittest.TestCase):
+class TestStepSimulation(unittest.TestCase):
     # pylint: disable=missing-function-docstring
 
     def setUp(self):
@@ -45,7 +45,9 @@ class TestRosServiceCall(unittest.TestCase):
 
         self.scenario_dir = get_package_share_directory('scenario_execution_ros')
 
-        self.srv = self.node.create_service(SetBool, "/bla", self.service_callback)
+        self.srv = self.node.create_service(StepSimulation, "/step_simulation", self.service_callback)
+        self.srv_result = Result.RESULT_OK
+        self.request_received = None
         self.parser = OpenScenario2Parser(Logger('test', False))
         self.scenario_execution_ros = ROSScenarioExecution()
         self.tree = py_trees.composites.Sequence(name="", memory=True)
@@ -66,28 +68,20 @@ class TestRosServiceCall(unittest.TestCase):
         rclpy.try_shutdown()
 
     def service_callback(self, msg, response):
-        self.request_received = msg.data
+        self.request_received = msg
+        response.result.result = self.srv_result
         return response
 
     def test_success(self):
-        tree = self.parser.process_file(os.path.join(
-            self.scenario_dir, 'scenarios', 'test', 'test_ros_service_call.osc'), False)
-        self.scenario_execution_ros.tree = tree
-        self.scenario_execution_ros.run()
-        self.assertTrue(self.scenario_execution_ros.process_results())
-        self.assertTrue(self.request_received)
-
-    def test_success_repeat(self):
         scenario_content = """
 import osc.helpers
-import osc.ros
+import osc.sim
 
-scenario test_ros_service_call:
-    timeout(30s)
+scenario test_step_simulation:
+    timeout(10s)
     do serial:
-        repeat(2)
-        service_call('/bla', 'std_srvs.srv.SetBool', '{\\\"data\\\": True}')
-        emit end
+        step_simulation(5)
 """
         self.execute(scenario_content)
         self.assertTrue(self.scenario_execution_ros.process_results())
+        self.assertEqual(self.request_received.steps, 5)
