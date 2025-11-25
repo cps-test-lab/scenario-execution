@@ -45,7 +45,7 @@ class TestResetSimulation(unittest.TestCase):
 
         self.scenario_dir = get_package_share_directory('scenario_execution_ros')
 
-        self.srv = self.node.create_service(ResetSimulation, "/simulation/reset_simulation", self.service_callback)
+        self.srv = self.node.create_service(ResetSimulation, "/reset_simulation", self.service_callback)
         self.srv_result = Result.RESULT_OK
         self.request_received = None
         self.parser = OpenScenario2Parser(Logger('test', False))
@@ -80,8 +80,7 @@ import osc.sim
 scenario test_reset_simulation:
     timeout(10s)
     do serial:
-        reset_simulation(255)
+        reset_simulation()
 """
         self.execute(scenario_content)
         self.assertTrue(self.scenario_execution_ros.process_results())
-        self.assertEqual(self.request_received.scope, 255)

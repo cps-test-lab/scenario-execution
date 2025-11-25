@@ -45,7 +45,7 @@ class TestDeleteEntity(unittest.TestCase):
 
         self.scenario_dir = get_package_share_directory('scenario_execution_ros')
 
-        self.srv = self.node.create_service(DeleteEntity, "/simulation/delete_entity", self.service_callback)
+        self.srv = self.node.create_service(DeleteEntity, "/delete_entity", self.service_callback)
         self.srv_result = Result.RESULT_OK
         self.request_received = None
         self.parser = OpenScenario2Parser(Logger('test', False))

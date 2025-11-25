@@ -45,7 +45,7 @@ class TestStepSimulation(unittest.TestCase):
 
         self.scenario_dir = get_package_share_directory('scenario_execution_ros')
 
-        self.srv = self.node.create_service(StepSimulation, "/simulation/step_simulation", self.service_callback)
+        self.srv = self.node.create_service(StepSimulation, "/step_simulation", self.service_callback)
         self.srv_result = Result.RESULT_OK
         self.request_received = None
         self.parser = OpenScenario2Parser(Logger('test', False))

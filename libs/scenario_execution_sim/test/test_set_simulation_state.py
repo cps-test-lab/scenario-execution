@@ -45,7 +45,7 @@ class TestSetSimulationState(unittest.TestCase):
 
         self.scenario_dir = get_package_share_directory('scenario_execution_ros')
 
-        self.srv = self.node.create_service(SetSimulationState, "/simulation/set_simulation_state", self.service_callback)
+        self.srv = self.node.create_service(SetSimulationState, "/set_simulation_state", self.service_callback)
         self.srv_result = Result.RESULT_OK
         self.request_received = None
         self.parser = OpenScenario2Parser(Logger('test', False))
@@ -80,7 +80,7 @@ import osc.sim
 scenario test_set_simulation_state:
     timeout(10s)
     do serial:
-        set_simulation_state('{}')
+        set_simulation_state(simulation_state!playing)
 """
         self.execute(scenario_content)
         self.assertTrue(self.scenario_execution_ros.process_results())

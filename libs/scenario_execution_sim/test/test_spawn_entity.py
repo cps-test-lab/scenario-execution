@@ -45,7 +45,7 @@ class TestSpawnEntity(unittest.TestCase):
 
         self.scenario_dir = get_package_share_directory('scenario_execution_ros')
 
-        self.srv = self.node.create_service(SpawnEntity, "/simulation/spawn_entity", self.service_callback)
+        self.srv = self.node.create_service(SpawnEntity, "/spawn_entity", self.service_callback)
         self.srv_result = Result.RESULT_OK
         self.request_received = None
         self.parser = OpenScenario2Parser(Logger('test', False))
@@ -81,7 +81,7 @@ import osc.sim
 scenario test_spawn_entity:
     timeout(10s)
     do serial:
-        spawn_entity('test_entity', true, 'test_uri')
+        spawn_entity('test_entity', 'test_uri')
 """
         self.execute(scenario_content)
         self.assertTrue(self.scenario_execution_ros.process_results())
