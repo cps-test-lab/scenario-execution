@@ -2,6 +2,16 @@
 Changelog for package scenario_execution
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Add external interface
+* support creating override template
+* Fix overriding list parameters
+* Allow overriding non-initialized parameters
+* add ability to set snapshot period
+* add post command execution
+* Add directory getters
+
 1.3.0 (2025-06-04)
 ------------------
 * add ros examples and new actions

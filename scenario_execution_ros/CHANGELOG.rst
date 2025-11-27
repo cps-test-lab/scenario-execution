@@ -2,6 +2,14 @@
 Changelog for package scenario_execution_ros
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* rosbag_record: report missing topics
+* add post command execution
+* ros2: bag_record is able to remove previous bag directory
+* ros_launch: support launch file without package
+* fix nav_through_poses
+
 1.3.0 (2025-06-04)
 ------------------
 * add ros examples and new actions
