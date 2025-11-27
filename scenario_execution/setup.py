@@ -34,7 +34,7 @@ except:  # pylint: disable=W0702
 
 setup(
     name=PACKAGE_NAME,
-    version='1.3.0',
+    version='1.4.0',
     packages=find_namespace_packages(exclude=['test*']),
     data_files=[
         ('share/ament_index/resource_index/packages',

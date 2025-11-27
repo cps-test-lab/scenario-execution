@@ -2,6 +2,6 @@
 Changelog for package scenario_execution_sim
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.4.0 (2025-11-27)
+------------------
 * Initial creation

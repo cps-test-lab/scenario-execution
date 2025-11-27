@@ -2,8 +2,8 @@
 Changelog for package scenario_execution_ros
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.4.0 (2025-11-27)
+------------------
 * rosbag_record: report missing topics
 * add post command execution
 * ros2: bag_record is able to remove previous bag directory

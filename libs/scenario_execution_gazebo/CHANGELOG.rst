@@ -2,8 +2,8 @@
 Changelog for package scenario_execution_gazebo
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.4.0 (2025-11-27)
+------------------
 * gazebo: fix spawning from xacro without arguments
 * Support xacro for path-defined gazebo models
 * add action spawn_multiple

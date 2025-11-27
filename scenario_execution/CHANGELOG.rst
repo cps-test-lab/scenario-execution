@@ -2,8 +2,8 @@
 Changelog for package scenario_execution
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.4.0 (2025-11-27)
+------------------
 * Add external interface
 * support creating override template
 * Fix overriding list parameters
