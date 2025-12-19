@@ -31,9 +31,9 @@ class RunProcess(BaseAction):
     def __init__(self):
         super().__init__()
         self.command = None
-        self.wait_for_shutdown = None
-        self.shutdown_timeout = None
-        self.shutdown_signal = None
+        self.wait_for_shutdown = True
+        self.shutdown_timeout = 10
+        self.shutdown_signal = signal.SIGTERM
         self.executed = False
         self.process = None
         self.log_stdout_thread = None
