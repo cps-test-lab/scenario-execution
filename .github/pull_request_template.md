@@ -1,4 +1,4 @@
-<!-- For questions please refer to https://intellabs.github.io/scenario_execution/development.html#contribute, mail to scenario-execution@intel.com or ask in a comment below -->
+<!-- For questions please refer to https://cps-test-lab.github.io/scenario-execution/development.html#contribute, mail to fred-labs@mailbox.org or ask in a comment below -->
 ### Description
 <!-- Insert one sentence pr objective here, can be copied from relevant issue. -->
 
@@ -6,9 +6,9 @@
 
 ### Pull request checklist
 <!--  (Mark with "x") -->
-- [ ] [Issue](https://github.com/IntelLabs/scenario_execution/issues) created that explains the change and why it's needed
+- [ ] [Issue](https://github.com/cps-test-lab/scenario-execution/issues) created that explains the change and why it's needed
 - [ ] Tests are part of the PR (for bug fixes / features)
-- [ ] [Docs](https://intellabs.github.io/scenario_execution/) reviewed and added / updated if needed (for bug fixes / features)
+- [ ] [Docs](https://cps-test-lab.github.io/scenario-execution/) reviewed and added / updated if needed (for bug fixes / features)
 - [ ] Format and Lint checks (`make check`) pass locally
 - [ ] PR applies Apache 2.0 License to all code files
 

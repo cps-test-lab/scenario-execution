@@ -164,10 +164,15 @@ class RunProcess(BaseAction):
             self.logger.info(f'Sending {signal.Signals(self.shutdown_signal).name} to process...')
             pgid = os.getpgid(self.process.pid)
             os.killpg(pgid, self.shutdown_signal)
-            if self.process.poll():
+            if self.process.poll() is None:
                 self.logger.info(f"Waiting {self.shutdown_timeout}s for process to finish...")
-                self.process.wait(self.shutdown_timeout)
-                self.logger.info('Sending SIGKILL to process...')
-                os.killpg(pgid, signal.SIGKILL)
-                self.process.wait()
-            self.logger.info('Process finished.')
+                try:
+                    self.process.wait(self.shutdown_timeout)
+                    self.logger.info('Process finished.')
+                except subprocess.TimeoutExpired:
+                    self.logger.info('Sending SIGKILL to process...')
+                    os.killpg(pgid, signal.SIGKILL)
+                    self.process.wait()
+                    self.logger.info('Process finished.')
+            else:
+                self.logger.info('Process finished.')
