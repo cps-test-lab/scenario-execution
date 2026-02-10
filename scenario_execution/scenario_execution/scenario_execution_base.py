@@ -66,6 +66,7 @@ class ScenarioResult:
     failure_message: str
     failure_output: str = ""
     processing_time: timedelta = timedelta(0)
+    start_time: datetime = None
 
 
 class LastSnapshotVisitor(py_trees.visitors.DisplaySnapshotVisitor):
@@ -245,7 +246,8 @@ class ScenarioExecution(object):
                                            result=False,
                                            failure_message="parsing failed",
                                            failure_output=f"File has unknown extension '{file_extension}'. Allowed [.osc, .sce]",
-                                           processing_time=datetime.now() - start))
+                                           processing_time=datetime.now() - start,
+                                           start_time=start))
             return False
 
         if not os.path.isfile(self.scenario_file):
@@ -253,7 +255,8 @@ class ScenarioExecution(object):
                                            result=False,
                                            failure_message="parsing failed",
                                            failure_output="File does not exist",
-                                           processing_time=datetime.now() - start))
+                                           processing_time=datetime.now() - start,
+                                           start_time=start))
             return False
         try:
             self.tree = parser.process_file(self.scenario_file, self.log_model, self.debug, self.scenario_parameter_file, self.create_scenario_parameter_file_template)
@@ -264,7 +267,8 @@ class ScenarioExecution(object):
                                            result=False,
                                            failure_message="parsing failed",
                                            failure_output=str(e),
-                                           processing_time=datetime.now() - start))
+                                           processing_time=datetime.now() - start,
+                                           start_time=start))
             return False
         if self.render_dot:
             self.logger.info(f"Writing py-trees dot files to {self.tree.name.lower()}.[dot|svg|png] ...")
@@ -330,6 +334,10 @@ class ScenarioExecution(object):
                         for res in self.results:
                             out.write(
                                 f'  <testcase classname="tests.scenario" name="{res.name}" time="{res.processing_time.total_seconds()}">\n')
+                            if res.start_time:
+                                out.write(f'    <properties>\n')
+                                out.write(f'      <property name="start_time" value="{res.start_time.timestamp():.6f}"/>\n')
+                                out.write(f'    </properties>\n')
                             if res.result is False:
                                 failure_text = escape(res.failure_output).replace('"', "'")
                                 out.write(f'    <failure message="{res.failure_message}">{failure_text}</failure>\n')
@@ -389,12 +397,14 @@ class ScenarioExecution(object):
                                            result=result,
                                            failure_message=failure_message,
                                            failure_output=failure_output,
-                                           processing_time=datetime.now()-self.current_scenario_start))
+                                           processing_time=datetime.now()-self.current_scenario_start,
+                                           start_time=self.current_scenario_start))
         else:
             self.add_result(ScenarioResult(name="",
                                            result=result,
                                            failure_message=failure_message,
-                                           failure_output=failure_output))
+                                           failure_output=failure_output,
+                                           start_time=datetime.now()))
 
     @staticmethod
     def get_arg_parser():
