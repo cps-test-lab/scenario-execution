@@ -2301,7 +2301,7 @@ class IdentifierReference(ModelElement):
                 type_info = self.get_type()
                 param_type = type_info[0] if isinstance(type_info, tuple) else type_info
                 # If it's a string/primitive type (not StructuredDeclaration), this is an error
-                if isinstance(param_type, str) or isinstance(param_type, PhysicalTypeDeclaration):
+                if isinstance(param_type, (str, PhysicalTypeDeclaration)):
                     param_name = self.ref.name if hasattr(self.ref, 'name') else 'unknown'
                     raise ValueError(
                         f"Parameter '{param_name}' is used but has no value. "
