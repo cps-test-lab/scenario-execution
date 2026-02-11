@@ -2294,7 +2294,20 @@ class IdentifierReference(ModelElement):
                     val = val[sub_elem.name]
                 return val
         else:
-            return self.ref.get_resolved_value(blackboard)
+            result = self.ref.get_resolved_value(blackboard)
+            # Check if this is an unresolved parameter (empty dict for primitive types)
+            if isinstance(result, dict) and len(result) == 0:
+                # Get type to check if this should be a primitive value
+                type_info = self.get_type()
+                param_type = type_info[0] if isinstance(type_info, tuple) else type_info
+                # If it's a string/primitive type (not StructuredDeclaration), this is an error
+                if isinstance(param_type, str) or isinstance(param_type, PhysicalTypeDeclaration):
+                    param_name = self.ref.name if hasattr(self.ref, 'name') else 'unknown'
+                    raise ValueError(
+                        f"Parameter '{param_name}' is used but has no value. "
+                        f"Please provide a default value in the scenario or an override in the parameter file."
+                    )
+            return result
 
 
 class Expression(object):
