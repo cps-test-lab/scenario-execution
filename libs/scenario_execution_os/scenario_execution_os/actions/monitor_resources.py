@@ -171,14 +171,14 @@ class MonitorResources(BaseAction):
                     
                 except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
                     self.logger.warning(f"Error accessing process information: {e}")
-                except Exception as e:
+                except Exception as e: # pylint: disable=road-exception-caught
                     self.logger.error(f"Error in monitoring loop: {e}")
                 
                 # Wait for 1 second or until stop event is set
                 if self.stop_event.wait(1.0):
                     break
                     
-        except Exception as e:
+        except Exception as e: # pylint: disable=road-exception-caught
             self.logger.error(f"Critical error in monitoring thread: {e}")
         finally:
             self.logger.debug("Resource monitoring thread stopped")
