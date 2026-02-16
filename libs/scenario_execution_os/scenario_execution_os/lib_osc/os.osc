@@ -11,6 +11,11 @@ action check_process_running:
     process_name: string # name of process
     regex: bool = false   # is the specified process_name a regular expression
 
+action monitor_resources:
+    # monitor CPU and memory usage and write to CSV file
+    file_name: string = "resource_usage.csv"  # name of the CSV file to write to (will be placed in output directory)
+    log_per_process: bool = false  # if true, log each process individually instead of aggregated totals
+
 struct os:
     def abspath(path: string) -> string is external os.path.abspath()
     def basename(p: string) -> string is external os.path.basename()
