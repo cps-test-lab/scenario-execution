@@ -50,11 +50,11 @@ class MonitorResources(BaseAction):
         """
         # Get the current process
         self.process = psutil.Process()
-        
+
         # Prime the CPU measurement (first call returns 0.0)
         self.process.cpu_percent(interval=None)
         self.tracked_processes[self.process.pid] = self.process
-        
+
         # Initialize CSV file with header
         try:
             with open(self.csv_file, 'w') as f:
@@ -77,7 +77,7 @@ class MonitorResources(BaseAction):
             self.monitor_thread.start()
             self.feedback_message = f"Monitoring resources to {self.file_name}..."
             self.logger.info(f"Started resource monitoring to {self.csv_file}")
-        
+
         # Keep running until cancelled
         return py_trees.common.Status.RUNNING
 
@@ -88,12 +88,12 @@ class MonitorResources(BaseAction):
         try:
             while not self.stop_event.is_set():
                 timestamp = time.time()
-                
+
                 try:
                     if self.log_per_process:
                         # Log each process individually
                         lines = []
-                        
+
                         # Main process
                         try:
                             cpu = self.process.cpu_percent(interval=None)
@@ -102,12 +102,12 @@ class MonitorResources(BaseAction):
                             lines.append(f"{timestamp},{self.process.pid},{name},{cpu},{mem}\n")
                         except (psutil.NoSuchProcess, psutil.AccessDenied):
                             pass
-                        
+
                         # Child processes - discover current children
                         try:
                             # Use dict for lookup, keeps process objects consistent for cpu_percent
                             current_children = self.process.children(recursive=True)
-                            
+
                             # Update tracked processes with new children
                             current_pids = set()
                             for child in current_children:
@@ -120,13 +120,13 @@ class MonitorResources(BaseAction):
                                         self.tracked_processes[pid] = child
                                     except (psutil.NoSuchProcess, psutil.AccessDenied):
                                         pass
-                            
+
                             # Clean up dead processes
                             # Create a list of keys to safely modify the dict during iteration if needed (or just use list comprehension)
                             for pid in list(self.tracked_processes.keys()):
                                 if pid not in current_pids and pid != self.process.pid:
                                     del self.tracked_processes[pid]
-                            
+
                             # Gather stats using the CACHED process objects
                             # This ensures cpu_percent() works correctly (diff against last call on same object)
                             for pid, proc in self.tracked_processes.items():
@@ -142,7 +142,7 @@ class MonitorResources(BaseAction):
                                     pass
                         except (psutil.NoSuchProcess, psutil.AccessDenied):
                             pass
-                        
+
                         # Write all lines at once
                         with open(self.csv_file, 'a') as f:
                             f.writelines(lines)
@@ -151,7 +151,7 @@ class MonitorResources(BaseAction):
                         cpu_percent = self.process.cpu_percent(interval=None)
                         mem_info = self.process.memory_info()
                         mem_usage = mem_info.rss  # Resident Set Size in bytes
-                        
+
                         # Include all child processes
                         try:
                             children = self.process.children(recursive=True)
@@ -164,20 +164,20 @@ class MonitorResources(BaseAction):
                                     continue
                         except (psutil.NoSuchProcess, psutil.AccessDenied):
                             pass
-                        
+
                         # Write to CSV file
                         with open(self.csv_file, 'a') as f:
                             f.write(f"{timestamp},{cpu_percent},{mem_usage}\n")
-                    
+
                 except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
                     self.logger.warning(f"Error accessing process information: {e}")
                 except Exception as e: # pylint: disable=road-exception-caught
                     self.logger.error(f"Error in monitoring loop: {e}")
-                
+
                 # Wait for 1 second or until stop event is set
                 if self.stop_event.wait(1.0):
                     break
-                    
+
         except Exception as e: # pylint: disable=road-exception-caught
             self.logger.error(f"Critical error in monitoring thread: {e}")
         finally:
