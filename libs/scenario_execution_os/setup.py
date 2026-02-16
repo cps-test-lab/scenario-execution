@@ -44,6 +44,7 @@ setup(
             'check_file_exists = scenario_execution_os.actions.check_file_exists:CheckFileExists',
             'check_file_not_exists = scenario_execution_os.actions.check_file_not_exists:CheckFileNotExists',
             'check_process_running = scenario_execution_os.actions.check_process_running:CheckProcessRunning',
+            'monitor_resources = scenario_execution_os.actions.monitor_resources:MonitorResources',
         ],
         'scenario_execution.osc_libraries': [
             'os = '
