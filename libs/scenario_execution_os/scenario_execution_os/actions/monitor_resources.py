@@ -37,6 +37,7 @@ class MonitorResources(BaseAction):
         self.csv_file = None
         self.process = None
         self.monitoring_started = False
+        self.tracked_processes = {}  # PID -> psutil.Process mapping for CPU measurement tracking
         output_dir = ScenarioExecutionConfig().output_directory
         if output_dir is None:
             self.feedback_message = "Output directory not configured"
@@ -52,6 +53,7 @@ class MonitorResources(BaseAction):
         
         # Prime the CPU measurement (first call returns 0.0)
         self.process.cpu_percent(interval=None)
+        self.tracked_processes[self.process.pid] = self.process
         
         # Initialize CSV file with header
         try:
@@ -101,17 +103,43 @@ class MonitorResources(BaseAction):
                         except (psutil.NoSuchProcess, psutil.AccessDenied):
                             pass
                         
-                        # Child processes
+                        # Child processes - discover current children
                         try:
-                            children = self.process.children(recursive=True)
-                            for child in children:
-                                try:
-                                    cpu = child.cpu_percent(interval=None)
-                                    mem = child.memory_info().rss
-                                    name = child.name()
-                                    lines.append(f"{timestamp},{child.pid},{name},{cpu},{mem}\n")
-                                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                            # Use dict for lookup, keeps process objects consistent for cpu_percent
+                            current_children = self.process.children(recursive=True)
+                            
+                            # Update tracked processes with new children
+                            current_pids = set()
+                            for child in current_children:
+                                pid = child.pid
+                                current_pids.add(pid)
+                                if pid not in self.tracked_processes:
+                                    try:
+                                        # Prime new process
+                                        child.cpu_percent(interval=None)
+                                        self.tracked_processes[pid] = child
+                                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                                        pass
+                            
+                            # Clean up dead processes
+                            # Create a list of keys to safely modify the dict during iteration if needed (or just use list comprehension)
+                            for pid in list(self.tracked_processes.keys()):
+                                if pid not in current_pids and pid != self.process.pid:
+                                    del self.tracked_processes[pid]
+                            
+                            # Gather stats using the CACHED process objects
+                            # This ensures cpu_percent() works correctly (diff against last call on same object)
+                            for pid, proc in self.tracked_processes.items():
+                                if pid == self.process.pid:
                                     continue
+                                try:
+                                    cpu = proc.cpu_percent(interval=None)
+                                    mem = proc.memory_info().rss
+                                    name = proc.name()
+                                    lines.append(f"{timestamp},{pid},{name},{cpu},{mem}\n")
+                                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                                    # Process might have died during this split second
+                                    pass
                         except (psutil.NoSuchProcess, psutil.AccessDenied):
                             pass
                         
