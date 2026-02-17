@@ -10,7 +10,7 @@ The official documentation is available
 `here <https://publications.pages.asam.net/standards/ASAM_OpenSCENARIO/ASAM_OpenSCENARIO_DSL/latest/index.html>`__.
 
 The `standard library of
-OSC2 <https://publications.pages.asam.net/standards/ASAM_OpenSCENARIO/ASAM_OpenSCENARIO_DSL/latest/domain-model/_attachments/ASAM_OpenSCENARIO_DSL_v2.2.0-RC1_Domain_model_library.zip>`__
+OSC2 <https://publications.pages.asam.net/standards/ASAM_OpenSCENARIO/ASAM_OpenSCENARIO_DSL/latest/domain-model/_attachments/ASAM_OpenSCENARIO_DSL_v2.2.0-RC2_Domain_model_library.zip>`__
 was adapted to be usable by the current parsing support of scenario execution.
 
 

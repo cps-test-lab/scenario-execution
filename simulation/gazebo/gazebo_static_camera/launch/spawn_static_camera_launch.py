@@ -26,9 +26,6 @@ ARGUMENTS = [
     DeclareLaunchArgument('camera_name', default_value='static_camera',
                           description='Camera name'),
 
-    DeclareLaunchArgument('world_name', default_value='default',
-                          description='World name'),
-
     DeclareLaunchArgument('update_rate', default_value='5',
                           description='Update rate of the sensor'),
 
@@ -48,7 +45,6 @@ def generate_launch_description():
     gazebo_static_camera_dir = get_package_share_directory('gazebo_static_camera')
 
     camera_name = LaunchConfiguration('camera_name')
-    world_name = LaunchConfiguration('world_name')
     update_rate = LaunchConfiguration('update_rate')
     image_width = LaunchConfiguration('image_width')
     image_height = LaunchConfiguration('image_height')
@@ -56,28 +52,23 @@ def generate_launch_description():
     x, y, z = LaunchConfiguration('x'), LaunchConfiguration('y'), LaunchConfiguration('z')
     roll, pitch, yaw = LaunchConfiguration('roll'), LaunchConfiguration('pitch'), LaunchConfiguration('yaw')
 
+    image_bridge = Node(
+        package='ros_gz_image',
+        executable='image_bridge',
+        name='monitor_camera_image_bridge',
+        arguments=[[camera_name, '/image']],
+        output='screen',
+    )
+
     camera_bridge = Node(
         package='ros_gz_bridge',
         executable='parameter_bridge',
         output='screen',
         parameters=[{'use_sim_time': True}],
         arguments=[
-            ['/world/', world_name,
-             '/model/', camera_name,
-             '/link/link/sensor/camera/image' +
-             '@sensor_msgs/msg/Image' +
-             '[gz.msgs.Image'],
-            ['/world/', world_name,
-             '/model/', camera_name,
-             '/link/link/sensor/camera/camera_info' +
+            [camera_name, '/camera_info' +
              '@sensor_msgs/msg/CameraInfo' +
              '[gz.msgs.CameraInfo'],
-        ],
-        remappings=[
-            (['/world/', world_name, '/model/', camera_name, '/link/link/sensor/camera/image'],
-             [camera_name, '/image_raw']),
-            (['/world/', world_name, '/model/', camera_name, '/link/link/sensor/camera/camera_info'],
-             [camera_name, '/camera_info'])
         ]
     )
 
@@ -116,6 +107,7 @@ def generate_launch_description():
     )
 
     ld = LaunchDescription(ARGUMENTS)
+    ld.add_action(image_bridge)
     ld.add_action(camera_bridge)
     ld.add_action(spawn_camera)
     ld.add_action(static_transform)
