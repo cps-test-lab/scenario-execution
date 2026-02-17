@@ -26,9 +26,6 @@ ARGUMENTS = [
     DeclareLaunchArgument('camera_name', default_value='static_camera',
                           description='Camera name'),
 
-    DeclareLaunchArgument('world_name', default_value='default',
-                          description='World name'),
-
     DeclareLaunchArgument('update_rate', default_value='5',
                           description='Update rate of the sensor'),
 
@@ -48,7 +45,6 @@ def generate_launch_description():
     gazebo_static_camera_dir = get_package_share_directory('gazebo_static_camera')
 
     camera_name = LaunchConfiguration('camera_name')
-    world_name = LaunchConfiguration('world_name')
     update_rate = LaunchConfiguration('update_rate')
     image_width = LaunchConfiguration('image_width')
     image_height = LaunchConfiguration('image_height')
