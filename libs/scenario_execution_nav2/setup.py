@@ -40,6 +40,7 @@ setup(
             'differential_drive_robot.init_nav2 = scenario_execution_nav2.actions.init_nav2:InitNav2',
             'differential_drive_robot.nav_to_pose = scenario_execution_nav2.actions.nav_to_pose:NavToPose',
             'differential_drive_robot.nav_through_poses = scenario_execution_nav2.actions.nav_through_poses:NavThroughPoses',
+            'differential_drive_robot.follow_waypoints = scenario_execution_nav2.actions.follow_waypoints:FollowWaypoints',
         ],
         'scenario_execution.osc_libraries': [
             'nav2 = '

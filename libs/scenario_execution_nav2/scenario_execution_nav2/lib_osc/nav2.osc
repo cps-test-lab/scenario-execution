@@ -23,3 +23,11 @@ action differential_drive_robot.nav_to_pose:
     namespace_override: string = ''      # if set, it's used as namespace (instead of the associated actor's name)
     action_topic: string = 'navigate_to_pose' # Name of action
     success_on_acceptance: bool = false  # succeed on goal acceptance
+
+action differential_drive_robot.follow_waypoints:
+    # Nav2 to follow waypoints.
+    goal_poses: list of pose_3d          # goal poses to navigate through
+    loop_count: int = 0                  # number of times to loop through the waypoints
+    namespace_override: string = ''      # if set, it's used as namespace (instead of the associated actor's name)
+    action_topic: string = 'follow_waypoints' # Name of action
+    success_on_acceptance: bool = false  # succeed on goal acceptance
