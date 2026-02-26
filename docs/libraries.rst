@@ -1167,6 +1167,37 @@ Use nav2 to navigate to goal pose.
      - ``false``
      -  succeed on goal acceptance
 
+Use nav2 to navigate to goal pose.
+
+.. list-table:: 
+   :widths: 15 15 5 65
+   :header-rows: 1
+   :class: tight-table   
+   
+   * - Parameter
+     - Type
+     - Default
+     - Description
+   * - ``goal_pose``
+     - ``pose_3d``
+     - 
+     - Goal pose to navigate to
+   * - ``namespace_override``
+     - ``string``
+     - 
+     - If set, it's used as namespace (instead of the associated actor's namespace)
+   * - ``action_topic``
+     - ``string``
+     - ``navigate_to_pose``
+     - Action name
+   * - ``success_on_acceptance``
+     - ``bool``
+     - ``false``
+     -  succeed on goal acceptance
+
+``differential_drive_robot.follow_waypoints()``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 Network
 -------
 
