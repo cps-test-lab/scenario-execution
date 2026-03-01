@@ -27,9 +27,9 @@ class GenerateGazeboWorld(BaseAction):
     def __init__(self, associated_actor, sdf_template: str):
         super().__init__()
         self.sdf_template = sdf_template
-        self.spawn_utils = SpawnUtils(self.logger)
 
     def setup(self, **kwargs):
+        self.spawn_utils = SpawnUtils(self.logger)
         if which("xacro") is None:
             raise ActionError("'xacro' not found.", action=self)
         if "input_dir" not in kwargs:
