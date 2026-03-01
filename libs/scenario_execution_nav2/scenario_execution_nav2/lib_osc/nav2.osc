@@ -1,6 +1,14 @@
 import osc.types
 import osc.robotics
 
+action differential_drive_robot.follow_waypoints:
+    # Use nav2 to follow waypoints
+    goal_poses: list of pose_3d          # goal poses to navigate through
+    loop_count: int = 1                  # loop count
+    namespace_override: string = ''      # if set, it's used as namespace (instead of the associated actor's name)
+    action_topic: string = 'follow_waypoints' # Name of action
+    success_on_acceptance: bool = false  # succeed on goal acceptance
+
 action differential_drive_robot.init_nav2:
     # Initialize nav2
     initial_pose: pose_3d                # the initial pose to set during initialization

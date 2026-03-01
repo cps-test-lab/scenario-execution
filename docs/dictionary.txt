@@ -42,3 +42,4 @@ subtree
 libx
 codec
 libvpx
+waypoints

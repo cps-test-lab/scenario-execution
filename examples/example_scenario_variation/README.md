@@ -25,4 +25,4 @@ Second
 scenario_batch_execution -i out -o scenario_output -- ros2 launch scenario_execution_ros scenario_launch.py scenario:={SCENARIO} output_dir:={OUTPUT_DIR}
 ```
 
-For a more detailed understanding of the code structure and scenario implementation please refer to the [tutorial documentation](https://intellabs.github.io/scenario_execution/tutorials.html).
+For a more detailed understanding of the code structure and scenario implementation please refer to the [tutorial documentation](https://cps-test-lab.github.io/scenario-execution/tutorials.html).
