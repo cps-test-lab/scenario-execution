@@ -1,4 +1,4 @@
- # Copyright (C) 2024 Intel Corporation
+# Copyright (C) 2024 Intel Corporation
 # Copyright (C) 2025 Frederik Pasch
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -45,7 +45,7 @@ class FollowWaypoints(RosActionCall):
         for pose in self.goal_poses:
             goal_msg.poses.append(get_pose_stamped(self.node.get_clock().now().to_msg(), pose))
         if hasattr(goal_msg, "number_of_loops"):
-            goal_msg.number_of_loops = max(1, int(self.loop_count))
+            goal_msg.number_of_loops = max(0, int(self.loop_count))
         return goal_msg
 
     def get_feedback_message(self, current_state):
