@@ -127,13 +127,13 @@ class ScenarioExecution(object):
         ScenarioExecutionConfig().output_directory = os.path.abspath(output_dir) if output_dir else None
         self.dry_run = dry_run
         self.render_dot = render_dot
-        self.post_run = post_run
-        if self.post_run:
-            if not os.path.isfile(self.post_run):
-                raise ValueError(f"Post-run command '{self.post_run}' does not exist.")
-            if not os.access(self.post_run, os.X_OK):
-                raise ValueError(f"Post-run command '{self.post_run}' is not executable.")
-            self.post_run = os.path.abspath(self.post_run)
+        self.post_run = []
+        for cmd in (post_run or []):
+            if not os.path.isfile(cmd):
+                raise ValueError(f"Post-run command '{cmd}' does not exist.")
+            if not os.access(cmd, os.X_OK):
+                raise ValueError(f"Post-run command '{cmd}' is not executable.")
+            self.post_run.append(os.path.abspath(cmd))
         if self.output_dir and not self.dry_run:
             self.output_dir = os.path.abspath(self.output_dir)
             if not os.path.isdir(self.output_dir):
@@ -347,14 +347,15 @@ class ScenarioExecution(object):
                     # use print, as logger might not be available during shutdown
                     print(f"Could not write results to '{self.output_dir}': {e}")
 
-                # Run post-run if specified
-                if self.post_run:
+                # Run post-run commands if specified
+                for cmd in self.post_run:
                     try:
-                        self.logger.info(f"Running post-run: {self.post_run} {self.output_dir}")
-                        subprocess.run([self.post_run, self.output_dir], check=True)
+                        self.logger.info(f"Running post-run: {cmd} {self.output_dir}")
+                        subprocess.run([cmd, self.output_dir], check=True, timeout=600)
+                    except subprocess.TimeoutExpired:
+                        self.logger.error(f"Post-run '{cmd}' timed out after 600s.")
                     except subprocess.CalledProcessError as e:
-                        print(f"post-run failed: {e}")
-                        result = False
+                        self.logger.error(f"Post-run '{cmd}' failed: {e}")
         return result
 
     def pre_tick_handler(self, behaviour_tree):
@@ -421,7 +422,8 @@ class ScenarioExecution(object):
         parser.add_argument('--scenario-parameter-file', type=str,
                             help='File specifying scenario parameter. These will override default values.')
         parser.add_argument('--create-scenario-parameter-file-template',action='store_true', help='Command to run to create a scenario parameter file template specified by --scenario-parameter-file')
-        parser.add_argument('--post-run', type=str, help='Command to run after scenario execution (expected commandline: <command> <output_dir>)')
+        parser.add_argument('--post-run', action='append', dest='post_run', metavar='POST_RUN_COMMAND',
+                            help='Command to run after scenario execution (expected commandline: <command> <output_dir>). Can be specified multiple times; commands are executed in order.')
         parser.add_argument('scenario', type=str, help='scenario file to execute', nargs='?')
         return parser
 

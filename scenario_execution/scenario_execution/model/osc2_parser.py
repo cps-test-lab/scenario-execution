@@ -418,7 +418,10 @@ class OpenScenario2Parser(object):
             def syntaxError(self, recognizer, offendingSymbol, line, column, msg, e):  # pylint: disable=invalid-name
                 if self.error_message:
                     self.error_message += "\n"
-                self.error_message += self.prefix + "line " + str(line) + ":" + str(column) + " " + msg
+                hint = ""
+                if ",]" in msg or ",)" in msg:
+                    hint = " (trailing commas are not allowed)"
+                self.error_message += self.prefix + "line " + str(line) + ":" + str(column) + " " + msg + hint
         error_listener = TestErrorListener(error_prefix)
         parser.addErrorListener(error_listener)
         tree = parser.osc_file()

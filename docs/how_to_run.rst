@@ -31,7 +31,7 @@ Runtime Parameters
    * - ``-t`` ``--live-tree``
      - (For debugging) Show current state of py tree
    * - ``--post-run POST_RUN_COMMAND``
-     - Command or script to run after scenario execution. The command will be called as ``<command> <output_dir>``. Example: ``--post-run ./post.sh``
+     - Command or script to run after scenario execution. The command will be called as ``<command> <output_dir>``. Can be specified multiple times; commands are executed in order with a timeout of 10 minutes each. Failures are logged but do not stop subsequent commands. Example: ``--post-run ./post.sh --post-run ./cleanup.sh``
    * - ``--snapshot-period SNAPSHOT_PERIOD``
      - How often (in seconds) to publish behavior tree snapshots to ``/scenario_execution/snapshots``. Default: only on status change. Set to a float value (e.g. ``--snapshot-period 1.0`` for every second).
 

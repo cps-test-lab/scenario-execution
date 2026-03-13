@@ -84,7 +84,7 @@ class ROSScenarioExecution(ScenarioExecution):
         if self.node.get_parameter('create_scenario_parameter_file_template').value:
             self.create_scenario_parameter_file_template = self.node.get_parameter('create_scenario_parameter_file_template').value
         if self.node.get_parameter('post_run').value:
-            self.post_run = self.node.get_parameter('post_run').value
+            self.post_run = [self.node.get_parameter('post_run').value]
         if self.node.get_parameter('snapshot_period').value:
             self.snapshot_period = self.node.get_parameter('snapshot_period').value
         self.logger = RosLogger('scenario_execution_ros', debug)
