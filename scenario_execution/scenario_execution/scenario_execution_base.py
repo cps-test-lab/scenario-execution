@@ -349,13 +349,35 @@ class ScenarioExecution(object):
 
                 # Run post-run commands if specified
                 for cmd in self.post_run:
+                    self.logger.info(f"Running post-run: {cmd} {self.output_dir}")
                     try:
-                        self.logger.info(f"Running post-run: {cmd} {self.output_dir}")
-                        subprocess.run([cmd, self.output_dir], check=True, timeout=600)
-                    except subprocess.TimeoutExpired:
-                        self.logger.error(f"Post-run '{cmd}' timed out after 600s.")
-                    except subprocess.CalledProcessError as e:
-                        self.logger.error(f"Post-run '{cmd}' failed: {e}")
+                        # start_new_session=True puts the child in its own process group
+                        # so its grandchildren never get re-parented to scenario-execution
+                        # and we can kill the whole group cleanly on timeout.
+                        with subprocess.Popen([cmd, self.output_dir],
+                                              start_new_session=True) as proc:
+                            try:
+                                proc.wait(timeout=600)
+                            except subprocess.TimeoutExpired:
+                                try:
+                                    os.killpg(proc.pid, signal.SIGTERM)
+                                except ProcessLookupError:
+                                    pass
+                                try:
+                                    proc.wait(timeout=5)
+                                except subprocess.TimeoutExpired:
+                                    try:
+                                        os.killpg(proc.pid, signal.SIGKILL)
+                                    except ProcessLookupError:
+                                        pass
+                                    proc.wait()
+                                self.logger.error(f"Post-run '{cmd}' timed out after 600s.")
+                                continue
+                            if proc.returncode != 0:
+                                self.logger.error(
+                                    f"Post-run '{cmd}' failed with exit code {proc.returncode}.")
+                    except Exception as e:  # pylint: disable=broad-except
+                        self.logger.error(f"Post-run '{cmd}' error: {e}")
         return result
 
     def pre_tick_handler(self, behaviour_tree):
