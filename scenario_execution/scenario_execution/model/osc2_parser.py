@@ -137,7 +137,6 @@ class OpenScenario2Parser(object):
         keys = list(scenario_parameter_overrides.keys())
         self.logger.info(f"Applying parameter overrides for scenarios: {keys}")
         for scenario in model.find_children_of_type(ScenarioDeclaration):
-            self.logger.info(f"Applying parameter overrides for scenario: {scenario}")
             if scenario.name in keys:
                 keys.remove(scenario.name)
                 if scenario_parameter_overrides[scenario.name] is None:
