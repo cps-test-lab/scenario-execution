@@ -150,6 +150,9 @@ class ScenarioExecution(object):
         else:
             self.logger = logger
 
+        if self.post_run and not self.output_dir:
+            self.logger.warning("--post-run is set but no --output-dir specified. Post-run commands will receive an empty output directory.")
+
         if self.debug:
             py_trees.logging.level = py_trees.logging.Level.DEBUG
         self.setup_timeout = setup_timeout
@@ -354,7 +357,7 @@ class ScenarioExecution(object):
                         # start_new_session=True puts the child in its own process group
                         # so its grandchildren never get re-parented to scenario-execution
                         # and we can kill the whole group cleanly on timeout.
-                        with subprocess.Popen([cmd, self.output_dir],
+                        with subprocess.Popen([cmd, self.output_dir or ""],
                                               start_new_session=True) as proc:
                             try:
                                 proc.wait(timeout=600)
