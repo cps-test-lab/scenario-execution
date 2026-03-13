@@ -156,10 +156,10 @@ scenario test:
             "test_float": 99.0,
             "test_integer": 42}}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1], "override")
-        self.assertEqual(self.logger.logs_info[2], "99.0")
-        self.assertEqual(self.logger.logs_info[3], "False")
-        self.assertEqual(self.logger.logs_info[4], "42")
+        self.assertEqual(self.logger.logs_info[2], "override")
+        self.assertEqual(self.logger.logs_info[3], "99.0")
+        self.assertEqual(self.logger.logs_info[4], "False")
+        self.assertEqual(self.logger.logs_info[5], "42")
 
     def test_base_params_num_in_string(self):
         scenario_content = """
@@ -174,7 +174,7 @@ scenario test:
         override_parameters = {"test": {
             "test_string": 42.0}}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1], "42.0")
+        self.assertEqual(self.logger.logs_info[2], "42.0")
 
     def test_base_params_int_in_float(self):
         scenario_content = """
@@ -189,7 +189,7 @@ scenario test:
         override_parameters = {"test": {
             "test_float": 42}}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1], "42.0")
+        self.assertEqual(self.logger.logs_info[2], "42.0")
 
     def test_base_params_string_in_float(self):
         scenario_content = """
@@ -245,7 +245,7 @@ scenario test:
         override_parameters = {"test": {
             "test_float": 3.14}}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1], "3.14")
+        self.assertEqual(self.logger.logs_info[2], "3.14")
 
     def test_physical_literal(self):
         scenario_content = """
@@ -278,7 +278,7 @@ scenario test:
             "my_struct": {
                 "test_string": "override"}}}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1], "{'test_string': 'override'}")
+        self.assertEqual(self.logger.logs_info[2], "{'test_string': 'override'}")
 
     def test_struct_pos_arg(self):
         scenario_content = """
@@ -297,7 +297,7 @@ scenario test:
             "my_struct": {
                 "test_string": "override"}}}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1], "{'test_string': 'override'}")
+        self.assertEqual(self.logger.logs_info[2], "{'test_string': 'override'}")
 
     def test_struct_partial_override_1(self):
         scenario_content = """
@@ -317,7 +317,7 @@ scenario test:
             "my_struct": {
                 "test_float": 42.0}}}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1], "{'test_string': 'override', 'test_float': 42.0}")
+        self.assertEqual(self.logger.logs_info[2], "{'test_string': 'override', 'test_float': 42.0}")
 
     def test_struct_partial_override_2(self):
         scenario_content = """
@@ -337,7 +337,7 @@ scenario test:
             "my_struct": {
                 "test_string": 'hello'}}}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1], "{'test_string': 'hello', 'test_float': 42.0}")
+        self.assertEqual(self.logger.logs_info[2], "{'test_string': 'hello', 'test_float': 42.0}")
 
     def test_struct_no_override(self):
         scenario_content = """
@@ -356,7 +356,7 @@ scenario test:
         override_parameters = {"test": {
             "my_struct": {}}}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1], "{'test_string': 'override', 'test_float': 42.0}")
+        self.assertEqual(self.logger.logs_info[2], "{'test_string': 'override', 'test_float': 42.0}")
 
     def test_struct_no_init_overload_1(self):
         scenario_content = """
@@ -377,7 +377,7 @@ scenario test:
                 "test_string": "override"
             }}}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1], "{'test_string': 'override', 'test_float': 1.0}")
+        self.assertEqual(self.logger.logs_info[2], "{'test_string': 'override', 'test_float': 1.0}")
 
     def test_struct_no_init_overload_2(self):
         scenario_content = """
@@ -398,7 +398,7 @@ scenario test:
                 "test_float": 42.0
             }}}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1], "{'test_string': 'test', 'test_float': 42.0}")
+        self.assertEqual(self.logger.logs_info[2], "{'test_string': 'test', 'test_float': 42.0}")
 
     def test_struct_no_init_overload_all(self):
         scenario_content = """
@@ -420,7 +420,7 @@ scenario test:
                 "test_float": 42.0
             }}}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1], "{'test_string': 'override', 'test_float': 42.0}")
+        self.assertEqual(self.logger.logs_info[2], "{'test_string': 'override', 'test_float': 42.0}")
 
     def test_struct_sub_struct_member(self):
         scenario_content = """
@@ -445,7 +445,7 @@ scenario test:
                 }
             }}}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1], "{'test_sub_struct': {'test_sub_string': 'override'}}")
+        self.assertEqual(self.logger.logs_info[2], "{'test_sub_struct': {'test_sub_string': 'override'}}")
 
     def test_struct_no_init_overload_sub_struct_member(self):
         scenario_content = """
@@ -474,7 +474,7 @@ scenario test:
             }}}
         self.execute(scenario_content, override_parameters)
         self.assertEqual(
-            self.logger.logs_info[1], "{'test_string': 'test', 'test_float': 42.0, 'test_sub_struct': {'test_sub_string': 'override'}}")
+            self.logger.logs_info[2], "{'test_string': 'test', 'test_float': 42.0, 'test_sub_struct': {'test_sub_string': 'override'}}")
 
     def test_struct_no_init_overload_sub_struct_member_wrong_type(self):
         scenario_content = """
@@ -552,7 +552,7 @@ scenario test:
                 }
             }}}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1], "{'test_sub_struct': {'test_sub_sub_struct': {'test_sub_sub_float': 42.0}}}")
+        self.assertEqual(self.logger.logs_info[2], "{'test_sub_struct': {'test_sub_sub_struct': {'test_sub_sub_float': 42.0}}}")
 
     def test_struct_no_init_overload_sub_sub_struct_member_unknown(self):
         scenario_content = """
@@ -610,7 +610,7 @@ scenario test:
                 }
             }}}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1], "{'test_sub_struct': {'test_sub_sub_struct': {'test_sub_sub_float': 42.0}}}")
+        self.assertEqual(self.logger.logs_info[2], "{'test_sub_struct': {'test_sub_sub_struct': {'test_sub_sub_float': 42.0}}}")
 
     def test_struct_no_init_overload_sub_sub_struct_member_physical_literal_invalid(self):
         scenario_content = """
@@ -673,7 +673,7 @@ scenario test:
         }}
         self.execute(scenario_content, override_parameters)
         self.assertEqual(
-            self.logger.logs_info[1], "{'position': {'x': 0.0, 'y': 0.0, 'z': 0.0}, 'orientation': {'roll': 0.0, 'pitch': 1.23, 'yaw': 0.0}}")
+            self.logger.logs_info[2], "{'position': {'x': 0.0, 'y': 0.0, 'z': 0.0}, 'orientation': {'roll': 0.0, 'pitch': 1.23, 'yaw': 0.0}}")
 
     def test_string_empty(self):
         scenario_content = """
@@ -689,7 +689,7 @@ scenario test:
             "my_val": "override"
         }}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1], "override")
+        self.assertEqual(self.logger.logs_info[2], "override")
 
     def test_int_empty(self):
         scenario_content = """
@@ -705,7 +705,7 @@ scenario test:
             "my_val": 42
         }}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1], "42")
+        self.assertEqual(self.logger.logs_info[2], "42")
 
     def test_int_empty_wrong_override(self):
         scenario_content = """
@@ -736,7 +736,7 @@ scenario test:
             "my_val": 42.0
         }}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1], "42.0")
+        self.assertEqual(self.logger.logs_info[2], "42.0")
 
     def test_float_empty_int_override(self):
         scenario_content = """
@@ -752,7 +752,7 @@ scenario test:
             "my_val": 42
         }}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1], "42.0")
+        self.assertEqual(self.logger.logs_info[2], "42.0")
 
     def test_float_empty_wrong_override(self):
         scenario_content = """
@@ -783,7 +783,7 @@ scenario test:
             "my_val": True
         }}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1], "True")
+        self.assertEqual(self.logger.logs_info[2], "True")
 
     def test_bool_empty_wrong_override(self):
         scenario_content = """
@@ -813,7 +813,7 @@ scenario test:
             "my_val": 42.0
         }}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1], "42.0")
+        self.assertEqual(self.logger.logs_info[2], "42.0")
 
     def test_physical_literal_empty_invalid_override_test(self):
         scenario_content = """
@@ -880,7 +880,7 @@ scenario test:
             }
         }}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1], "{'test_float': 4.2}")
+        self.assertEqual(self.logger.logs_info[2], "{'test_float': 4.2}")
 
     def test_list_struct(self):
         scenario_content = """
@@ -903,7 +903,7 @@ scenario test:
             ]
         }}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1], "[{'test_int': 3, 'test_float': 3.22}, {'test_int': 4, 'test_float': 4.22}]")
+        self.assertEqual(self.logger.logs_info[2], "[{'test_int': 3, 'test_float': 3.22}, {'test_int': 4, 'test_float': 4.22}]")
 
     def test_list_struct_invalid_override(self):
         scenario_content = """
@@ -948,7 +948,7 @@ scenario test:
             ]
         }}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1], "[{'test_int': 3, 'test_float': 3.22}, {'test_int': 4, 'test_float': 4.22}]")
+        self.assertEqual(self.logger.logs_info[2], "[{'test_int': 3, 'test_float': 3.22}, {'test_int': 4, 'test_float': 4.22}]")
 
     def test_list_base(self):
         scenario_content = """
@@ -964,7 +964,7 @@ scenario test:
             "my_val": [4.0, 4.1]
         }}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1], "[4.0, 4.1]")
+        self.assertEqual(self.logger.logs_info[2], "[4.0, 4.1]")
 
     def test_list_base_empty(self):
         scenario_content = """
@@ -980,7 +980,7 @@ scenario test:
             "my_val": [4.0, 4.1]
         }}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1], "[4.0, 4.1]")
+        self.assertEqual(self.logger.logs_info[2], "[4.0, 4.1]")
 
     def test_list_base_empty_invalid_sub_entry(self):
         scenario_content = """
@@ -1033,7 +1033,7 @@ scenario test:
             }
         }}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1], "{'test_int': 42, 'test_list': [4.0, 4.1]}")
+        self.assertEqual(self.logger.logs_info[2], "{'test_int': 42, 'test_list': [4.0, 4.1]}")
 
     def test_list_struct_list_param_set(self):
         scenario_content = """
@@ -1056,7 +1056,7 @@ scenario test:
             }
         }}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1], "{'test_int': 42, 'test_list': [4.0, 4.1]}")
+        self.assertEqual(self.logger.logs_info[2], "{'test_int': 42, 'test_list': [4.0, 4.1]}")
 
     def test_list_struct_list_param_unset(self):
         scenario_content = """
@@ -1079,7 +1079,7 @@ scenario test:
             }
         }}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1], "{'test_int': 42, 'test_list': [4.0, 4.1]}")
+        self.assertEqual(self.logger.logs_info[2], "{'test_int': 42, 'test_list': [4.0, 4.1]}")
 
     def test_list_struct_empty_test(self):
         scenario_content = """
@@ -1102,7 +1102,7 @@ scenario test:
             }
         }}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1], "{'test_int': 42, 'test_list': [4.0, 4.1]}")
+        self.assertEqual(self.logger.logs_info[2], "{'test_int': 42, 'test_list': [4.0, 4.1]}")
 
     def test_list_struct_with_sub_struct_list_no_init(self):
         scenario_content = """
@@ -1130,7 +1130,7 @@ scenario test:
             }
         }}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1],
+        self.assertEqual(self.logger.logs_info[2],
                          "{'test_list': [{'test_sub_list': ['foo', 'bar']}, {'test_sub_list': ['Hello', 'World']}]}")
 
     def test_list_struct_with_sub_struct_list_init_sub_struct(self):
@@ -1159,7 +1159,7 @@ scenario test:
             }
         }}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1],
+        self.assertEqual(self.logger.logs_info[2],
                          "{'test_list': [{'test_sub_list': ['foo', 'bar']}, {'test_sub_list': ['Hello', 'World']}]}")
 
     def test_list_struct_with_sub_struct_list_init_struct(self):
@@ -1188,7 +1188,7 @@ scenario test:
             }
         }}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1],
+        self.assertEqual(self.logger.logs_info[2],
                          "{'test_list': [{'test_sub_list': ['foo', 'bar']}, {'test_sub_list': ['Hello', 'World']}]}")
 
     def test_list_struct_param_init(self):
@@ -1211,7 +1211,7 @@ scenario test:
             ]
         }}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1], "[{'test_list': [4.0, 4.1]}, {'test_list': [5.0, 5.1]}]")
+        self.assertEqual(self.logger.logs_info[2], "[{'test_list': [4.0, 4.1]}, {'test_list': [5.0, 5.1]}]")
 
     def test_list_struct_param_no_init(self):
         scenario_content = """
@@ -1233,7 +1233,7 @@ scenario test:
             ]
         }}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1], "[{'test_list': [4.0, 4.1]}, {'test_list': [5.0, 5.1]}]")
+        self.assertEqual(self.logger.logs_info[2], "[{'test_list': [4.0, 4.1]}, {'test_list': [5.0, 5.1]}]")
 
     def test_list_struct_param_full_init(self):
         scenario_content = """
@@ -1255,7 +1255,7 @@ scenario test:
             ]
         }}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1], "[{'test_list': [4.0, 4.1]}, {'test_list': [5.0, 5.1]}]")
+        self.assertEqual(self.logger.logs_info[2], "[{'test_list': [4.0, 4.1]}, {'test_list': [5.0, 5.1]}]")
 
     def test_list_struct_param_clear(self):
         scenario_content = """
@@ -1274,7 +1274,7 @@ scenario test:
             "my_val": []
         }}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1], "[]")
+        self.assertEqual(self.logger.logs_info[2], "[]")
 
     def test_list_struct_param_length(self):
         scenario_content = """
@@ -1295,4 +1295,4 @@ scenario test:
             ]
         }}
         self.execute(scenario_content, override_parameters)
-        self.assertEqual(self.logger.logs_info[1], "[{'test_list': [14.0, 14.1]}, {'test_list': [15.0, 15.1]}]")
+        self.assertEqual(self.logger.logs_info[2], "[{'test_list': [14.0, 14.1]}, {'test_list': [15.0, 15.1]}]")
