@@ -62,7 +62,7 @@ class ROSScenarioExecution(ScenarioExecution):
         self.node.declare_parameter('dot', False)
         self.node.declare_parameter('scenario_parameter_file', "")
         self.node.declare_parameter('create_scenario_parameter_file_template', False)
-        self.node.declare_parameter('post_run', "")
+        self.node.declare_parameter('post_run', [""])
         self.node.declare_parameter('snapshot_period', 1.0)
 
         if self.node.get_parameter('debug').value:
@@ -83,8 +83,9 @@ class ROSScenarioExecution(ScenarioExecution):
             self.scenario_parameter_file = self.node.get_parameter('scenario_parameter_file').value
         if self.node.get_parameter('create_scenario_parameter_file_template').value:
             self.create_scenario_parameter_file_template = self.node.get_parameter('create_scenario_parameter_file_template').value
-        if self.node.get_parameter('post_run').value:
-            self.post_run = self.node.get_parameter('post_run').value
+        post_run_param = [v for v in self.node.get_parameter('post_run').value if v]
+        if post_run_param:
+            self.post_run = post_run_param
         if self.node.get_parameter('snapshot_period').value:
             self.snapshot_period = self.node.get_parameter('snapshot_period').value
         self.logger = RosLogger('scenario_execution_ros', debug)
