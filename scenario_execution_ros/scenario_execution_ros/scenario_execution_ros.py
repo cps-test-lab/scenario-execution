@@ -16,6 +16,7 @@
 
 """ Main entry for scenario_execution_ros """
 import sys
+import time
 import rclpy  # pylint: disable=import-error
 import py_trees_ros
 from py_trees_ros_interfaces.srv import OpenSnapshotStream
@@ -122,6 +123,8 @@ class ROSScenarioExecution(ScenarioExecution):
         response = OpenSnapshotStream.Response()
         self.behaviour_tree._open_snapshot_stream(request, response)  # pylint: disable=protected-access
 
+    SHUTDOWN_TIMEOUT = 30.0  # seconds to wait for async shutdown operations (e.g. goal cancellations)
+
     def run(self) -> bool:
 
         executor = rclpy.executors.MultiThreadedExecutor()
@@ -135,6 +138,7 @@ class ROSScenarioExecution(ScenarioExecution):
 
         try:
             self.behaviour_tree.tick_tock(period_ms=1000. * self.tick_period)
+            shutdown_done_time = None
             while rclpy.ok():
                 try:
                     executor.spin_once(timeout_sec=self.tick_period)
@@ -145,6 +149,12 @@ class ROSScenarioExecution(ScenarioExecution):
                     shutdown_handler = ShutdownHandler.get_instance()
                     if shutdown_handler.is_done():
                         self.logger.info("Shutting down finished.")
+                        break
+                    if shutdown_done_time is None:
+                        shutdown_done_time = time.monotonic()
+                    elif time.monotonic() - shutdown_done_time > self.SHUTDOWN_TIMEOUT:
+                        self.logger.warning(
+                            f"Shutdown timed out after {self.SHUTDOWN_TIMEOUT}s waiting for async operations.")
                         break
         except Exception as e:  # pylint: disable=broad-except
             self.on_scenario_shutdown(False, "Run failed", f"{e}")
