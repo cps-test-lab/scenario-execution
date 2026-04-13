@@ -9,6 +9,7 @@ RUN --mount=type=bind,source=.,target=/scenario_execution \
     apt-get update && \
     apt-get install -y --no-install-recommends \
         python3-pip \
+        python3-setuptools \
         pipx golang-go\
         xvfb \
         tk \
