@@ -17,8 +17,8 @@
 # Generated from OpenSCENARIO2.g4 by ANTLR 4.9.1
 from antlr4 import *
 from io import StringIO
-from typing.io import TextIO
 import sys
+from typing import TextIO
 
 
 from antlr4.Token import CommonToken
