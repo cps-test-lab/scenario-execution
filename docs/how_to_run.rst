@@ -315,11 +315,12 @@ Create a class that inherits from :class:`SimulationInterface <scenario_executio
            self._model = mujoco.MjModel.from_xml_path("robot.xml")
            self._data = mujoco.MjData(self._model)
 
-       def reset(self) -> None:
-           """Called before each scenario. Reset simulation state without
-           tearing down the simulation."""
+       def reset(self, object_start_x=0.0, object_start_y=0.0) -> None:
+           """Called before each scenario. OSC parameters with matching names
+           are injected automatically as keyword arguments."""
            import mujoco
            mujoco.mj_resetData(self._model, self._data)
+           self._data.qpos[:2] = [object_start_x, object_start_y]
 
        def step(self) -> None:
            """Advance the simulation by one timestep (dt seconds).
@@ -331,6 +332,38 @@ Create a class that inherits from :class:`SimulationInterface <scenario_executio
            """Called once after all scenarios complete."""
            self._model = None
            self._data = None
+
+**Passing scenario parameters to the simulation**
+
+Declare the OSC parameters you need directly as arguments on your ``reset()``
+override. The framework matches argument names to OSC parameter names and
+injects values automatically:
+
+.. code-block:: osc
+
+   scenario my_scenario:
+       object_start_x: float = 0.0   # metres
+       object_start_y: float = 0.0
+       object_mass:    float = 1.0   # kg (not consumed by reset)
+
+   action my_scenario.run():
+       do serial:
+           wait elapsed(5.0s)
+
+.. code-block:: python
+
+   def reset(self, object_start_x, object_start_y, gravity=9.81):
+       # object_start_x / object_start_y injected from OSC
+       # gravity uses its Python default because it is not in the scenario
+       ...
+
+Required arguments (no default) that are absent from the scenario file cause
+a clear error before ``reset()`` is ever called.  Optional arguments (with
+defaults) are passed when the scenario declares them, otherwise the default
+is used.  Struct parameters are passed as nested dicts.
+
+If a ``--scenario-parameter-file`` is supplied the overridden values are
+applied before ``reset()`` is called.
 
 The ``SimulationInterface`` lifecycle is aligned with the
 `ros-simulation/simulation_interfaces <https://github.com/ros-simulation/simulation_interfaces>`_ standard:

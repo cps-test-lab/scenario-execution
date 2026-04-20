@@ -66,7 +66,7 @@ class TestRosSetNodeParameter(unittest.TestCase):
         return SetParametersResult(successful=True)
 
     def test_success(self):
-        tree = self.parser.process_file(os.path.join(
+        tree, _ = self.parser.process_file(os.path.join(
             self.scenario_dir, 'scenarios', 'test', 'test_ros_set_node_parameter.osc'), False)
         self.scenario_execution_ros.tree = tree
         self.scenario_execution_ros.run()

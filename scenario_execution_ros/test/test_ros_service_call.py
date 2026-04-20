@@ -70,7 +70,7 @@ class TestRosServiceCall(unittest.TestCase):
         return response
 
     def test_success(self):
-        tree = self.parser.process_file(os.path.join(
+        tree, _ = self.parser.process_file(os.path.join(
             self.scenario_dir, 'scenarios', 'test', 'test_ros_service_call.osc'), False)
         self.scenario_execution_ros.tree = tree
         self.scenario_execution_ros.run()

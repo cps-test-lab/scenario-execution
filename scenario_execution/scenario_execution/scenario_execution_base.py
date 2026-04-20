@@ -16,7 +16,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import importlib
-import importlib.util
+import inspect
 import os
 import sys
 import time
@@ -32,6 +32,48 @@ from dataclasses import dataclass
 from xml.sax.saxutils import escape  # nosec B406 # escape is only used on an internally generated error string
 from timeit import default_timer as timer
 import subprocess  # nosec B404
+
+
+def _get_missing_reset_params(simulation, scenario_params: dict) -> set:
+    """Return the set of parameter names that ``simulation.reset()`` requires
+    but are absent from *scenario_params*.
+
+    Only the concrete override of ``reset()`` is inspected — ``self`` is
+    excluded.  Parameters that carry a default value are considered optional
+    and are not flagged.
+    """
+    sig = inspect.signature(type(simulation).reset)
+    missing = set()
+    for name, param in sig.parameters.items():
+        if name == 'self':
+            continue
+        if param.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
+            continue
+        if param.default is inspect.Parameter.empty:
+            if name not in (scenario_params or {}):
+                missing.add(name)
+    return missing
+
+
+def _build_reset_kwargs(simulation, scenario_params: dict) -> dict:
+    """Build the keyword-argument dict for calling ``simulation.reset()``.
+
+    Each named parameter in the concrete ``reset()`` override is looked up in
+    *scenario_params* and forwarded so the implementation can use plain
+    Python parameter names instead of unpacking a dict manually.
+    """
+    sig = inspect.signature(type(simulation).reset)
+    kwargs = {}
+    for name, param in sig.parameters.items():
+        if name == 'self':
+            continue
+        if param.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
+            continue
+        value = (scenario_params or {}).get(name, param.default)
+        if value is not inspect.Parameter.empty:
+            kwargs[name] = value
+    return kwargs
+
 
 class ScenarioExecutionConfig:
     _instance = None
@@ -170,6 +212,7 @@ class ScenarioExecution(object):
         self.create_scenario_parameter_file_template = create_scenario_parameter_file_template
         self.scenario_parameter_file = scenario_parameter_file
         self.simulation = simulation
+        self.scenario_params = {}
 
     def setup(self, scenario: py_trees.behaviour.Behaviour, **kwargs) -> bool:
         """
@@ -267,7 +310,7 @@ class ScenarioExecution(object):
                                            start_time=start))
             return False
         try:
-            self.tree = parser.process_file(self.scenario_file, self.log_model, self.debug, self.scenario_parameter_file, self.create_scenario_parameter_file_template)
+            self.tree, self.scenario_params = parser.process_file(self.scenario_file, self.log_model, self.debug, self.scenario_parameter_file, self.create_scenario_parameter_file_template)
             if self.create_scenario_parameter_file_template:
                 return True
         except Exception as e:  # pylint: disable=broad-except
@@ -338,8 +381,23 @@ class ScenarioExecution(object):
             self.on_scenario_shutdown(False, "Simulation setup failed", f"{e}")
             return
 
+        missing = _get_missing_reset_params(simulation, self.scenario_params)
+        if missing:
+            self.on_scenario_shutdown(
+                False,
+                "Simulation reset parameter mismatch",
+                f"reset() requires parameter(s) {sorted(missing)} but they are not "
+                f"defined in the OSC scenario file.",
+            )
+            try:
+                simulation.shutdown()
+            except Exception:  # pylint: disable=broad-except
+                pass
+            return
+
         try:
-            simulation.reset()
+            reset_kwargs = _build_reset_kwargs(simulation, self.scenario_params)
+            simulation.reset(**reset_kwargs)
         except Exception as e:  # pylint: disable=broad-except
             self.on_scenario_shutdown(False, "Simulation reset failed", f"{e}")
             try:
@@ -527,24 +585,8 @@ class ScenarioExecution(object):
                                  'Accepts a module path ("module.path:ClassName") or a file path '
                                  '("path/to/file.py" or "path/to/file.py:ClassName"). '
                                  'The class must implement SimulationInterface.')
-        parser.add_argument('--simulation-param', action='append', dest='simulation_params',
-                            metavar='KEY=VALUE',
-                            help='Constructor argument for the simulation class (KEY=VALUE). '
-                                 'Can be specified multiple times.')
         parser.add_argument('scenario', type=str, help='scenario file to execute', nargs='?')
         return parser
-
-
-def _parse_simulation_params(raw: list[str] | None) -> dict:
-    """Parse a list of 'KEY=VALUE' strings into a dict."""
-    params = {}
-    for item in (raw or []):
-        if '=' not in item:
-            print(f"Error: --simulation-param must be in KEY=VALUE format, got '{item}'")
-            sys.exit(1)
-        key, value = item.split('=', 1)
-        params[key.strip()] = value.strip()
-    return params
 
 
 def _load_simulation(spec: str, kwargs: dict | None = None):
@@ -620,8 +662,7 @@ def main():
     args, _ = ScenarioExecution.get_arg_parser().parse_known_args(sys.argv[1:])
     simulation = None
     if args.simulation:
-        sim_kwargs = _parse_simulation_params(getattr(args, 'simulation_params', None))
-        simulation = _load_simulation(args.simulation, sim_kwargs)
+        simulation = _load_simulation(args.simulation)
     try:
         scenario_execution = ScenarioExecution(debug=args.debug,
                                                log_model=args.log_model,

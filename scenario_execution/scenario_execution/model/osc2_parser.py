@@ -39,6 +39,7 @@ class OpenScenario2Parser(object):
     def __init__(self, logger) -> None:
         self.logger = logger
         self.parsed_files = []
+        self.scenario_params = {}
 
     def process_file(self, file, log_model: bool = False, debug: bool = False, scenario_parameter_file: str = None, create_scenario_parameter_file_template: bool = False):
         """ Convenience method to execute the parsing and print out tree """
@@ -56,7 +57,7 @@ class OpenScenario2Parser(object):
 
         create_py_tree_blackboard(model, tree, self.logger, debug)
 
-        return create_py_tree(model, tree, self.logger, log_model)
+        return create_py_tree(model, tree, self.logger, log_model), self.scenario_params
 
     def load_internal_model(self, tree, file_name: str, log_model: bool = False, debug: bool = False, skip_imports: bool = False):
         model_builder = ModelBuilder(self.logger, self.parse_file, file_name, log_model, skip_imports)
@@ -89,6 +90,17 @@ class OpenScenario2Parser(object):
                     self.apply_parameter_overrides(model, scenario_parameter_overrides)
             else:
                 self.create_parameter_file_template(model, scenario_parameter_file)
+
+        # Extract resolved parameter values after all overrides are applied.
+        # Stored on self.scenario_params so any caller (process_file or direct
+        # test usage via create_internal_model) can access the final values.
+        # Used by run_with_simulation() to pass params to SimulationInterface.reset().
+        scenarios = model.find_children_of_type(ScenarioDeclaration)
+        if len(scenarios) == 1:
+            self.scenario_params = {}
+            for parameter in scenarios[0].find_children_of_type(ParameterDeclaration):
+                self.scenario_params[parameter.name] = parameter.get_resolved_value()
+
         return model
 
     def create_parameter_file_template(self, model, scenario_parameter_file: str):

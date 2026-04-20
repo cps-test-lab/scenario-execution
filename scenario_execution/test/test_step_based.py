@@ -20,7 +20,7 @@ import unittest
 import py_trees
 from antlr4.InputStream import InputStream
 
-from scenario_execution.scenario_execution_base import ScenarioExecution
+from scenario_execution.scenario_execution_base import ScenarioExecution, _get_missing_reset_params, _build_reset_kwargs
 from scenario_execution.simulation import SimulationInterface, SimulationClock, WallClock
 from scenario_execution.clock_behaviors import ClockTimer, ClockTimeout
 from scenario_execution.model.osc2_parser import OpenScenario2Parser
@@ -119,6 +119,7 @@ def _parse_and_run(scenario_content, sim=None):
     tree = create_py_tree(model, tree, parser.logger, False)
     se = _make_scenario_execution(sim=sim, logger=logger)
     se.tree = tree
+    se.scenario_params = parser.scenario_params
     se.run()
     return se, logger
 
@@ -322,6 +323,83 @@ class TestSimulationLifecycle(unittest.TestCase):
 # OSC wait elapsed() with simulation clock
 # ---------------------------------------------------------------------------
 
+class TestScenarioParamsInReset(unittest.TestCase):
+
+    def test_scalar_params_reach_reset(self):
+        """Scalar scenario parameters are injected as named args into reset()."""
+
+        class _Sim(_CountingSim):
+            def reset(self, speed, count, label):
+                self.received_speed = speed
+                self.received_count = count
+                self.received_label = label
+
+        sim = _Sim()
+        scenario_content = """
+type time is SI(s: 1)
+unit s          of time is SI(s: 1, factor: 1)
+
+scenario test:
+    speed: float = 1.5
+    count: int = 3
+    label: string = "hello"
+    do serial:
+        wait elapsed(0.1s)
+"""
+        _parse_and_run(scenario_content, sim=sim)
+        self.assertAlmostEqual(sim.received_speed, 1.5)
+        self.assertEqual(sim.received_count, 3)
+        self.assertEqual(sim.received_label, 'hello')
+
+    def test_struct_params_reach_reset(self):
+        """Structured scenario parameters are passed as nested dicts to named args."""
+
+        class _Sim(_CountingSim):
+            def reset(self, start_pos):
+                self.received_start_pos = start_pos
+
+        sim = _Sim()
+        scenario_content = """
+type time is SI(s: 1)
+unit s          of time is SI(s: 1, factor: 1)
+type length is SI(m: 1)
+unit m of length is SI(m: 1, factor: 1)
+
+struct position_3d:
+    x: float = 0.0
+    y: float = 0.0
+    z: float = 0.0
+
+scenario test:
+    start_pos: position_3d = position_3d(x: 1.0, y: 2.0, z: 3.0)
+    do serial:
+        wait elapsed(0.1s)
+"""
+        _parse_and_run(scenario_content, sim=sim)
+        self.assertIn('x', sim.received_start_pos)
+        self.assertAlmostEqual(sim.received_start_pos['x'], 1.0)
+        self.assertAlmostEqual(sim.received_start_pos['y'], 2.0)
+        self.assertAlmostEqual(sim.received_start_pos['z'], 3.0)
+
+    def test_no_params_reset_called(self):
+        """reset() with no args is called once even when the scenario declares no params."""
+        sim = _CountingSim()
+        scenario_content = """
+type time is SI(s: 1)
+unit s          of time is SI(s: 1, factor: 1)
+
+scenario test:
+    do serial:
+        wait elapsed(0.1s)
+"""
+        _parse_and_run(scenario_content, sim=sim)
+        self.assertEqual(sim.reset_calls, 1)
+
+
+# ---------------------------------------------------------------------------
+# OSC wait elapsed() with simulation clock
+# ---------------------------------------------------------------------------
+
 class TestWaitElapsedWithSimClock(unittest.TestCase):
 
     def test_wait_elapsed_completes_after_correct_steps(self):
@@ -353,6 +431,132 @@ scenario test:
 """
         se, logger = _parse_and_run(scenario_content, sim=None)
         self.assertTrue(se.process_results())
+
+
+# ---------------------------------------------------------------------------
+# reset() signature validation (_get_missing_reset_params)
+# ---------------------------------------------------------------------------
+
+class TestResetSignatureValidation(unittest.TestCase):
+
+    def test_no_required_params_ok(self):
+        """`reset(self, scenario_params=None)` — nothing required, nothing missing."""
+
+        class _Sim(_CountingSim):
+            def reset(self, scenario_params=None):
+                pass
+
+        self.assertEqual(_get_missing_reset_params(_Sim(), {}), set())
+
+    def test_required_param_present(self):
+        """A required keyword arg that IS in scenario_params is not flagged."""
+
+        class _Sim(_CountingSim):
+            def reset(self, initial_velocity, scenario_params=None):
+                pass
+
+        self.assertEqual(
+            _get_missing_reset_params(_Sim(), {'initial_velocity': 1.0}), set()
+        )
+
+    def test_required_param_missing(self):
+        """A required keyword arg absent from scenario_params is returned."""
+
+        class _Sim(_CountingSim):
+            def reset(self, initial_velocity, scenario_params=None):
+                pass
+
+        self.assertEqual(
+            _get_missing_reset_params(_Sim(), {}), {'initial_velocity'}
+        )
+
+    def test_optional_param_not_flagged(self):
+        """A param with a default value is not flagged even if absent."""
+
+        class _Sim(_CountingSim):
+            def reset(self, gravity=9.81, scenario_params=None):
+                pass
+
+        self.assertEqual(_get_missing_reset_params(_Sim(), {}), set())
+
+    def test_multiple_required_params_all_missing(self):
+        """Multiple required params all missing → all returned."""
+
+        class _Sim(_CountingSim):
+            def reset(self, width, height, scenario_params=None):
+                pass
+
+        self.assertEqual(
+            _get_missing_reset_params(_Sim(), {}), {'width', 'height'}
+        )
+
+    def test_multiple_required_params_partially_present(self):
+        """Only the absent required params are returned."""
+
+        class _Sim(_CountingSim):
+            def reset(self, width, height, scenario_params=None):
+                pass
+
+        self.assertEqual(
+            _get_missing_reset_params(_Sim(), {'width': 5}), {'height'}
+        )
+
+    def test_scenario_fails_when_required_reset_param_missing(self):
+        """run_with_simulation() fails before reset() when a required param is absent."""
+
+        class _SimNeedsParam(_CountingSim):
+            def reset(self, robot_start_x, scenario_params=None):
+                pass
+
+        sim = _SimNeedsParam()
+        # OSC scenario has no parameter named robot_start_x
+        scenario_content = """
+type time is SI(s: 1)
+unit s          of time is SI(s: 1, factor: 1)
+
+scenario test:
+    do serial:
+        wait elapsed(0.1s)
+"""
+        se, _ = _parse_and_run(scenario_content, sim=sim)
+        self.assertFalse(se.process_results())
+        # reset() must never have been called
+        self.assertEqual(sim.reset_calls, 0)
+
+    def test_scenario_succeeds_when_required_reset_param_provided(self):
+        """Scenario succeeds when the OSC file defines all required reset() params."""
+
+        class _SimNeedsParam(_CountingSim):
+            def reset(self, robot_start_x, scenario_params=None):
+                self.received_robot_start_x = robot_start_x
+
+        sim = _SimNeedsParam()
+        scenario_content = """
+type time is SI(s: 1)
+unit s          of time is SI(s: 1, factor: 1)
+
+scenario test:
+    robot_start_x: float = 1.0
+    do serial:
+        wait elapsed(0.1s)
+"""
+        se, _ = _parse_and_run(scenario_content, sim=sim)
+        self.assertTrue(se.process_results())
+        self.assertTrue(hasattr(sim, 'received_robot_start_x'), "reset() was not called")
+        self.assertAlmostEqual(sim.received_robot_start_x, 1.0)
+
+    def test_build_reset_kwargs_injects_required_and_optional(self):
+        """_build_reset_kwargs maps scenario_params values to named args."""
+
+        class _Sim(_CountingSim):
+            def reset(self, speed, gravity=9.81):
+                pass
+
+        params = {'speed': 5.0}
+        kwargs = _build_reset_kwargs(_Sim(), params)
+        self.assertAlmostEqual(kwargs['speed'], 5.0)
+        self.assertAlmostEqual(kwargs['gravity'], 9.81)  # default used
+        self.assertNotIn('scenario_params', kwargs)
 
 
 if __name__ == '__main__':

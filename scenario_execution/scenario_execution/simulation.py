@@ -112,7 +112,7 @@ class SimulationInterface(ABC):
 
         setup(**kwargs)
         for each scenario:
-            reset()
+            reset(scenario_params)  # fully-resolved OSC params, overrides applied
             while scenario running:
                 step()          # advance simulation by dt
                 tick()          # advance behavior tree
@@ -187,14 +187,27 @@ class SimulationInterface(ABC):
         Analogous to ``LoadWorld`` + simulator launch in simulation_interfaces.
         """
 
-    def reset(self) -> None:
+    def reset(self, **kwargs) -> None:
         """Reset simulation state for a new scenario.
 
-        Called before each scenario. Must NOT tear down the simulation
-        (that is ``shutdown()``'s job). The simulation clock is reset
-        separately by the framework.
+        Called before each scenario. Any OSC scenario parameters that match
+        argument names in the concrete ``reset()`` override are injected
+        automatically. Declare only the parameters you actually need::
 
-        For single-scenario use the default no-op is sufficient.
+            def reset(self, initial_velocity, gravity=9.81):
+                self._robot.set_velocity(initial_velocity)
+                self._world.set_gravity(gravity)
+
+        The framework validates that every required argument (no default) is
+        declared in the OSC scenario file and raises an error early if any are
+        missing. Optional arguments (with defaults) are passed when present in
+        the scenario, or fall back to their default otherwise.
+
+        Override via ``--scenario-parameter-file`` is already applied before
+        this method is called, so no special handling is needed.
+
+        Must NOT tear down the simulation (that is ``shutdown()``'s job). The
+        simulation clock is reset separately by the framework.
 
         Analogous to ``ResetSimulation`` in simulation_interfaces, with an
         implicit scope of SCOPE_ALL (time + state + spawned entities).
