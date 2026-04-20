@@ -22,6 +22,7 @@ from importlib.metadata import entry_points
 import inspect
 
 from scenario_execution.model.types import KeepConstraintDeclaration, visit_expression, ActionDeclaration, BinaryExpression, EventReference, Expression, FunctionApplicationExpression, ModifierInvocation, ScenarioDeclaration, DoMember, WaitDirective, EmitDirective, BehaviorInvocation, EventCondition, EventDeclaration, RelationExpression, LogicalExpression, ElapsedExpression, PhysicalLiteral, ModifierDeclaration
+from scenario_execution.clock_behaviors import ClockTimer, ClockTimeout
 from scenario_execution.model.model_base_visitor import ModelBaseVisitor
 from scenario_execution.model.error import OSC2ParsingError
 from scenario_execution.actions.base_action import BaseAction
@@ -246,7 +247,7 @@ class ModelToPyTree(object):
             elif node.name == "inverter":
                 instance = py_trees.decorators.Inverter(name="inverter", child=self.__cur_behavior)
             elif node.name == "timeout":
-                instance = py_trees.decorators.Timeout(name="timeout", child=self.__cur_behavior, duration=resolved_values["duration"])
+                instance = ClockTimeout(name="timeout", child=self.__cur_behavior, duration=resolved_values["duration"])
             elif node.name == "retry":
                 instance = py_trees.decorators.Retry(name="retry", child=self.__cur_behavior, num_failures=resolved_values["count"])
             elif node.name == "failure_is_running":
@@ -407,7 +408,7 @@ class ModelToPyTree(object):
                     expression = ExpressionBehavior(name=node.get_ctx()[2], expression=self.visit(child), model=node, logger=self.logger)
                 elif isinstance(child, ElapsedExpression):
                     elapsed_condition = self.visit_elapsed_expression(child)
-                    expression = py_trees.timers.Timer(name=f"wait {elapsed_condition}s", duration=float(elapsed_condition))
+                    expression = ClockTimer(name=f"wait {elapsed_condition}s", duration=float(elapsed_condition))
                 else:
                     raise OSC2ParsingError(
                         msg=f'Invalid event condition {child}', context=node.get_ctx())

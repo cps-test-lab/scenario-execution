@@ -15,6 +15,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+import importlib
 import os
 import sys
 import time
@@ -25,6 +26,7 @@ import py_trees
 from scenario_execution.model.osc2_parser import OpenScenario2Parser
 from scenario_execution.utils.logging import Logger
 from scenario_execution.model.model_file_loader import ModelFileLoader
+from scenario_execution.simulation import SimulationClock
 from dataclasses import dataclass
 from xml.sax.saxutils import escape  # nosec B406 # escape is only used on an internally generated error string
 from timeit import default_timer as timer
@@ -107,7 +109,8 @@ class ScenarioExecution(object):
                  create_scenario_parameter_file_template=None,
                  post_run=None,
                  logger=None,
-                 register_signal=True) -> None:
+                 register_signal=True,
+                 simulation=None) -> None:
 
         def signal_handler(sig, frame):
             self.on_scenario_shutdown(False, "Aborted")
@@ -165,6 +168,7 @@ class ScenarioExecution(object):
         self.results = []
         self.create_scenario_parameter_file_template = create_scenario_parameter_file_template
         self.scenario_parameter_file = scenario_parameter_file
+        self.simulation = simulation
 
     def setup(self, scenario: py_trees.behaviour.Behaviour, **kwargs) -> bool:
         """
@@ -279,6 +283,10 @@ class ScenarioExecution(object):
         return True
 
     def run(self):
+        if self.simulation is not None:
+            self.run_with_simulation(self.simulation)
+            return
+
         try:
             self.setup(self.tree)
         except Exception as e:  # pylint: disable=broad-except
@@ -301,6 +309,70 @@ class ScenarioExecution(object):
                         root=self.behaviour_tree.root, show_status=True))
             except KeyboardInterrupt:
                 self.on_scenario_shutdown(False, "Aborted")
+
+    def run_with_simulation(self, simulation):
+        """Run scenario execution driven by a step-based SimulationInterface.
+
+        The simulation controls time: each call to ``simulation.step()`` advances
+        the world by ``simulation.dt`` seconds and ``SimulationClock`` by the same
+        amount. No ``time.sleep()`` is used — the loop runs as fast as the
+        simulation allows.
+
+        Lifecycle per run:
+            1. ``simulation.setup()`` — called once
+            2. ``simulation.reset()`` — called once before the scenario tree
+            3. tick loop: ``step()`` → ``clock.advance()`` → ``tree.tick()``
+            4. ``simulation.shutdown()`` — called in a ``finally`` block
+        """
+        clock = SimulationClock(simulation.dt)
+        self.tick_period = simulation.dt
+
+        try:
+            simulation.setup(
+                logger=self.logger,
+                output_dir=self.output_dir,
+                tick_period=self.tick_period,
+            )
+        except Exception as e:  # pylint: disable=broad-except
+            self.on_scenario_shutdown(False, "Simulation setup failed", f"{e}")
+            return
+
+        try:
+            simulation.reset()
+        except Exception as e:  # pylint: disable=broad-except
+            self.on_scenario_shutdown(False, "Simulation reset failed", f"{e}")
+            try:
+                simulation.shutdown()
+            except Exception:  # pylint: disable=broad-except
+                pass
+            return
+
+        try:
+            self.setup(self.tree, simulation=simulation, clock=clock)
+        except Exception as e:  # pylint: disable=broad-except
+            self.on_scenario_shutdown(False, "Setup failed", f"{e}")
+            try:
+                simulation.shutdown()
+            except Exception:  # pylint: disable=broad-except
+                pass
+            return
+
+        try:
+            while not self.shutdown_requested:
+                try:
+                    simulation.step()
+                    clock.advance()
+                    self.behaviour_tree.tick()
+                    if self.live_tree:
+                        self.logger.debug(py_trees.display.unicode_tree(
+                            root=self.behaviour_tree.root, show_status=True))
+                except KeyboardInterrupt:
+                    self.on_scenario_shutdown(False, "Aborted")
+        finally:
+            try:
+                simulation.shutdown()
+            except Exception as e:  # pylint: disable=broad-except
+                self.logger.error(f"Simulation shutdown error: {e}")
 
     def add_result(self, result: ScenarioResult):
         if result.result is False:
@@ -449,8 +521,33 @@ class ScenarioExecution(object):
         parser.add_argument('--create-scenario-parameter-file-template',action='store_true', help='Command to run to create a scenario parameter file template specified by --scenario-parameter-file')
         parser.add_argument('--post-run', action='append', dest='post_run', metavar='POST_RUN_COMMAND',
                             help='Command to run after scenario execution (expected commandline: <command> <output_dir>). Can be specified multiple times; commands are executed in order.')
+        parser.add_argument('--simulation', type=str, metavar='MODULE:CLASS',
+                            help='Step-based simulation interface to use (format: "module.path:ClassName"). '
+                                 'The class must implement SimulationInterface and is instantiated with no arguments.')
         parser.add_argument('scenario', type=str, help='scenario file to execute', nargs='?')
         return parser
+
+
+def _load_simulation(spec: str):
+    """Dynamically import and instantiate a SimulationInterface from a 'module:Class' spec."""
+    if ':' not in spec:
+        print(f"Error: --simulation must be in 'module.path:ClassName' format, got '{spec}'")
+        sys.exit(1)
+    module_path, class_name = spec.rsplit(':', 1)
+    try:
+        module = importlib.import_module(module_path)
+    except ImportError as e:
+        print(f"Error: Could not import simulation module '{module_path}': {e}")
+        sys.exit(1)
+    cls = getattr(module, class_name, None)
+    if cls is None:
+        print(f"Error: Class '{class_name}' not found in module '{module_path}'")
+        sys.exit(1)
+    try:
+        return cls()
+    except Exception as e:  # pylint: disable=broad-except
+        print(f"Error: Could not instantiate simulation class '{class_name}': {e}")
+        sys.exit(1)
 
 
 def main():
@@ -458,6 +555,9 @@ def main():
     main function
     """
     args, _ = ScenarioExecution.get_arg_parser().parse_known_args(sys.argv[1:])
+    simulation = None
+    if args.simulation:
+        simulation = _load_simulation(args.simulation)
     try:
         scenario_execution = ScenarioExecution(debug=args.debug,
                                                log_model=args.log_model,
@@ -469,7 +569,8 @@ def main():
                                                tick_period=args.step_duration,
                                                scenario_parameter_file=args.scenario_parameter_file,
                                                create_scenario_parameter_file_template=args.create_scenario_parameter_file_template,
-                                               post_run=args.post_run)
+                                               post_run=args.post_run,
+                                               simulation=simulation)
     except ValueError as e:
         print(f"Error while initializing: {e}")
         sys.exit(1)
