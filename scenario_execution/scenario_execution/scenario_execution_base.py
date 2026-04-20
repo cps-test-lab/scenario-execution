@@ -16,6 +16,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import importlib
+import importlib.util
 import os
 import sys
 import time
@@ -522,31 +523,93 @@ class ScenarioExecution(object):
         parser.add_argument('--post-run', action='append', dest='post_run', metavar='POST_RUN_COMMAND',
                             help='Command to run after scenario execution (expected commandline: <command> <output_dir>). Can be specified multiple times; commands are executed in order.')
         parser.add_argument('--simulation', type=str, metavar='MODULE:CLASS',
-                            help='Step-based simulation interface to use (format: "module.path:ClassName"). '
-                                 'The class must implement SimulationInterface and is instantiated with no arguments.')
+                            help='Step-based simulation interface to use. '
+                                 'Accepts a module path ("module.path:ClassName") or a file path '
+                                 '("path/to/file.py" or "path/to/file.py:ClassName"). '
+                                 'The class must implement SimulationInterface.')
+        parser.add_argument('--simulation-param', action='append', dest='simulation_params',
+                            metavar='KEY=VALUE',
+                            help='Constructor argument for the simulation class (KEY=VALUE). '
+                                 'Can be specified multiple times.')
         parser.add_argument('scenario', type=str, help='scenario file to execute', nargs='?')
         return parser
 
 
-def _load_simulation(spec: str):
-    """Dynamically import and instantiate a SimulationInterface from a 'module:Class' spec."""
-    if ':' not in spec:
-        print(f"Error: --simulation must be in 'module.path:ClassName' format, got '{spec}'")
-        sys.exit(1)
-    module_path, class_name = spec.rsplit(':', 1)
+def _parse_simulation_params(raw: list[str] | None) -> dict:
+    """Parse a list of 'KEY=VALUE' strings into a dict."""
+    params = {}
+    for item in (raw or []):
+        if '=' not in item:
+            print(f"Error: --simulation-param must be in KEY=VALUE format, got '{item}'")
+            sys.exit(1)
+        key, value = item.split('=', 1)
+        params[key.strip()] = value.strip()
+    return params
+
+
+def _load_simulation(spec: str, kwargs: dict | None = None):
+    """Dynamically import and instantiate a SimulationInterface from a 'module:Class' spec
+    or a file path spec ('path/to/file.py' or 'path/to/file.py:ClassName')."""
+    import inspect
+
+    # Determine if this looks like a file path (contains '/' or ends with '.py')
+    # Split off an optional ':ClassName' suffix first
+    if ':' in spec:
+        path_or_module, class_name = spec.rsplit(':', 1)
+    else:
+        path_or_module, class_name = spec, None
+
+    is_file_path = '/' in path_or_module or path_or_module.endswith('.py')
+
+    if is_file_path:
+        file_path = os.path.abspath(path_or_module)
+        if not os.path.isfile(file_path):
+            print(f"Error: Simulation file not found: '{file_path}'")
+            sys.exit(1)
+        module_name = os.path.splitext(os.path.basename(file_path))[0]
+        loader_spec = importlib.util.spec_from_file_location(module_name, file_path)
+        module = importlib.util.module_from_spec(loader_spec)
+        try:
+            loader_spec.loader.exec_module(module)
+        except Exception as e:  # pylint: disable=broad-except
+            print(f"Error: Could not load simulation file '{file_path}': {e}")
+            sys.exit(1)
+    else:
+        if class_name is None:
+            print(f"Error: --simulation must be in 'module.path:ClassName' format or a file path, got '{spec}'")
+            sys.exit(1)
+        try:
+            module = importlib.import_module(path_or_module)
+        except ImportError as e:
+            print(f"Error: Could not import simulation module '{path_or_module}': {e}")
+            sys.exit(1)
+
+    if class_name:
+        cls = getattr(module, class_name, None)
+        if cls is None:
+            print(f"Error: Class '{class_name}' not found in '{path_or_module}'")
+            sys.exit(1)
+    else:
+        # Auto-detect: find the first class defined in the module that looks like a simulation
+        candidates = [
+            obj for name, obj in inspect.getmembers(module, inspect.isclass)
+            if obj.__module__ == module.__name__
+        ]
+        if not candidates:
+            print(f"Error: No classes found in '{path_or_module}'. "
+                  "Specify a class name with 'path/to/file.py:ClassName'.")
+            sys.exit(1)
+        if len(candidates) > 1:
+            names = ', '.join(c.__name__ for c in candidates)
+            print(f"Error: Multiple classes found in '{path_or_module}' ({names}). "
+                  "Specify one with 'path/to/file.py:ClassName'.")
+            sys.exit(1)
+        cls = candidates[0]
+
     try:
-        module = importlib.import_module(module_path)
-    except ImportError as e:
-        print(f"Error: Could not import simulation module '{module_path}': {e}")
-        sys.exit(1)
-    cls = getattr(module, class_name, None)
-    if cls is None:
-        print(f"Error: Class '{class_name}' not found in module '{module_path}'")
-        sys.exit(1)
-    try:
-        return cls()
+        return cls(**(kwargs or {}))
     except Exception as e:  # pylint: disable=broad-except
-        print(f"Error: Could not instantiate simulation class '{class_name}': {e}")
+        print(f"Error: Could not instantiate simulation class '{cls.__name__}': {e}")
         sys.exit(1)
 
 
@@ -557,7 +620,8 @@ def main():
     args, _ = ScenarioExecution.get_arg_parser().parse_known_args(sys.argv[1:])
     simulation = None
     if args.simulation:
-        simulation = _load_simulation(args.simulation)
+        sim_kwargs = _parse_simulation_params(getattr(args, 'simulation_params', None))
+        simulation = _load_simulation(args.simulation, sim_kwargs)
     try:
         scenario_execution = ScenarioExecution(debug=args.debug,
                                                log_model=args.log_model,
