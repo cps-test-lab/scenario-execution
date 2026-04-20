@@ -68,6 +68,7 @@ class SimulationClock(Clock):
         if dt <= 0.0:
             raise ValueError(f"SimulationClock dt must be positive, got {dt}")
         self._dt = dt
+        self._step = 0
         self._time = 0.0
 
     @property
@@ -82,15 +83,18 @@ class SimulationClock(Clock):
     def advance(self) -> None:
         """Advance the clock by one simulation step (dt seconds).
 
+        Uses integer step counting to avoid floating-point accumulation errors.
         Called internally by the framework once per behavior-tree tick.
         """
-        self._time += self._dt
+        self._step += 1
+        self._time = self._step * self._dt
 
     def reset(self) -> None:
         """Reset the clock to zero.
 
         Called internally by the framework before each scenario.
         """
+        self._step = 0
         self._time = 0.0
 
 

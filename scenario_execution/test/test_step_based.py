@@ -223,30 +223,22 @@ class TestClockTimeout(unittest.TestCase):
         child = py_trees.behaviours.Running(name="child")
         timeout = ClockTimeout(child=child, name="timeout", duration=1.0)
         timeout.setup(clock=clock)
-        timeout.initialise()
-        child.setup()
-        child.initialise()
-        child.update()  # child is RUNNING
-        # 5 steps: 0.5 s elapsed, no timeout yet
+        # Tick 5 times via tick_once() which ticks child then calls update()
         for _ in range(5):
-            clock.advance()
-        status = timeout.update()
-        self.assertEqual(status, py_trees.common.Status.RUNNING)
+            timeout.tick_once()
+            clock.advance()  # 5 x 0.1 = 0.5 s, well below 1.0 s deadline
+        self.assertEqual(timeout.status, py_trees.common.Status.RUNNING)
 
     def test_timeout_fires_after_deadline(self):
         clock = SimulationClock(dt=0.1)
         child = py_trees.behaviours.Running(name="child")
         timeout = ClockTimeout(child=child, name="timeout", duration=0.5)
         timeout.setup(clock=clock)
-        timeout.initialise()
-        child.setup()
-        child.initialise()
-        child.update()
-        # Advance past the deadline
-        for _ in range(6):
+        # Tick 7 times: after 6 advances clock = 0.6 s > 0.5 s deadline
+        for _ in range(7):
+            timeout.tick_once()
             clock.advance()
-        status = timeout.update()
-        self.assertEqual(status, py_trees.common.Status.FAILURE)
+        self.assertEqual(timeout.status, py_trees.common.Status.FAILURE)
 
     def test_negative_duration_raises(self):
         child = py_trees.behaviours.Running(name="child")
