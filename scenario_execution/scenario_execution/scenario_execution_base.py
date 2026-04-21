@@ -213,6 +213,7 @@ class ScenarioExecution(object):
         self.scenario_parameter_file = scenario_parameter_file
         self.simulation = simulation
         self.scenario_params = {}
+        self.scenarios_list = []
 
     def setup(self, scenario: py_trees.behaviour.Behaviour, **kwargs) -> bool:
         """
@@ -310,7 +311,7 @@ class ScenarioExecution(object):
                                            start_time=start))
             return False
         try:
-            self.tree, self.scenario_params = parser.process_file(self.scenario_file, self.log_model, self.debug, self.scenario_parameter_file, self.create_scenario_parameter_file_template)
+            self.scenarios_list = parser.process_file(self.scenario_file, self.log_model, self.debug, self.scenario_parameter_file, self.create_scenario_parameter_file_template)
             if self.create_scenario_parameter_file_template:
                 return True
         except Exception as e:  # pylint: disable=broad-except
@@ -321,9 +322,12 @@ class ScenarioExecution(object):
                                            processing_time=datetime.now() - start,
                                            start_time=start))
             return False
+        if self.scenarios_list:
+            self.tree, self.scenario_params = self.scenarios_list[0]
         if self.render_dot:
-            self.logger.info(f"Writing py-trees dot files to {self.tree.name.lower()}.[dot|svg|png] ...")
-            py_trees.display.render_dot_tree(self.tree, target_directory=self.output_dir)
+            for tree, _ in self.scenarios_list:
+                self.logger.info(f"Writing py-trees dot files to {tree.name.lower()}.[dot|svg|png] ...")
+                py_trees.display.render_dot_tree(tree, target_directory=self.output_dir)
         return True
 
     def run(self):
@@ -331,28 +335,30 @@ class ScenarioExecution(object):
             self.run_with_simulation(self.simulation)
             return
 
-        try:
-            self.setup(self.tree)
-        except Exception as e:  # pylint: disable=broad-except
-            self.on_scenario_shutdown(False, "Setup failed", f"{e}")
-            return
-
-        while not self.shutdown_requested:
+        for tree, _ in self.scenarios_list:
             try:
-                start = timer()
-                self.behaviour_tree.tick()
-                end = timer()
-                tick_time = end - start
-                sleep_time = self.tick_period - tick_time
-                if sleep_time < 0:
-                    self.logger.warning(f"Tick too long: {tick_time} > {self.tick_period}")
-                else:
-                    time.sleep(self.tick_period - tick_time)
-                if self.live_tree:
-                    self.logger.debug(py_trees.display.unicode_tree(
-                        root=self.behaviour_tree.root, show_status=True))
-            except KeyboardInterrupt:
-                self.on_scenario_shutdown(False, "Aborted")
+                self.setup(tree)
+            except Exception as e:  # pylint: disable=broad-except
+                self.on_scenario_shutdown(False, "Setup failed", f"{e}")
+                return
+
+            while not self.shutdown_requested:
+                try:
+                    start = timer()
+                    self.behaviour_tree.tick()
+                    end = timer()
+                    tick_time = end - start
+                    sleep_time = self.tick_period - tick_time
+                    if sleep_time < 0:
+                        self.logger.warning(f"Tick too long: {tick_time} > {self.tick_period}")
+                    else:
+                        time.sleep(self.tick_period - tick_time)
+                    if self.live_tree:
+                        self.logger.debug(py_trees.display.unicode_tree(
+                            root=self.behaviour_tree.root, show_status=True))
+                except KeyboardInterrupt:
+                    self.on_scenario_shutdown(False, "Aborted")
+                    return
 
     def run_with_simulation(self, simulation):
         """Run scenario execution driven by a step-based SimulationInterface.
@@ -362,11 +368,10 @@ class ScenarioExecution(object):
         amount. No ``time.sleep()`` is used — the loop runs as fast as the
         simulation allows.
 
-        Lifecycle per run:
+        Lifecycle across all scenarios in the file:
             1. ``simulation.setup()`` — called once
-            2. ``simulation.reset()`` — called once before the scenario tree
-            3. tick loop: ``step()`` → ``clock.advance()`` → ``tree.tick()``
-            4. ``simulation.shutdown()`` — called in a ``finally`` block
+            2. For each scenario: ``simulation.reset()`` → tick loop
+            3. ``simulation.shutdown()`` — called once in a ``finally`` block
         """
         clock = SimulationClock(simulation.dt)
         self.tick_period = simulation.dt
@@ -381,52 +386,44 @@ class ScenarioExecution(object):
             self.on_scenario_shutdown(False, "Simulation setup failed", f"{e}")
             return
 
-        missing = _get_missing_reset_params(simulation, self.scenario_params)
-        if missing:
-            self.on_scenario_shutdown(
-                False,
-                "Simulation reset parameter mismatch",
-                f"reset() requires parameter(s) {sorted(missing)} but they are not "
-                f"defined in the OSC scenario file.",
-            )
-            try:
-                simulation.shutdown()
-            except Exception:  # pylint: disable=broad-except
-                pass
-            return
-
         try:
-            reset_kwargs = _build_reset_kwargs(simulation, self.scenario_params)
-            simulation.reset(**reset_kwargs)
-        except Exception as e:  # pylint: disable=broad-except
-            self.on_scenario_shutdown(False, "Simulation reset failed", f"{e}")
-            try:
-                simulation.shutdown()
-            except Exception:  # pylint: disable=broad-except
-                pass
-            return
+            for tree, params in self.scenarios_list:
+                missing = _get_missing_reset_params(simulation, params)
+                if missing:
+                    self.on_scenario_shutdown(
+                        False,
+                        "Simulation reset parameter mismatch",
+                        f"reset() requires parameter(s) {sorted(missing)} but they are not "
+                        f"defined in the OSC scenario file.",
+                    )
+                    return
 
-        try:
-            self.setup(self.tree, simulation=simulation, clock=clock)
-        except Exception as e:  # pylint: disable=broad-except
-            self.on_scenario_shutdown(False, "Setup failed", f"{e}")
-            try:
-                simulation.shutdown()
-            except Exception:  # pylint: disable=broad-except
-                pass
-            return
-
-        try:
-            while not self.shutdown_requested:
                 try:
-                    simulation.step()
-                    clock.advance()
-                    self.behaviour_tree.tick()
-                    if self.live_tree:
-                        self.logger.debug(py_trees.display.unicode_tree(
-                            root=self.behaviour_tree.root, show_status=True))
+                    reset_kwargs = _build_reset_kwargs(simulation, params)
+                    simulation.reset(**reset_kwargs)
+                except Exception as e:  # pylint: disable=broad-except
+                    self.on_scenario_shutdown(False, "Simulation reset failed", f"{e}")
+                    return
+
+                clock.reset()
+
+                try:
+                    self.setup(tree, simulation=simulation, clock=clock)
+                except Exception as e:  # pylint: disable=broad-except
+                    self.on_scenario_shutdown(False, "Setup failed", f"{e}")
+                    return
+
+                try:
+                    while not self.shutdown_requested:
+                        simulation.step()
+                        clock.advance()
+                        self.behaviour_tree.tick()
+                        if self.live_tree:
+                            self.logger.debug(py_trees.display.unicode_tree(
+                                root=self.behaviour_tree.root, show_status=True))
                 except KeyboardInterrupt:
                     self.on_scenario_shutdown(False, "Aborted")
+                    return
         finally:
             try:
                 simulation.shutdown()

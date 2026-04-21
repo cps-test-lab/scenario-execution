@@ -42,22 +42,44 @@ class OpenScenario2Parser(object):
         self.scenario_params = {}
 
     def process_file(self, file, log_model: bool = False, debug: bool = False, scenario_parameter_file: str = None, create_scenario_parameter_file_template: bool = False):
-        """ Convenience method to execute the parsing and print out tree """
+        """ Convenience method to execute the parsing and print out tree.
+
+        Returns a list of (py_tree, params) tuples — one entry per ScenarioDeclaration
+        found in the file.  For a single-scenario file the list has exactly one element,
+        preserving backward-compatible behaviour for callers that unpack the first entry.
+        """
 
         parsed_model = self.parse_file(file, log_model)
 
-        tree = py_trees.composites.Sequence(name="", memory=True)
-        model = self.create_internal_model(parsed_model, tree, file, log_model, debug, scenario_parameter_file, create_scenario_parameter_file_template)
+        _tmp_tree = py_trees.composites.Sequence(name="", memory=True)
+        model = self.create_internal_model(parsed_model, _tmp_tree, file, log_model, debug, scenario_parameter_file, create_scenario_parameter_file_template)
 
-        if len(model.find_children_of_type(ScenarioDeclaration)) == 0:
+        if create_scenario_parameter_file_template:
+            return []
+
+        scenarios = model.find_children_of_type(ScenarioDeclaration)
+        if not scenarios:
             raise ValueError("No scenario defined.")
 
-        if len(model.find_children_of_type(ScenarioDeclaration)) != 1:
-            raise ValueError("More than one scenario defined.")
-
-        create_py_tree_blackboard(model, tree, self.logger, debug)
-
-        return create_py_tree(model, tree, self.logger, log_model), self.scenario_params
+        results = []
+        all_children = model._ModelElement__children[:]  # pylint: disable=protected-access
+        for scenario_decl in scenarios:
+            # Temporarily hide sibling ScenarioDeclarations so that create_py_tree
+            # and create_py_tree_blackboard process only the current scenario.
+            model._ModelElement__children = [  # pylint: disable=protected-access
+                c for c in all_children
+                if not isinstance(c, ScenarioDeclaration) or c is scenario_decl
+            ]
+            tree = py_trees.composites.Sequence(name="", memory=True)
+            create_py_tree_blackboard(model, tree, self.logger, debug)
+            py_tree = create_py_tree(model, tree, self.logger, log_model)
+            params = {
+                p.name: p.get_resolved_value()
+                for p in scenario_decl.find_children_of_type(ParameterDeclaration)
+            }
+            results.append((py_tree, params))
+        model._ModelElement__children = all_children  # pylint: disable=protected-access
+        return results
 
     def load_internal_model(self, tree, file_name: str, log_model: bool = False, debug: bool = False, skip_imports: bool = False):
         model_builder = ModelBuilder(self.logger, self.parse_file, file_name, log_model, skip_imports)
