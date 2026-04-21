@@ -289,11 +289,7 @@ class ScenarioExecution(object):
             return False
         start = datetime.now()
         file_extension = os.path.splitext(self.scenario_file)[1]
-        if file_extension == '.osc':
-            parser = OpenScenario2Parser(self.logger)
-        elif file_extension == '.sce':
-            parser = ModelFileLoader(self.logger)
-        else:
+        if file_extension not in ('.osc', '.sce'):
             self.add_result(ScenarioResult(name=f'Parsing of {self.scenario_file}',
                                            result=False,
                                            failure_message="parsing failed",
@@ -310,6 +306,11 @@ class ScenarioExecution(object):
                                            processing_time=datetime.now() - start,
                                            start_time=start))
             return False
+
+        if file_extension == '.osc':
+            parser = OpenScenario2Parser(self.logger)
+        else:
+            parser = ModelFileLoader(self.logger)
         try:
             self.scenarios_list = parser.process_file(self.scenario_file, self.log_model, self.debug, self.scenario_parameter_file, self.create_scenario_parameter_file_template)
             if self.create_scenario_parameter_file_template:
@@ -322,6 +323,7 @@ class ScenarioExecution(object):
                                            processing_time=datetime.now() - start,
                                            start_time=start))
             return False
+
         if self.scenarios_list:
             self.tree, self.scenario_params = self.scenarios_list[0]
         if self.render_dot:

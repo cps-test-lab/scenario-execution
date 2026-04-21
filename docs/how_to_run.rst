@@ -242,6 +242,34 @@ The return code of ``scenario_batch_execution`` is ``0`` if all tested scenarios
 .. note::
    ``scenario_batch_execution`` creates a junit xml compatible file that can easily be integrated into a CI pipeline. An example can be found here: :repo_link:`.github/workflows/test_build.yml`
 
+.. _multiple_scenarios_per_file:
+
+Multiple scenarios per file
+---------------------------
+
+A single ``.osc`` file can contain any number of ``scenario`` declarations.
+Scenarios are executed **sequentially** in the order they appear in the file.
+
+.. code-block::
+
+   scenario first_run:
+       object_goal_pos: position_2d = position_2d(x: 0.6m, y: 0.6m)
+       do serial:
+           wait_for_simulation_end()
+
+   scenario second_run:
+       object_goal_pos: position_2d = position_2d(x: 0.3m, y: 0.6m)
+       do serial:
+           wait_for_simulation_end()
+
+When ``--simulation`` is used the simulation environment is kept alive across
+scenarios: ``setup()`` and ``shutdown()`` are called once for the whole file,
+while ``reset()`` (together with a clock reset) is called before each
+individual scenario.  This avoids the overhead of restarting the physics
+engine between runs.
+
+Each scenario result appears as a separate ``<testcase>`` in ``test.xml``.
+
 .. _override_scenario_parameters:
 
 Override scenario parameters
@@ -249,7 +277,7 @@ Override scenario parameters
 
 To override scenario parameters, specify the required parameters within a yaml file and use the command-line parameter ``--scenario-parameter-file``.
 
-Let's look at the following example scenario ``my_scenario.osc`` with the parameter ``my_base_param`` and ``my_struct_param``. 
+Let's look at the following example scenario ``my_scenario.osc`` with the parameter ``my_base_param`` and ``my_struct_param``.
 
 .. code-block::
 
@@ -277,11 +305,60 @@ The following command executes the scenario with the defined override.
 
 .. code-block:: bash
 
-   ros2 run scenario_execution_ros scenario_execution_ros --scenario-parameter-file overrides.yaml my_scenario.osc 
+   ros2 run scenario_execution_ros scenario_execution_ros --scenario-parameter-file overrides.yaml my_scenario.osc
 
 If physical literals get overridden, the values are expected in SI base units: For example specify value in meter (e.g. ``42.0``) for ``length``; specify value in seconds for ``time``.
 
 An initial override template file can be created using the command-line parameter ``--create-scenario-parameter-file-template``. This will create a yaml file named by ``--scenario-parameter-file`` in the current working directory.
+
+**Multi-document YAML — cross-product runs**
+
+A ``--scenario-parameter-file`` can contain multiple YAML documents separated
+by ``---``.  Each document is treated as an independent set of overrides
+applied to all scenarios in the ``.osc`` file, producing
+``N scenarios × M documents`` total runs.
+
+.. code-block:: yaml
+
+   # document 0
+   first_run:
+     object_goal_pos:
+       x: 0.3
+       y: 0.6
+   second_run:
+     object_goal_pos:
+       x: 0.6
+       y: 0.3
+   ---
+   # document 1
+   first_run:
+     object_goal_pos:
+       x: 0.1
+       y: 0.6
+   second_run:
+     object_goal_pos:
+       x: 0.6
+       y: 0.1
+
+With 2 scenarios and 2 override documents this yields 4 runs:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Scenario name
+     - Override document
+   * - ``first_run-0``
+     - document 0
+   * - ``second_run-0``
+     - document 0
+   * - ``first_run-1``
+     - document 1
+   * - ``second_run-1``
+     - document 1
+
+The ``-<index>`` suffix is appended automatically when more than one document
+is present; with a single document names stay as defined in the ``.osc`` file.
+All results are written as separate ``<testcase>`` entries in ``test.xml``.
 
 .. _step_based_simulation:
 

@@ -44,41 +44,76 @@ class OpenScenario2Parser(object):
     def process_file(self, file, log_model: bool = False, debug: bool = False, scenario_parameter_file: str = None, create_scenario_parameter_file_template: bool = False):
         """ Convenience method to execute the parsing and print out tree.
 
-        Returns a list of (py_tree, params) tuples — one entry per ScenarioDeclaration
-        found in the file.  For a single-scenario file the list has exactly one element,
-        preserving backward-compatible behaviour for callers that unpack the first entry.
+        Returns a list of (py_tree, params) tuples — one entry per (scenario × override
+        document).  If ``scenario_parameter_file`` contains a single YAML document (or is
+        absent) the list has one entry per ScenarioDeclaration and no name suffix is added.
+        If the file contains multiple YAML documents (separated by ``---``) each document
+        is treated as an independent set of overrides and scenario names are suffixed with
+        ``-<doc_index>`` to keep them unique.
         """
+        # Expand scenario_parameter_file into per-document override dicts.
+        override_docs = [None]
+        if scenario_parameter_file and not create_scenario_parameter_file_template:
+            try:
+                with open(scenario_parameter_file) as _f:
+                    docs = [d for d in yaml.safe_load_all(_f) if d is not None]
+                if docs:
+                    override_docs = docs
+            except (OSError, yaml.YAMLError) as e:
+                raise ValueError(f"Unable to read scenario-parameter-file '{scenario_parameter_file}': {e}") from e
 
-        parsed_model = self.parse_file(file, log_model)
-
-        _tmp_tree = py_trees.composites.Sequence(name="", memory=True)
-        model = self.create_internal_model(parsed_model, _tmp_tree, file, log_model, debug, scenario_parameter_file, create_scenario_parameter_file_template)
-
-        if create_scenario_parameter_file_template:
-            return []
-
-        scenarios = model.find_children_of_type(ScenarioDeclaration)
-        if not scenarios:
-            raise ValueError("No scenario defined.")
-
+        multi_doc = len(override_docs) > 1
         results = []
-        all_children = model._ModelElement__children[:]  # pylint: disable=protected-access
-        for scenario_decl in scenarios:
-            # Temporarily hide sibling ScenarioDeclarations so that create_py_tree
-            # and create_py_tree_blackboard process only the current scenario.
-            model._ModelElement__children = [  # pylint: disable=protected-access
-                c for c in all_children
-                if not isinstance(c, ScenarioDeclaration) or c is scenario_decl
-            ]
-            tree = py_trees.composites.Sequence(name="", memory=True)
-            create_py_tree_blackboard(model, tree, self.logger, debug)
-            py_tree = create_py_tree(model, tree, self.logger, log_model)
-            params = {
-                p.name: p.get_resolved_value()
-                for p in scenario_decl.find_children_of_type(ParameterDeclaration)
-            }
-            results.append((py_tree, params))
-        model._ModelElement__children = all_children  # pylint: disable=protected-access
+
+        for doc_idx, override_doc in enumerate(override_docs):
+            # Reset parsed_files so each iteration re-parses the OSC file and its imports
+            # (OpenScenario2Parser skips files already in self.parsed_files).
+            self.parsed_files = []
+            parsed_model = self.parse_file(file, log_model)
+
+            _tmp_tree = py_trees.composites.Sequence(name="", memory=True)
+            model = self.create_internal_model(
+                parsed_model, _tmp_tree, file, log_model, debug,
+                scenario_parameter_file=scenario_parameter_file if create_scenario_parameter_file_template else None,
+                create_scenario_parameter_file_template=create_scenario_parameter_file_template,
+                scenario_parameter_overrides=override_doc,
+            )
+
+            if create_scenario_parameter_file_template:
+                return []
+
+            scenarios = model.find_children_of_type(ScenarioDeclaration)
+            if not scenarios:
+                raise ValueError("No scenario defined.")
+
+            all_children = model._ModelElement__children[:]  # pylint: disable=protected-access
+            for scenario_decl in scenarios:
+                # Temporarily hide sibling ScenarioDeclarations so that create_py_tree
+                # and create_py_tree_blackboard process only the current scenario.
+                model._ModelElement__children = [  # pylint: disable=protected-access
+                    c for c in all_children
+                    if not isinstance(c, ScenarioDeclaration) or c is scenario_decl
+                ]
+                tree = py_trees.composites.Sequence(name="", memory=True)
+                create_py_tree_blackboard(model, tree, self.logger, debug)
+                py_tree = create_py_tree(model, tree, self.logger, log_model)
+                params = {
+                    p.name: p.get_resolved_value()
+                    for p in scenario_decl.find_children_of_type(ParameterDeclaration)
+                }
+                if multi_doc:
+                    py_tree.name = f"{py_tree.name}-{doc_idx}"
+                results.append((py_tree, params))
+            model._ModelElement__children = all_children  # pylint: disable=protected-access
+
+        names = [tree.name for tree, _ in results]
+        if len(names) != len(set(names)):
+            duplicates = sorted({n for n in names if names.count(n) > 1})
+            raise ValueError(
+                f"Scenario name(s) {duplicates} appear more than once. "
+                f"Ensure scenario names in the .osc file are unique."
+            )
+
         return results
 
     def load_internal_model(self, tree, file_name: str, log_model: bool = False, debug: bool = False, skip_imports: bool = False):
@@ -96,22 +131,23 @@ class OpenScenario2Parser(object):
             print_tree(model, self.logger)
         return model
 
-    def create_internal_model(self, parsed_model, tree, file_name: str, log_model: bool = False, debug: bool = False, scenario_parameter_file: str = None, create_scenario_parameter_file_template: bool = False):
+    def create_internal_model(self, parsed_model, tree, file_name: str, log_model: bool = False, debug: bool = False, scenario_parameter_file: str = None, create_scenario_parameter_file_template: bool = False, scenario_parameter_overrides: dict | None = None):
         model = self.load_internal_model(parsed_model, file_name, log_model, debug)
         resolve_internal_model(model, tree, self.logger, log_model)
 
         # override parameter with externally defined ones
-        if scenario_parameter_file:
-            if not create_scenario_parameter_file_template:
-                with open(scenario_parameter_file) as stream:
-                    try:
-                        scenario_parameter_overrides = yaml.safe_load(stream)
-                    except yaml.YAMLError as e:
-                        raise ValueError(f"Unable to parse scenario-parameter-file file '{scenario_parameter_file}': {e}") from e
-                if scenario_parameter_overrides:
-                    self.apply_parameter_overrides(model, scenario_parameter_overrides)
-            else:
-                self.create_parameter_file_template(model, scenario_parameter_file)
+        if create_scenario_parameter_file_template and scenario_parameter_file:
+            self.create_parameter_file_template(model, scenario_parameter_file)
+        elif scenario_parameter_overrides is not None:
+            self.apply_parameter_overrides(model, scenario_parameter_overrides)
+        elif scenario_parameter_file:
+            with open(scenario_parameter_file) as stream:
+                try:
+                    _overrides = yaml.safe_load(stream)
+                except yaml.YAMLError as e:
+                    raise ValueError(f"Unable to parse scenario-parameter-file file '{scenario_parameter_file}': {e}") from e
+            if _overrides:
+                self.apply_parameter_overrides(model, _overrides)
 
         # Extract resolved parameter values after all overrides are applied.
         # Stored on self.scenario_params so any caller (process_file or direct

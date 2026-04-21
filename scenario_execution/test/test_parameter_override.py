@@ -56,6 +56,7 @@ class TestParameterOverride(unittest.TestCase):
                                                   create_scenario_parameter_file_template=create_scenario_parameter_file_template)
         self.tree = create_py_tree(model, self.tree, self.parser.logger, False)
         self.scenario_execution.tree = self.tree
+        self.scenario_execution.scenarios_list = [(self.tree, {})]
         self.scenario_execution.run()
 
         result_scenario_parameter_values = None
