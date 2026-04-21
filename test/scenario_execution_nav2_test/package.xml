@@ -13,6 +13,7 @@
   
   <exec_depend>rclpy</exec_depend>
   <exec_depend>scenario_execution_nav2</exec_depend>
+  <exec_depend>scenario_execution_x11</exec_depend>
   <exec_depend>nav2_bringup</exec_depend>
   <exec_depend>nav2_loopback_sim</exec_depend>
 
