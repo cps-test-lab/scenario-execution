@@ -34,8 +34,8 @@ Runtime Parameters
      - Command or script to run after scenario execution. The command will be called as ``<command> <output_dir>``. Can be specified multiple times; commands are executed in order with a timeout of 10 minutes each. Failures are logged but do not stop subsequent commands. Example: ``--post-run ./post.sh --post-run ./cleanup.sh``
    * - ``--simulation MODULE:CLASS``
      - Step-based simulation interface to use. The value must be in ``module.path:ClassName`` format, where the class implements :class:`SimulationInterface <scenario_execution.SimulationInterface>` and is instantiated with no arguments. See `Step-based simulation`_ for details.
-   * - ``--snapshot-period SNAPSHOT_PERIOD``
-     - How often (in seconds) to publish behavior tree snapshots to ``/scenario_execution/snapshots``. Default: only on status change. Set to a float value (e.g. ``--snapshot-period 1.0`` for every second).
+   * - ``--output-result-per-scenario``
+     - When more than one scenario is executed (multiple ``scenario`` declarations in the ``.osc`` file, or multiple YAML documents in ``--scenario-parameter-file``), write a separate ``test.xml`` inside each scenario's output subdirectory instead of a single combined ``<output-dir>/test.xml``. Has no effect when only one scenario is executed. See `Per-scenario output directories`_ for details.
 
 Run locally with ROS2
 ---------------------
@@ -359,6 +359,59 @@ With 2 scenarios and 2 override documents this yields 4 runs:
 The ``-<index>`` suffix is appended automatically when more than one document
 is present; with a single document names stay as defined in the ``.osc`` file.
 All results are written as separate ``<testcase>`` entries in ``test.xml``.
+
+.. _per_scenario_output_directories:
+
+Per-scenario output directories
+--------------------------------
+
+When more than one scenario is executed (multiple ``scenario`` blocks in the ``.osc`` file,
+or multiple YAML documents in ``--scenario-parameter-file``), each scenario automatically
+gets its own **subdirectory** inside ``--output-dir``.  The subdirectory is named after the
+scenario (including any ``-<idx>`` suffix for multi-document runs).
+
+.. code-block::
+
+   <output-dir>/
+      first_run/          # output for scenario "first_run"
+      second_run/         # output for scenario "second_run"
+      test.xml            # combined results (default)
+
+The subdirectory name can be overridden per scenario via the special ``_output_dir`` key
+inside the ``--scenario-parameter-file``.  Relative values are resolved relative to
+``--output-dir``; absolute values are used as-is (and no pre-existing files are removed).
+
+.. code-block:: yaml
+
+   test_scenario:
+     _output_dir: my_custom_dir      # → <output-dir>/my_custom_dir/
+     object_goal_pos:
+       x: 0.3
+       y: 0.6
+   test_scenario2:
+     _output_dir: /tmp/test2_out     # absolute path, used directly
+     object_goal_pos:
+       x: 0.6
+       y: 0.3
+
+.. note::
+   Relative ``_output_dir`` paths must not start with ``..`` (i.e. they must not
+   escape the root ``--output-dir``).
+
+**Per-scenario test.xml**
+
+By default a single combined ``<output-dir>/test.xml`` is written.
+Pass ``--output-result-per-scenario`` to write one ``test.xml`` per scenario
+subdirectory instead:
+
+.. code-block::
+
+   <output-dir>/
+      first_run/
+         test.xml         # result of "first_run" only
+      second_run/
+         test.xml         # result of "second_run" only
+                          # no combined test.xml at root level
 
 .. _step_based_simulation:
 

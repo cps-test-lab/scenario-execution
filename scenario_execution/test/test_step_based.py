@@ -120,7 +120,7 @@ def _parse_and_run(scenario_content, sim=None):
     se = _make_scenario_execution(sim=sim, logger=logger)
     se.tree = tree
     se.scenario_params = parser.scenario_params
-    se.scenarios_list = [(tree, parser.scenario_params)]
+    se.scenarios_list = [(tree, parser.scenario_params, None)]
     se.run()
     return se, logger
 
@@ -259,7 +259,7 @@ class TestSimulationLifecycle(unittest.TestCase):
         se = _make_scenario_execution(sim=sim)
         success_behavior = py_trees.behaviours.Success(name="done")
         se.tree = success_behavior
-        se.scenarios_list = [(success_behavior, {})]
+        se.scenarios_list = [(success_behavior, {}, None)]
         return se
 
     def test_lifecycle_order(self):
@@ -295,7 +295,7 @@ class TestSimulationLifecycle(unittest.TestCase):
         se = _make_scenario_execution(sim=sim)
         accessor = _SimAccessBehavior()
         se.tree = accessor
-        se.scenarios_list = [(accessor, {})]
+        se.scenarios_list = [(accessor, {}, None)]
         se.run()
         self.assertIs(accessor.received_simulation, sim)
         self.assertIsInstance(accessor.received_clock, SimulationClock)
@@ -319,7 +319,7 @@ class TestSimulationLifecycle(unittest.TestCase):
         se = _make_scenario_execution(sim=sim)
         behavior = CountingBehavior()
         se.tree = behavior
-        se.scenarios_list = [(behavior, {})]
+        se.scenarios_list = [(behavior, {}, None)]
         se.run()
         self.assertEqual(sim.step_calls, tick_count[0])
 

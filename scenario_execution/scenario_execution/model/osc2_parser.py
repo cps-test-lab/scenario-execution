@@ -71,12 +71,39 @@ class OpenScenario2Parser(object):
             self.parsed_files = []
             parsed_model = self.parse_file(file, log_model)
 
+            # Extract and validate _output_dir entries from the override doc before
+            # forwarding the doc to apply_parameter_overrides (which would reject them
+            # as unknown parameter names).
+            override_output_dirs = {}  # scenario_name -> _output_dir string or None
+            cleaned_override_doc = override_doc
+            if override_doc is not None:
+                cleaned_override_doc = {}
+                for scenario_name, params in override_doc.items():
+                    if isinstance(params, dict) and '_output_dir' in params:
+                        scenario_output_dir = params['_output_dir']
+                        if not isinstance(scenario_output_dir, str):
+                            raise ValueError(
+                                f"_output_dir for scenario '{scenario_name}' must be a string, "
+                                f"got: {type(scenario_output_dir).__name__}")
+                        if not os.path.isabs(scenario_output_dir):
+                            norm = os.path.normpath(scenario_output_dir)
+                            if norm.split(os.sep)[0] == '..':
+                                raise ValueError(
+                                    f"_output_dir for scenario '{scenario_name}' must not escape the "
+                                    f"output directory: '{scenario_output_dir}'")
+                        override_output_dirs[scenario_name] = scenario_output_dir
+                        cleaned_override_doc[scenario_name] = {
+                            k: v for k, v in params.items() if k != '_output_dir'
+                        }
+                    else:
+                        cleaned_override_doc[scenario_name] = params
+
             _tmp_tree = py_trees.composites.Sequence(name="", memory=True)
             model = self.create_internal_model(
                 parsed_model, _tmp_tree, file, log_model, debug,
                 scenario_parameter_file=scenario_parameter_file if create_scenario_parameter_file_template else None,
                 create_scenario_parameter_file_template=create_scenario_parameter_file_template,
-                scenario_parameter_overrides=override_doc,
+                scenario_parameter_overrides=cleaned_override_doc,
             )
 
             if create_scenario_parameter_file_template:
@@ -103,10 +130,11 @@ class OpenScenario2Parser(object):
                 }
                 if multi_doc:
                     py_tree.name = f"{py_tree.name}-{doc_idx}"
-                results.append((py_tree, params))
+                scenario_output_dir = override_output_dirs.get(scenario_decl.name)
+                results.append((py_tree, params, scenario_output_dir))
             model._ModelElement__children = all_children  # pylint: disable=protected-access
 
-        names = [tree.name for tree, _ in results]
+        names = [tree.name for tree, _, __ in results]
         if len(names) != len(set(names)):
             duplicates = sorted({n for n in names if names.count(n) > 1})
             raise ValueError(
