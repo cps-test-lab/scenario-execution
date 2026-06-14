@@ -2,6 +2,14 @@
 Changelog for package scenario_execution_ros
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Support step-based simulators
+* Shutdown timeout (`#64 <https://github.com/cps-test-lab/scenario-execution/issues/64>`_)
+* support multiple --post-run (`#63 <https://github.com/cps-test-lab/scenario-execution/issues/63>`_)
+* Update pytrees version (`#53 <https://github.com/cps-test-lab/scenario-execution/issues/53>`_)
+* Contributors: Adi Vardi, Frederik Pasch
+
 1.4.0 (2025-11-27)
 ------------------
 * rosbag_record: report missing topics

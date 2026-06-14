@@ -59,10 +59,9 @@ class TestRosCheckDataExternal(unittest.TestCase):
         self.received_msgs.append(msg)
 
     def test_success(self):
-        tree = self.parser.process_file(os.path.join(
+        self.scenario_execution_ros.scenarios_list = self.parser.process_file(os.path.join(
             self.scenario_dir, 'scenarios', 'test', 'test_ros_check_data_external.osc'), False)
         self.scenario_execution_ros.scenario_file = os.path.join(
             self.scenario_dir, 'scenarios', 'test', 'test_ros_check_data_external.osc')
-        self.scenario_execution_ros.tree = tree
         self.scenario_execution_ros.run()
         self.assertTrue(self.scenario_execution_ros.process_results())

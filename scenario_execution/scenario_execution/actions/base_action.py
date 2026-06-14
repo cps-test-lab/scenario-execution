@@ -101,6 +101,21 @@ class BaseAction(py_trees.behaviour.Behaviour):
         self.logger.debug(f"Get variable '{model_blackboard_name}'")
         return getattr(self.get_blackboard_client(), model_blackboard_name)
 
+    def get_simulation(self, kwargs: dict):
+        """Return the simulation object from setup kwargs, or raise a clear error.
+
+        Use in setup(**kwargs) instead of kwargs['simulation'] directly so that
+        forgetting --simulation produces a readable message rather than a KeyError.
+        """
+        sim = kwargs.get('simulation')
+        if sim is None:
+            raise ActionError(
+                f"'{self.__class__.__name__}' requires a simulation but none was provided. "
+                "Pass --simulation <module:Class> when running scenario_execution.",
+                action=self,
+            )
+        return sim
+
 
 class ActionError(OSC2Error):
 

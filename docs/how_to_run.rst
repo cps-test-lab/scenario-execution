@@ -32,8 +32,10 @@ Runtime Parameters
      - (For debugging) Show current state of py tree
    * - ``--post-run POST_RUN_COMMAND``
      - Command or script to run after scenario execution. The command will be called as ``<command> <output_dir>``. Can be specified multiple times; commands are executed in order with a timeout of 10 minutes each. Failures are logged but do not stop subsequent commands. Example: ``--post-run ./post.sh --post-run ./cleanup.sh``
-   * - ``--snapshot-period SNAPSHOT_PERIOD``
-     - How often (in seconds) to publish behavior tree snapshots to ``/scenario_execution/snapshots``. Default: only on status change. Set to a float value (e.g. ``--snapshot-period 1.0`` for every second).
+   * - ``--simulation MODULE:CLASS``
+     - Step-based simulation interface to use. The value must be in ``module.path:ClassName`` format, where the class implements :class:`SimulationInterface <scenario_execution.SimulationInterface>` and is instantiated with no arguments. See `Step-based simulation`_ for details.
+   * - ``--output-result-per-scenario``
+     - When more than one scenario is executed (multiple ``scenario`` declarations in the ``.osc`` file, or multiple YAML documents in ``--scenario-parameter-file``), write a separate ``test.xml`` inside each scenario's output subdirectory instead of a single combined ``<output-dir>/test.xml``. Has no effect when only one scenario is executed. See `Per-scenario output directories`_ for details.
 
 Run locally with ROS2
 ---------------------
@@ -240,6 +242,34 @@ The return code of ``scenario_batch_execution`` is ``0`` if all tested scenarios
 .. note::
    ``scenario_batch_execution`` creates a junit xml compatible file that can easily be integrated into a CI pipeline. An example can be found here: :repo_link:`.github/workflows/test_build.yml`
 
+.. _multiple_scenarios_per_file:
+
+Multiple scenarios per file
+---------------------------
+
+A single ``.osc`` file can contain any number of ``scenario`` declarations.
+Scenarios are executed **sequentially** in the order they appear in the file.
+
+.. code-block::
+
+   scenario first_scenario:
+       object_goal_pos: position_2d = position_2d(x: 0.6m, y: 0.6m)
+       do serial:
+           wait_for_simulation_end()
+
+   scenario second_scenario:
+       object_goal_pos: position_2d = position_2d(x: 0.3m, y: 0.6m)
+       do serial:
+           wait_for_simulation_end()
+
+When ``--simulation`` is used the simulation environment is kept alive across
+scenarios: ``setup()`` and ``shutdown()`` are called once for the whole file,
+while ``reset()`` (together with a clock reset) is called before each
+individual scenario.  This avoids the overhead of restarting the physics
+engine between runs.
+
+Each scenario result appears as a separate ``<testcase>`` in ``test.xml``.
+
 .. _override_scenario_parameters:
 
 Override scenario parameters
@@ -247,7 +277,7 @@ Override scenario parameters
 
 To override scenario parameters, specify the required parameters within a yaml file and use the command-line parameter ``--scenario-parameter-file``.
 
-Let's look at the following example scenario ``my_scenario.osc`` with the parameter ``my_base_param`` and ``my_struct_param``. 
+Let's look at the following example scenario ``my_scenario.osc`` with the parameter ``my_base_param`` and ``my_struct_param``.
 
 .. code-block::
 
@@ -275,8 +305,254 @@ The following command executes the scenario with the defined override.
 
 .. code-block:: bash
 
-   ros2 run scenario_execution_ros scenario_execution_ros --scenario-parameter-file overrides.yaml my_scenario.osc 
+   ros2 run scenario_execution_ros scenario_execution_ros --scenario-parameter-file overrides.yaml my_scenario.osc
 
 If physical literals get overridden, the values are expected in SI base units: For example specify value in meter (e.g. ``42.0``) for ``length``; specify value in seconds for ``time``.
 
 An initial override template file can be created using the command-line parameter ``--create-scenario-parameter-file-template``. This will create a yaml file named by ``--scenario-parameter-file`` in the current working directory.
+
+**Multi-document YAML — cross-product runs**
+
+A ``--scenario-parameter-file`` can contain multiple YAML documents separated
+by ``---``.  Each document is treated as an independent set of overrides
+applied to all scenarios in the ``.osc`` file, producing
+``N scenarios × M documents`` total runs.
+
+.. code-block:: yaml
+
+   # document 0
+   first_scenario:
+     object_goal_pos:
+       x: 0.3
+       y: 0.6
+   second_scenario:
+     object_goal_pos:
+       x: 0.6
+       y: 0.3
+   ---
+   # document 1
+   first_scenario:
+     object_goal_pos:
+       x: 0.1
+       y: 0.6
+   second_scenario:
+     object_goal_pos:
+       x: 0.6
+       y: 0.1
+
+With 2 scenarios and 2 override documents this yields 4 runs:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Scenario name
+     - Override document
+   * - ``first_scenario-0``
+     - document 0
+   * - ``second_scenario-0``
+     - document 0
+   * - ``first_scenario-1``
+     - document 1
+   * - ``second_scenario-1``
+     - document 1
+
+The ``-<index>`` suffix is appended automatically when more than one document
+is present; with a single document names stay as defined in the ``.osc`` file.
+All results are written as separate ``<testcase>`` entries in ``test.xml``.
+
+.. _per_scenario_output_directories:
+
+Per-scenario output directories
+--------------------------------
+
+When more than one scenario is executed (multiple ``scenario`` blocks in the ``.osc`` file,
+or multiple YAML documents in ``--scenario-parameter-file``), each scenario automatically
+gets its own **subdirectory** inside ``--output-dir``.  The subdirectory is named after the
+scenario (including any ``-<idx>`` suffix for multi-document runs).
+
+.. code-block::
+
+   <output-dir>/
+      first_scenario/          # output for scenario "first_scenario"
+      second_scenario/         # output for scenario "second_scenario"
+      test.xml            # combined results (default)
+
+The subdirectory name can be overridden per scenario via the special ``_output_dir`` key
+inside the ``--scenario-parameter-file``.  Relative values are resolved relative to
+``--output-dir``; absolute values are used as-is (and no existing files are removed).
+
+.. code-block:: yaml
+
+   test_scenario:
+     _output_dir: my_custom_dir      # → <output-dir>/my_custom_dir/
+     object_goal_pos:
+       x: 0.3
+       y: 0.6
+   test_scenario2:
+     _output_dir: /tmp/test2_out     # absolute path, used directly
+     object_goal_pos:
+       x: 0.6
+       y: 0.3
+
+.. note::
+   Relative ``_output_dir`` paths must not start with ``..`` (i.e. they must not
+   escape the root ``--output-dir``).
+
+**Per-scenario test.xml**
+
+By default a single combined ``<output-dir>/test.xml`` is written.
+Pass ``--output-result-per-scenario`` to write one ``test.xml`` per scenario
+subdirectory instead:
+
+.. code-block::
+
+   <output-dir>/
+      first_scenario/
+         test.xml         # result of "first_scenario" only
+      second_scenario/
+         test.xml         # result of "second_scenario" only
+                          # no combined test.xml at root level
+
+.. _step_based_simulation:
+
+Step-based simulation
+---------------------
+
+Scenario Execution supports running scenarios against step-based simulators (e.g. MuJoCo, PyBullet, custom hardware-in-the-loop).
+
+In step-based mode the framework drives the loop: it calls ``simulation.step()`` once per behavior-tree tick, advances a :class:`SimulationClock <scenario_execution.SimulationClock>`, and then ticks the behavior tree. There is no ``time.sleep()`` — the scenario runs as fast as the simulator allows.
+
+**Implementing a SimulationInterface**
+
+Create a class that inherits from :class:`SimulationInterface <scenario_execution.SimulationInterface>` and implement its abstract methods:
+
+.. code-block:: python
+
+   # my_pkg/my_sim.py
+   from scenario_execution import SimulationInterface
+
+   class MySimulation(SimulationInterface):
+
+       @property
+       def dt(self) -> float:
+           """Duration of one simulation step in seconds."""
+           return 0.002  # 500 Hz
+
+       def setup(self, **kwargs) -> None:
+           """Called once before any scenario runs. Load worlds, connect to
+           simulator processes, allocate resources here."""
+           import mujoco
+           self._model = mujoco.MjModel.from_xml_path("robot.xml")
+           self._data = mujoco.MjData(self._model)
+
+       def reset(self, object_start_x=0.0, object_start_y=0.0) -> None:
+           """Called before each scenario. OSC parameters with matching names
+           are injected automatically as keyword arguments."""
+           import mujoco
+           mujoco.mj_resetData(self._model, self._data)
+           self._data.qpos[:2] = [object_start_x, object_start_y]
+
+       def step(self) -> None:
+           """Advance the simulation by one timestep (dt seconds).
+           Must be non-blocking."""
+           import mujoco
+           mujoco.mj_step(self._model, self._data)
+
+       def shutdown(self) -> None:
+           """Called once after all scenarios complete."""
+           self._model = None
+           self._data = None
+
+**Passing scenario parameters to the simulation**
+
+Declare the OSC parameters you need directly as arguments on your ``reset()``
+override. The framework matches argument names to OSC parameter names and
+injects values automatically:
+
+.. code-block:: osc
+
+   scenario my_scenario:
+       object_start_x: float = 0.0   # metres
+       object_start_y: float = 0.0
+       object_mass:    float = 1.0   # kg (not consumed by reset)
+
+   action my_scenario.run():
+       do serial:
+           wait elapsed(5.0s)
+
+.. code-block:: python
+
+   def reset(self, object_start_x, object_start_y, gravity=9.81):
+       # object_start_x / object_start_y injected from OSC
+       # gravity uses its Python default because it is not in the scenario
+       ...
+
+Required arguments (no default) that are absent from the scenario file cause
+a clear error before ``reset()`` is ever called.  Optional arguments (with
+defaults) are passed when the scenario declares them, otherwise the default
+is used.  Struct parameters are passed as nested dictionaries.
+
+If a ``--scenario-parameter-file`` is supplied the overridden values are
+applied before ``reset()`` is called.
+
+The ``SimulationInterface`` lifecycle is aligned with the
+`ros-simulation/simulation_interfaces <https://github.com/ros-simulation/simulation_interfaces>`_ standard:
+
+.. list-table::
+   :header-rows: 1
+
+   * - ``SimulationInterface`` method
+     - ``simulation_interfaces`` equivalent
+   * - ``setup()``
+     - Load world + simulator launch
+   * - ``reset()``
+     - ``ResetSimulation`` service (``SCOPE_ALL``)
+   * - ``step()``
+     - ``StepSimulation(steps=1)`` service
+   * - ``shutdown()``
+     - ``SetSimulationState(STATE_QUITTING)``
+
+**Running a scenario with a simulation**
+
+Pass the ``--simulation`` flag with the fully-qualified class path:
+
+.. code-block:: bash
+
+   scenario_execution --simulation my_pkg.my_sim:MySimulation my_scenario.osc
+
+**Accessing the simulation from behaviors**
+
+Behaviors receive the simulation object via ``kwargs['simulation']`` in their
+``setup()`` method — the same pattern as ROS behaviors using ``kwargs['node']``:
+
+.. code-block:: python
+
+   from scenario_execution.actions.base_action import BaseAction
+   import py_trees
+
+   class ReadSensor(BaseAction):
+
+       def setup(self, **kwargs):
+           self.sim = kwargs['simulation']
+
+       def update(self):
+           obs = self.sim.get_observation()
+           if obs['done']:
+               return py_trees.common.Status.SUCCESS
+           return py_trees.common.Status.RUNNING
+
+**Time-based waits with simulation clock**
+
+The ``wait elapsed()`` directive and ``timeout()`` modifier automatically use
+the :class:`SimulationClock <scenario_execution.SimulationClock>` when a
+simulation is active. No changes to the OSC scenario file are needed:
+
+.. code-block::
+
+   scenario test:
+       do serial:
+           wait elapsed(1s)   # counts 1 / dt simulation steps, not wall-clock seconds
+
+Without a simulation interface the clock falls back to system wall-clock time,
+so existing scenarios continue to work unchanged.
+

@@ -2,6 +2,9 @@
 Changelog for package scenario_execution_control
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+
 1.4.0 (2025-11-27)
 ------------------
 

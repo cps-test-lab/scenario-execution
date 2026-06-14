@@ -40,7 +40,7 @@ class TestScenarioExecutionSuccess(unittest.TestCase):
         parsed_tree = self.parser.parse_input_stream(InputStream(scenario_content))
         model = self.parser.create_internal_model(parsed_tree, self.tree, "test.osc", False)
         self.tree = create_py_tree(model, self.tree, self.parser.logger, False)
-        self.scenario_execution.tree = self.tree
+        self.scenario_execution.scenarios_list = [(self.tree, {}, None)]
         self.scenario_execution.run()
 
     def test_failure(self):
@@ -97,7 +97,7 @@ scenario test_run_process:
         parsed_tree = self.parser.parse_input_stream(InputStream(scenario_content))
         model = self.parser.create_internal_model(parsed_tree, self.tree, "test.osc", False)
         self.tree = create_py_tree(model, self.tree, self.parser.logger, False)
-        self.scenario_execution.tree = self.tree
+        self.scenario_execution.scenarios_list = [(self.tree, {}, None)]
 
         start = datetime.now()
         self.scenario_execution.run()

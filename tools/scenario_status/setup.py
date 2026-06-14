@@ -23,7 +23,7 @@ PACKAGE_NAME = 'scenario_status'
 
 setup(
     name=PACKAGE_NAME,
-    version='1.4.0',
+    version='1.5.0',
     packages=find_packages(),
     data_files=[
         ('share/ament_index/resource_index/packages',

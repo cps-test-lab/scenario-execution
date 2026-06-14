@@ -52,6 +52,7 @@ class ROSScenarioExecution(ScenarioExecution):
         self.create_scenario_parameter_file_template = args.create_scenario_parameter_file_template
         self.post_run = args.post_run
         self.snapshot_period = args.snapshot_period
+        self.output_result_per_scenario = args.output_result_per_scenario
 
         # override commandline by ros parameters
         self.node.declare_parameter('debug', False)
@@ -100,6 +101,7 @@ class ROSScenarioExecution(ScenarioExecution):
                          scenario_parameter_file=self.scenario_parameter_file,
                          create_scenario_parameter_file_template=self.create_scenario_parameter_file_template,
                          post_run=self.post_run,
+                         output_result_per_scenario=self.output_result_per_scenario,
                          logger=self.logger)
 
     def setup_behaviour_tree(self, tree):
@@ -126,49 +128,124 @@ class ROSScenarioExecution(ScenarioExecution):
     SHUTDOWN_TIMEOUT = 30.0  # seconds to wait for async shutdown operations (e.g. goal cancellations)
 
     def run(self) -> bool:
+        """Execute every scenario in ``self.scenarios_list`` sequentially.
 
+        A single ROS executor and node are kept alive across all scenarios; only
+        the behaviour tree is rebuilt (and torn down) per scenario. ROS is shut
+        down once, after the last scenario. With multiple scenarios (e.g. one per
+        document of a multi-document ``--scenario-parameter-file``) each result is
+        written into its own ``_output_dir`` by :meth:`process_results`.
+        """
+        self._aborted = False
+        # The node created in __init__ is only needed to read ROS parameters; each
+        # scenario gets its own fresh node below, so release this one.
+        try:
+            self.node.destroy_node()
+        except Exception as e:  # pylint: disable=broad-except
+            self.logger.debug(f"Exception destroying bootstrap node: {e}")
+
+        try:
+            multiple_scenarios = len(self.scenarios_list) > 1
+            for tree, _params, scenario_output_dir_override in self.scenarios_list:
+                effective_output_dir = self._resolve_scenario_output_dir(
+                    tree.name, scenario_output_dir_override, multiple_scenarios)
+                if effective_output_dir is None and multiple_scenarios and self.output_dir:
+                    # Directory creation failed; failure already recorded.
+                    continue
+                self._run_single_scenario(tree, effective_output_dir)
+                if self._aborted:
+                    break
+        finally:
+            rclpy.shutdown()
+
+    def _run_single_scenario(self, tree, effective_output_dir):
+        """Set up, tick and tear down one scenario's behaviour tree.
+
+        Each scenario runs on its OWN ROS node and executor: py_trees_ros adopts
+        the node it is given and destroys it on ``shutdown()``, so the node cannot
+        be shared across scenarios.
+        """
+        # Reset per-scenario async-shutdown state so the previous scenario's
+        # tasks/futures do not leak into this one.
+        self.shutdown_task = None
+        ShutdownHandler.get_instance().futures.clear()
+
+        self.node = rclpy.create_node(node_name="scenario_execution_ros")
+        self.marker_handler = MarkerHandler(self.node)
         executor = rclpy.executors.MultiThreadedExecutor()
         executor.add_node(self.node)
 
         try:
-            self.setup(self.tree, node=self.node, marker_handler=self.marker_handler)
-        except Exception as e:  # pylint: disable=broad-except
-            self.on_scenario_shutdown(False, "Setup failed", f"{e}")
-            return
-
-        try:
-            self.behaviour_tree.tick_tock(period_ms=1000. * self.tick_period)
-            shutdown_done_time = None
-            while rclpy.ok():
-                try:
-                    executor.spin_once(timeout_sec=self.tick_period)
-                except KeyboardInterrupt:
-                    self.on_scenario_shutdown(False, "Aborted")
-
-                if self.shutdown_task is not None and self.shutdown_task.done():
-                    shutdown_handler = ShutdownHandler.get_instance()
-                    if shutdown_handler.is_done():
-                        self.logger.info("Shutting down finished.")
-                        break
-                    if shutdown_done_time is None:
-                        shutdown_done_time = time.monotonic()
-                    elif time.monotonic() - shutdown_done_time > self.SHUTDOWN_TIMEOUT:
-                        self.logger.warning(
-                            f"Shutdown timed out after {self.SHUTDOWN_TIMEOUT}s waiting for async operations.")
-                        break
-        except Exception as e:  # pylint: disable=broad-except
-            self.on_scenario_shutdown(False, "Run failed", f"{e}")
-        finally:
-            # ensure behaviour tree threads are stopped before shutting down ROS
             try:
-                self.behaviour_tree.shutdown()
-            except (AttributeError, RuntimeError) as e:
-                self.logger.debug(f"Exception during shutdown: {e}")
-            rclpy.shutdown()
+                self.setup(tree, current_output_dir=effective_output_dir,
+                           node=self.node, marker_handler=self.marker_handler)
+            except Exception as e:  # pylint: disable=broad-except
+                self.on_scenario_shutdown(False, "Setup failed", f"{e}")
+                return
+
+            try:
+                self.behaviour_tree.tick_tock(period_ms=1000. * self.tick_period)
+                shutdown_done_time = None
+                while rclpy.ok():
+                    try:
+                        executor.spin_once(timeout_sec=self.tick_period)
+                    except KeyboardInterrupt:
+                        self._aborted = True
+                        self.on_scenario_shutdown(False, "Aborted")
+
+                    if self.shutdown_task is not None and self.shutdown_task.done():
+                        shutdown_handler = ShutdownHandler.get_instance()
+                        if shutdown_handler.is_done():
+                            self.logger.info("Shutting down finished.")
+                            break
+                        if shutdown_done_time is None:
+                            shutdown_done_time = time.monotonic()
+                        elif time.monotonic() - shutdown_done_time > self.SHUTDOWN_TIMEOUT:
+                            self.logger.warning(
+                                f"Shutdown timed out after {self.SHUTDOWN_TIMEOUT}s waiting for async operations.")
+                            break
+            except Exception as e:  # pylint: disable=broad-except
+                self.on_scenario_shutdown(False, "Run failed", f"{e}")
+            finally:
+                # ensure behaviour tree threads are stopped before the next scenario
+                self._robust_tree_shutdown()
+        finally:
+            # py_trees_ros may already have destroyed the node during shutdown;
+            # destroy_node() is idempotent-safe here (errors are ignored).
+            try:
+                self.node.destroy_node()
+            except Exception as e:  # pylint: disable=broad-except
+                self.logger.debug(f"Exception destroying scenario node: {e}")
 
     def shutdown(self):
         self.logger.info("Shutting down...")
-        self.behaviour_tree.shutdown()
+        self._robust_tree_shutdown()
+
+    def _robust_tree_shutdown(self):
+        """Shut down the tree, guaranteeing every behaviour gets torn down.
+
+        First call the tree's own ``shutdown()``: besides crawling the behaviours
+        this also stops the tick-tock timer, so actions are not re-initialised
+        mid-teardown (otherwise an active ``bag_record`` would be re-``execute()``d
+        and delete its just-recorded bag). py_trees' crawl, however, aborts as soon
+        as one behaviour's ``shutdown()`` raises, which could leave later behaviours
+        (e.g. a recording ``bag_record``) un-torn-down and leak into the next
+        scenario. So follow up with an isolated per-node pass that catches
+        exceptions individually; our actions' ``shutdown()`` are idempotent, so the
+        repeated call on already-stopped behaviours is a no-op.
+        """
+        try:
+            self.behaviour_tree.shutdown()
+        except (AttributeError, RuntimeError) as e:
+            self.logger.debug(f"Exception during tree shutdown: {e}")
+        root = getattr(self.behaviour_tree, 'root', None)
+        if root is None:
+            return
+        for node in root.iterate():
+            try:
+                node.shutdown()
+            except Exception as e:  # pylint: disable=broad-except
+                self.logger.warning(f"Exception during shutdown of '{node.name}': {e}")
 
     def on_scenario_shutdown(self, result, failure_message="", failure_output=""):
         if self.shutdown_requested:

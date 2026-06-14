@@ -2,6 +2,18 @@
 Changelog for package scenario_execution
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Support step-based simulators
+* Fix for python 3.13 (`#65 <https://github.com/cps-test-lab/scenario-execution/issues/65>`_)
+* support multiple --post-run (`#63 <https://github.com/cps-test-lab/scenario-execution/issues/63>`_)
+* Support adding modifiers (`#60 <https://github.com/cps-test-lab/scenario-execution/issues/60>`_)
+* improve error message (`#57 <https://github.com/cps-test-lab/scenario-execution/issues/57>`_)
+* add custom field in junit xml: start_time (`#56 <https://github.com/cps-test-lab/scenario-execution/issues/56>`_)
+* run_process: fix cleanup (`#55 <https://github.com/cps-test-lab/scenario-execution/issues/55>`_)
+* Update pytrees version (`#53 <https://github.com/cps-test-lab/scenario-execution/issues/53>`_)
+* Contributors: Adi Vardi, Frederik Pasch
+
 1.4.0 (2025-11-27)
 ------------------
 * Add external interface

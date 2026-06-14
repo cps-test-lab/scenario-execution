@@ -6,3 +6,6 @@ __pycache__/
 *.py[cod]
 .env
 venv/
+.pypirc
+dist/
+*.egg-info/

@@ -43,3 +43,14 @@ libx
 codec
 libvpx
 waypoints
+Struct
+lifecycle
+Changelog
+changelog
+changelogs
+sdist
+rosdistro
+kubernetes
+pybullet
+floorplan
+dsl

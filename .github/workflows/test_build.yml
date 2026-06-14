@@ -112,22 +112,22 @@ jobs:
     - name: Delete untagged image versions
       if: github.event_name == 'pull_request'
       continue-on-error: true
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        ORG: cps-test-lab
+        PACKAGE: scenario-execution-testing
+        IMAGE_TAG: ${{ steps.generate_tag.outputs.image_tag }}
+        IMAGE_DIGEST: ${{ steps.build_image.outputs.digest || steps.tag_image.outputs.digest || steps.fallback_build_image.outputs.digest }}
       run: |
-        PACKAGE_NAME="scenario-execution-testing"
-        ORG="cps-test-lab"
-        IMAGE_TAG="${{ steps.generate_tag.outputs.image_tag }}"
-        
-        # Get the digest from either build, tag, or fallback build step
-        IMAGE_DIGEST="${{ steps.build_image.outputs.digest || steps.tag_image.outputs.digest || steps.fallback_build_image.outputs.digest }}"
-        
+        set -uo pipefail
+
         echo "Waiting for newly pushed image to be available in registry..."
         echo "Image tag: $IMAGE_TAG"
         echo "Image digest: $IMAGE_DIGEST"
-        
-        # Wait for the image digest to be available (max 30s)
+
+        # Wait for the image digest to be available (max 60s)
         for i in {1..30}; do
           if [ -n "$IMAGE_DIGEST" ]; then
-            # Check if the digest is available in the registry
             if docker pull "${IMAGE_TAG%:*}@${IMAGE_DIGEST}" > /dev/null 2>&1; then
               echo "✅ Image digest $IMAGE_DIGEST is available in registry"
               break
@@ -135,45 +135,87 @@ jobs:
           else
             exit 1
           fi
-          echo "⏳ Waiting for image to be available (attempt $i/24)..."
+          echo "⏳ Waiting for image to be available (attempt $i/30)..."
           sleep 2
         done
-        
-        echo "Checking for untagged image versions..."
-        
-        VERSIONS=$(curl -s -L \
-          -H "Accept: application/vnd.github+json" \
-          -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-          -H "X-GitHub-Api-Version: 2022-11-28" \
-          "https://api.github.com/orgs/${ORG}/packages/container/${PACKAGE_NAME}/versions" 2>/dev/null || echo "[]")
-        
-        # Get current time and calculate threshold (5 minutes ago)
+
+        # Obtain a registry token to read manifests
+        REGISTRY_TOKEN=$(curl -sf \
+          -u "token:${GH_TOKEN}" \
+          "https://ghcr.io/token?scope=repository:${ORG}/${PACKAGE}:pull&service=ghcr.io" \
+          | jq -r '.token')
+
+        # Collect all digests referenced by tagged (index) manifests. For
+        # multi-platform images and images carrying provenance/attestation,
+        # the tag points at an index manifest whose per-platform / attestation
+        # child manifests are themselves untagged - those must NOT be deleted.
+        declare -A REFERENCED
+        PAGE=1
+        while true; do
+          VERSIONS=$(curl -sf -L \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/orgs/${ORG}/packages/container/${PACKAGE}/versions?per_page=100&page=${PAGE}")
+          COUNT=$(echo "$VERSIONS" | jq 'length')
+          [ "$COUNT" -eq 0 ] && break
+
+          while IFS= read -r digest; do
+            MANIFEST=$(curl -sf \
+              -H "Accept: application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json,application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.v2+json" \
+              -H "Authorization: Bearer ${REGISTRY_TOKEN}" \
+              "https://ghcr.io/v2/${ORG}/${PACKAGE}/manifests/${digest}" || true)
+            while IFS= read -r ref; do
+              REFERENCED["$ref"]=1
+              echo "  Keeping referenced sub-manifest: $ref"
+            done < <(echo "$MANIFEST" | jq -r '.manifests[]?.digest // empty')
+          done < <(echo "$VERSIONS" | jq -r '.[] | select(.metadata.container.tags | length > 0) | .name')
+
+          PAGE=$((PAGE + 1))
+        done
+
+        echo "Total referenced sub-manifests: ${#REFERENCED[@]}"
+
+        # Delete untagged versions that are not referenced by any tagged
+        # manifest. The 5-minute age guard avoids racing API propagation of the
+        # just-pushed image.
         THRESHOLD_DATE=$(date -u -d '5 minutes ago' +%Y-%m-%dT%H:%M:%SZ)
-        
-        # Find untagged versions older than 5 minutes
-        UNTAGGED_IDS=$(echo "$VERSIONS" | jq -r --arg threshold "$THRESHOLD_DATE" '.[] | select(.metadata.container.tags | length == 0) | select(.created_at < $threshold) | .id')
-        
-        if [ -n "$UNTAGGED_IDS" ]; then
-          echo "Found old untagged versions, deleting..."
-          for VERSION_ID in $UNTAGGED_IDS; do
-            echo "Deleting untagged version ID: $VERSION_ID"
-            
+        PAGE=1
+        DELETED=0
+        while true; do
+          VERSIONS=$(curl -sf -L \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/orgs/${ORG}/packages/container/${PACKAGE}/versions?per_page=100&page=${PAGE}")
+          COUNT=$(echo "$VERSIONS" | jq 'length')
+          [ "$COUNT" -eq 0 ] && break
+
+          while IFS= read -r item; do
+            VERSION_ID=$(echo "$item" | jq -r '.id')
+            DIGEST=$(echo "$item" | jq -r '.name')
+            if [[ -n "${REFERENCED[$DIGEST]+_}" ]]; then
+              echo "Keeping referenced: $VERSION_ID ($DIGEST)"
+              continue
+            fi
+            echo "Deleting untagged+unreferenced: $VERSION_ID ($DIGEST)"
             HTTP_CODE=$(curl -s -w "%{http_code}" -o /dev/null -L \
               -X DELETE \
               -H "Accept: application/vnd.github+json" \
-              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
               -H "X-GitHub-Api-Version: 2022-11-28" \
-              "https://api.github.com/orgs/${ORG}/packages/container/${PACKAGE_NAME}/versions/${VERSION_ID}")
-            
+              "https://api.github.com/orgs/${ORG}/packages/container/${PACKAGE}/versions/${VERSION_ID}")
             if [ "$HTTP_CODE" = "204" ] || [ "$HTTP_CODE" = "200" ]; then
               echo "✅ Deleted untagged version $VERSION_ID"
+              DELETED=$((DELETED + 1))
             else
               echo "⚠️ Failed to delete version $VERSION_ID (HTTP $HTTP_CODE)"
             fi
-          done
-        else
-          echo "ℹ️ No old untagged versions found"
-        fi
+          done < <(echo "$VERSIONS" | jq -c --arg threshold "$THRESHOLD_DATE" '.[] | select(.metadata.container.tags | length == 0) | select(.created_at < $threshold)')
+
+          PAGE=$((PAGE + 1))
+        done
+        echo "Done. Deleted $DELETED untagged unreferenced versions."
   
   build:
     runs-on: ubuntu-latest

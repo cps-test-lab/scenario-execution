@@ -34,7 +34,7 @@ except:  # pylint: disable=W0702
 
 setup(
     name=PACKAGE_NAME,
-    version='1.4.0',
+    version='1.5.0',
     packages=find_namespace_packages(exclude=['test*']),
     data_files=[
         ('share/ament_index/resource_index/packages',
@@ -48,6 +48,7 @@ setup(
         'pyyaml==6.0.1',
         'py-trees==2.4.0'
     ],
+    python_requires='>=3.10',  # uses PEP 604 'X | None' type syntax
     zip_safe=True,
     include_package_data=True,
     maintainer='Frederik Pasch',
@@ -57,14 +58,25 @@ setup(
         "Homepage": "https://github.com/cps-test-lab/scenario-execution",
         "Documentation": "https://cps-test-lab.github.io/scenario-execution/",
         "Issues": "https://github.com/cps-test-lab/scenario-execution/issues",
+        "Changelog": "https://github.com/cps-test-lab/scenario-execution/blob/main/scenario_execution/CHANGELOG.rst",
     },
     description='Scenario Execution for Robotics',
     long_description=LONG_DESCRIPTION,
     long_description_content_type='text/markdown',
     license='Apache License 2.0',
     classifiers=[
+        "Development Status :: 5 - Production/Stable",
+        "Intended Audience :: Developers",
+        "License :: OSI Approved :: Apache Software License",
+        "Operating System :: POSIX :: Linux",
         "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Topic :: Software Development :: Testing",
+        "Topic :: Scientific/Engineering",
     ],
+    keywords=['scenario', 'simulation', 'testing', 'robotics', 'OpenSCENARIO', 'ROS'],
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
