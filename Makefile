@@ -82,22 +82,62 @@ release_test: release_check
 release: release_check
 	python3 -m twine upload $(RELEASE_PKG_DIR)/dist/*
 
-# --- ROS release (all packages; managed together via catkin tooling + bloom) ---
+# --- ROS release (managed together via catkin tooling + bloom) ---
 ROS_DISTRO ?= jazzy
+ROS_REPO   ?= scenario_execution
+
+# Packages released to the ROS build farm. This MUST mirror the release/packages list
+# for this repository in rosdistro (https://github.com/ros/rosdistro/blob/master/$(ROS_DISTRO)/distribution.yaml).
+# Every other package in the workspace is intentionally NOT released and must stay
+# disabled: the examples, the *_test packages, the simulation helpers
+# (arm_sim_scenario, gazebo_static_camera, gazebo_tf_publisher, tb4_sim_scenario,
+# message_modification, scenario_status, tf_to_pose_publisher), and the
+# scenario_execution_{docker,kubernetes,moveit2,pybullet,floorplan_dsl} libraries.
+# Do not add them here or to the rosdistro list.
+ROS_RELEASE_PACKAGES = \
+	scenario_execution \
+	scenario_execution_control \
+	scenario_execution_coverage \
+	scenario_execution_dataops \
+	scenario_execution_gazebo \
+	scenario_execution_interfaces \
+	scenario_execution_nav2 \
+	scenario_execution_network \
+	scenario_execution_os \
+	scenario_execution_ros \
+	scenario_execution_rviz \
+	scenario_execution_sim \
+	scenario_execution_x11
 
 # Fill the "Forthcoming" section of every CHANGELOG.rst from the git history.
-# Review/edit the result, then run ros_release_prepare.
+# (No --all: every package already has a CHANGELOG.rst.) Review/edit the result,
+# then bump the version (make set_version) and tag.
 ros_changelog:
-	catkin_generate_changelog --all
+	catkin_generate_changelog
 
-# Bump the version in every package.xml, rename "Forthcoming" to the new version,
-# then commit and tag. Interactive: prompts for the new version. Push the tag afterwards.
-ros_release_prepare:
-	catkin_prepare_release
+# Set the version across every source package.xml and setup.py (ROS + PyPI).
+# Usage: make set_version VERSION=1.6.0      (explicit)
+#        make set_version VERSION=minor      (bump major|minor|patch from current)
+# Afterwards review the diff, update the CHANGELOG.rst headings, then commit and tag:
+#        git commit -am "<version>" && git tag <version>
+set_version:
+	@test -n "$(VERSION)" || { echo "Usage: make set_version VERSION=<X.Y.Z|major|minor|patch>"; exit 1; }
+	python3 tools/set_version.py "$(VERSION)"
 
-# Publish one package to the ROS build farm via bloom. Interactive and requires a
-# configured release repository; run once per package, e.g.:
-#   make ros_release ROS_PACKAGE=scenario_execution_ros ROS_DISTRO=jazzy
+# Print the packages that are released vs. intentionally disabled, so the rosdistro
+# pull request can be reviewed before publishing.
+ros_release_packages:
+	@echo "Released to ROS ($(ROS_DISTRO)):"; for p in $(ROS_RELEASE_PACKAGES); do echo "  + $$p"; done
+	@echo "Disabled (kept out of the release):"; \
+	for f in $$(find . -name package.xml -not -path '*/install/*' -not -path '*/build/*'); do \
+		basename $$(dirname $$f); \
+	done | sort -u | grep -vxF "$$(printf '%s\n' $(ROS_RELEASE_PACKAGES))" | sed 's/^/  - /'
+
+# Publish the repository to the ROS build farm via bloom. Interactive; requires a
+# configured release repository and opens a rosdistro pull request. bloom takes the
+# rosdistro *repository* key ($(ROS_REPO)), not individual package names. The set of
+# released packages is governed by rosdistro's release/packages list (mirrored in
+# ROS_RELEASE_PACKAGES) — keep the disabled packages out of it.
+# Usage: make ros_release [ROS_DISTRO=jazzy]
 ros_release:
-	@test -n "$(ROS_PACKAGE)" || { echo "Set ROS_PACKAGE=<package> (e.g. scenario_execution_ros)"; exit 1; }
-	bloom-release --rosdistro $(ROS_DISTRO) --track $(ROS_DISTRO) $(ROS_PACKAGE)
+	bloom-release --rosdistro $(ROS_DISTRO) --track $(ROS_DISTRO) $(ROS_REPO)

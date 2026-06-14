@@ -2,6 +2,12 @@
 Changelog for package scenario_execution_os
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Support step-based simulators
+* os: add action to monitor resource usage (`#58 <https://github.com/cps-test-lab/scenario-execution/issues/58>`_)
+* Contributors: Frederik Pasch
+
 1.4.0 (2025-11-27)
 ------------------
 * add check_process_running
