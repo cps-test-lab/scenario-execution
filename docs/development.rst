@@ -101,7 +101,8 @@ Then, once the pull request is merged, tag and publish from ``main``:
 .. code-block:: bash
 
    git switch main && git pull
-   git tag 1.6.0 && git push origin 1.6.0   # 5. tag the merged release commit
+   git tag 1.6.0 && git push origin 1.6.0               # 5. tag the merged release commit
+   git tag jazzy-1.6.0 1.6.0 && git push origin jazzy-1.6.0   # 5b. distro tag bloom releases from
 
    make release                        # 6. publish to PyPI
 
@@ -118,6 +119,11 @@ Notes:
   ``rosdistro`` pull request. It takes the rosdistro *repository* key (``ROS_REPO``,
   default ``scenario_execution``), not individual package names; ``ROS_DISTRO`` defaults to
   ``jazzy``.
+- bloom exports the upstream sources from a distro-prefixed ``<distro>-<version>`` tag
+  (e.g. ``jazzy-1.6.0``), **not** the bare ``<version>`` tag. Both must exist on the upstream
+  repository before running ``make ros_release`` — if the distro tag is missing,
+  ``bloom-export-upstream`` fails with ``'<distro>-<version>' is not a tag in the upstream
+  repository`` and no tarball is created. Step 5b above creates it alongside the bare tag.
 - Only a subset of the workspace is published to ROS; the rest (examples, ``*_test``
   packages, simulation helpers, and the docker/kubernetes/moveit2/pybullet/floorplan_dsl
   libraries) are intentionally **not** released. The released set is listed in
