@@ -1107,6 +1107,14 @@ class MethodDeclaration(Declaration):
                 params[child.name] = child.default_value
         return params
 
+    def get_type(self):
+        return self.return_type, False
+
+    def get_type_string(self):
+        if isinstance(self.return_type, ModelElement):
+            return self.return_type.get_type_string()
+        return self.return_type
+
 
 class MethodBody(ModelElement):
 
@@ -1796,7 +1804,12 @@ class FunctionApplicationExpression(ModelExpression):
         return ref.get_type()
 
     def get_type_string(self):
-        return self.get_type()[0].name
+        type_def, is_list = self.get_type()
+        if isinstance(type_def, ModelElement):
+            type_def = type_def.get_type_string()
+            if is_list:
+                type_def = 'listof' + type_def
+        return type_def
 
 
 class FieldAccessExpression(ModelExpression):

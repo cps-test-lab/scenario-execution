@@ -218,3 +218,13 @@ actor osc_actor
 struct key_value:
     key: string
     value: string = ''
+
+
+struct position_2d inherits position:
+    x: length = 0.0m
+    y: length = 0.0m
+
+
+struct pose_2d:
+    position: position_2d
+    orientation: angle = 0.0rad

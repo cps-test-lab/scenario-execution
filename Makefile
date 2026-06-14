@@ -48,3 +48,56 @@ test_scenario_execution_nav2_test:
 
 test_scenario_execution_gazebo_test:
 	scenario_batch_execution -i test/scenario_execution_gazebo_test/scenarios/ -o test_scenario_execution_gazebo --ignore-process-return-value -- ros2 launch tb4_sim_scenario sim_nav_scenario_launch.py scenario:={SCENARIO} output_dir:={OUTPUT_DIR} headless:=True use_rviz:=False navigation:=false
+
+# --- PyPI release (core 'scenario_execution' package only; ROS/colcon packages are not published) ---
+RELEASE_PKG_DIR = scenario_execution
+
+release_tools:
+	python3 -m pip install --upgrade build twine
+
+release_version_check:
+	@se_ver=$$(grep -oP "version='\K[^']+" $(RELEASE_PKG_DIR)/setup.py); \
+	xml_ver=$$(grep -oP '<version>\K[^<]+' $(RELEASE_PKG_DIR)/package.xml); \
+	if [ "$$se_ver" != "$$xml_ver" ]; then \
+		echo "Version mismatch: setup.py=$$se_ver, package.xml=$$xml_ver. Sync them before releasing."; \
+		exit 1; \
+	fi; \
+	echo "Releasing scenario_execution version $$se_ver"
+
+release_clean:
+	rm -rf $(RELEASE_PKG_DIR)/dist $(RELEASE_PKG_DIR)/build $(RELEASE_PKG_DIR)/*.egg-info
+
+release_build: release_version_check release_clean
+	cd $(RELEASE_PKG_DIR) && python3 -m build
+
+# Validate the built artifacts (does not upload)
+release_check: release_build
+	python3 -m twine check $(RELEASE_PKG_DIR)/dist/*
+
+# Upload to TestPyPI for a dry run (recommended before 'make release')
+release_test: release_check
+	python3 -m twine upload --repository testpypi $(RELEASE_PKG_DIR)/dist/*
+
+# Publish to PyPI
+release: release_check
+	python3 -m twine upload $(RELEASE_PKG_DIR)/dist/*
+
+# --- ROS release (all packages; managed together via catkin tooling + bloom) ---
+ROS_DISTRO ?= jazzy
+
+# Fill the "Forthcoming" section of every CHANGELOG.rst from the git history.
+# Review/edit the result, then run ros_release_prepare.
+ros_changelog:
+	catkin_generate_changelog --all
+
+# Bump the version in every package.xml, rename "Forthcoming" to the new version,
+# then commit and tag. Interactive: prompts for the new version. Push the tag afterwards.
+ros_release_prepare:
+	catkin_prepare_release
+
+# Publish one package to the ROS build farm via bloom. Interactive and requires a
+# configured release repository; run once per package, e.g.:
+#   make ros_release ROS_PACKAGE=scenario_execution_ros ROS_DISTRO=jazzy
+ros_release:
+	@test -n "$(ROS_PACKAGE)" || { echo "Set ROS_PACKAGE=<package> (e.g. scenario_execution_ros)"; exit 1; }
+	bloom-release --rosdistro $(ROS_DISTRO) --track $(ROS_DISTRO) $(ROS_PACKAGE)

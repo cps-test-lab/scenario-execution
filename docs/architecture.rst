@@ -7,7 +7,7 @@ Architecture
 
    Overview of Scenario Execution
 
-Scenario execution is built as a Python library on top of two open-source components: the generic scenario description language `OpenSCENARIO DSL <https://www.asam.net/index.php?eID=dumpFile&t=f&f=3460&token=14e7c7fab9c9b75118bb4939c725738fa0521fe9>`_ and `PyTrees  <https://py-trees.readthedocs.io/en/devel/introduction.html>`_.
+Scenario execution is built as a Python library on top of two open-source components: the generic scenario description language `OpenSCENARIO DSL <https://publications.pages.asam.net/standards/ASAM_OpenSCENARIO/ASAM_OpenSCENARIO_DSL/v2.2.0/index.html>`_ and `PyTrees  <https://py-trees.readthedocs.io/en/devel/introduction.html>`_.
 In general, the user defines a scenario in the OpenSCENARIO DSL language, scenario execution parses the scenario, translates it to a behavior tree, executes it and finally gathers the test results.
 
 
@@ -63,7 +63,7 @@ The Internal Model Builder, implemented as a Model Listener does an initial chec
 Modules
 -------
 
-- ``scenario_execution``: The base package for scenario execution. It provides the parsing of OpenSCENARIO DSL files and the conversion to py-trees. It's middleware agnostic and can therefore be used as a basis for more specific implementations (e.g. ROS). It also provides basic OpenSCENARIO DSL libraries and actions.
+- ``scenario_execution``: The base package for scenario execution. It provides the parsing of OpenSCENARIO DSL files and the conversion to py-trees. It's middleware agnostic and can therefore be used as a basis for more specific implementations (e.g. ROS or step-based simulation). It also provides basic OpenSCENARIO DSL libraries and actions.
 - ``scenario_execution_ros``: This package uses ``scenario_execution`` as a basis and implements a ROS2 version of scenario execution. It provides a OpenSCENARIO DSL library with basic ROS2-related actions like publishing on a topic or calling a service.
 - ``scenario_execution_control``: Provides code to control scenario execution (in ROS2) from another application such as RViz.
 - ``scenario_execution_coverage``: Provides tools to generate concrete scenarios from abstract OpenSCENARIO DSL scenario definition and execute them.
@@ -74,3 +74,36 @@ Modules
 - ``simulation/tb4_sim_scenario``: Run `Turtlebot4 <https://turtlebot.github.io/turtlebot4-user-manual/software/turtlebot4_simulator.html>`_ within simulation, controlled by scenario execution.
 - ``tools/message_modification``: ROS2 nodes to modify messages.
 - ``tools/scenario_status``: Publish the current scenario status on a topic (e.g. to be capture within a ROS bag).
+
+
+Step-based Simulation
+---------------------
+
+``scenario_execution`` supports step-based simulators (e.g. MuJoCo, PyBullet, custom hardware-in-the-loop setups) through the :class:`SimulationInterface <scenario_execution.SimulationInterface>` abstraction. This allows scenario authors to run scenarios while retaining full use of the OpenSCENARIO DSL, including time-based directives such as ``wait elapsed()`` and ``timeout()``.
+
+**Clock abstraction**
+
+In normal (wall-clock) mode the framework uses ``time.sleep()`` between ticks. In step-based mode there is no sleeping: the loop runs as fast as the simulator allows. Time is tracked by a :class:`SimulationClock <scenario_execution.SimulationClock>` that advances by exactly ``dt`` seconds per tick, so ``wait elapsed(1s)`` maps to exactly ``1 / dt`` simulation steps regardless of the system clock.
+
+The :class:`WallClock <scenario_execution.WallClock>` is used as fallback when no simulation is configured, preserving backward compatibility.
+
+.. code-block::
+
+   ┌─────────────────────────────────────────────────────┐
+   │                  ScenarioExecution                  │
+   │                                                     │
+   │  run_with_simulation(sim)                           │
+   │    sim.setup()                                      │
+   │    sim.reset()        ← once before the scenario    │
+   │    while running:                                   │
+   │      sim.step()       ← advance the simulator       │
+   │      clock.advance()  ← advance SimulationClock     │
+   │      tree.tick()      ← advance the behavior tree   │
+   │    sim.shutdown()                                   │
+   └─────────────────────────────────────────────────────┘
+
+**API alignment with ros-simulation/simulation_interfaces**
+
+The :class:`SimulationInterface <scenario_execution.SimulationInterface>` is conceptually aligned with the `ros-simulation/simulation_interfaces <https://github.com/ros-simulation/simulation_interfaces>`_ standard, making it straightforward to implement adapters for compliant simulators.
+
+See :ref:`step_based_simulation` for usage instructions and a complete example.

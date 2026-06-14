@@ -44,6 +44,54 @@ To run only specific tests:
   --pytest-args test/test_parameter_override.py::TestParameterOverride::test_base_params_success \
   -s
 
+Changelog
+---------
+
+Each package keeps a ``CHANGELOG.rst`` in the ROS (``catkin``) format. It is the single
+source of truth for both the ROS release (consumed by ``bloom``) and the PyPI release: the
+``scenario_execution`` package ships its ``CHANGELOG.rst`` in the sdist and links to it from
+PyPI via the ``Changelog`` project URL, so there is no separate file to keep in sync.
+
+Update the changelogs from the git history before tagging a release:
+
+.. code-block:: bash
+
+   catkin_generate_changelog --all   # fills the "Forthcoming" section of every CHANGELOG.rst
+   # review/edit the entries, then set the version + date heading
+
+Releasing to PyPI
+-----------------
+
+The core ``scenario_execution`` package is published to PyPI (the ROS/colcon packages are not).
+Convenience targets are available in the root ``Makefile``:
+
+.. code-block:: bash
+
+   make release_tools   # install build + twine (once)
+   make release_check   # build sdist/wheel and validate, no upload
+   make release_test    # upload to TestPyPI for a dry run
+   make release         # publish to PyPI
+
+``make release`` first checks that the versions in ``scenario_execution/setup.py`` and
+``scenario_execution/package.xml`` match. Upload credentials are taken from twine (e.g.
+``~/.pypirc`` or the ``TWINE_USERNAME``/``TWINE_PASSWORD`` environment variables).
+
+Releasing to the ROS build farm
+-------------------------------
+
+The ROS packages are released with the standard ``catkin``/``bloom`` tooling, wrapped by
+the root ``Makefile``:
+
+.. code-block:: bash
+
+   make ros_changelog        # update every CHANGELOG.rst from git history (review afterwards)
+   make ros_release_prepare  # bump versions in package.xml, commit + tag (interactive)
+   git push --follow-tags
+   make ros_release ROS_PACKAGE=scenario_execution_ros ROS_DISTRO=jazzy   # bloom, per package
+
+``ros_release`` is interactive and needs a configured release repository; run it once per
+package. The default ``ROS_DISTRO`` is ``jazzy`` and can be overridden on the command line.
+
 Developing and Debugging with Visual Studio Code
 ------------------------------------------------
 

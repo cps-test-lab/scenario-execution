@@ -23,6 +23,7 @@ from scenario_execution.actions.base_action import ActionError
 from scenario_execution.actions.run_process import RunProcess
 import shutil
 import signal
+import subprocess  # nosec B404
 
 
 class RosBagRecordActionState(Enum):
@@ -127,12 +128,28 @@ class RosBagRecord(RunProcess):
             self.current_state = RosBagRecordActionState.FAILURE
             return py_trees.common.Status.FAILURE
 
+    # Seconds to wait for ros2 bag to flush its cache and exit after SIGINT
+    # before escalating to SIGKILL. Bounds the per-scenario teardown so a wedged
+    # recorder cannot block the whole (multi-)scenario run indefinitely.
+    SHUTDOWN_TIMEOUT = 30.0
+
     def shutdown(self):
         if self.current_state != RosBagRecordActionState.FAILURE:
             self.logger.info('Waiting for process to quit...')
-            if self.process:
+            if self.process and self.process.poll() is None:
+                # ros2 bag needs SIGINT (not SIGTERM) to flush the cache and
+                # close the bag cleanly.
                 self.process.send_signal(signal.SIGINT)
-                self.process.wait()
+                try:
+                    self.process.wait(self.SHUTDOWN_TIMEOUT)
+                except subprocess.TimeoutExpired:
+                    self.logger.warning(
+                        f"ros2 bag did not exit within {self.SHUTDOWN_TIMEOUT}s of SIGINT; sending SIGKILL.")
+                    try:
+                        os.killpg(os.getpgid(self.process.pid), signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+                    self.process.wait()
             self.logger.info('Process finished.')
         if self.current_state == RosBagRecordActionState.WAITING_FOR_TOPICS and self.bag_dir and os.path.exists(self.bag_dir):
             self.logger.info(
