@@ -84,4 +84,4 @@ scenario test_load_world:
 """
         self.execute(scenario_content)
         self.assertTrue(self.scenario_execution_ros.process_results())
-        self.assertEqual(self.request_received.uri, 'file:///path/to/world.sdf')
+        self.assertEqual(self.request_received.world_resource.uri, 'file:///path/to/world.sdf')

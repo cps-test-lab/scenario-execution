@@ -29,7 +29,9 @@ class LoadWorld(RosServiceCall):
                          service_type='simulation_interfaces.srv.LoadWorld')
 
     def execute(self):   # pylint: disable=arguments-differ,arguments-renamed
-        super().execute(data={ "uri": self.uri })
+        # simulation_interfaces 2.x moved the flat 'uri' field into the
+        # 'world_resource' (Resource) sub-message.
+        super().execute(data={ "world_resource": {"uri": self.uri} })
 
     def check_response(self, msg):
         """

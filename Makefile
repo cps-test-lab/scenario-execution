@@ -83,7 +83,7 @@ release: release_check
 	python3 -m twine upload $(RELEASE_PKG_DIR)/dist/*
 
 # --- ROS release (managed together via catkin tooling + bloom) ---
-ROS_DISTRO ?= jazzy
+ROS_DISTRO ?= lyrical
 ROS_REPO   ?= scenario_execution
 
 # Packages released to the ROS build farm. This MUST mirror the release/packages list
@@ -94,6 +94,10 @@ ROS_REPO   ?= scenario_execution
 # message_modification, scenario_status, tf_to_pose_publisher), and the
 # scenario_execution_{docker,kubernetes,moveit2,pybullet,floorplan_dsl} libraries.
 # Do not add them here or to the rosdistro list.
+#
+# NOTE (lyrical): scenario_execution_nav2 is held back because navigation2 /
+# nav2_simple_commander are not yet released for lyrical. Re-add it once nav2
+# lands for this distro (it remains released on jazzy).
 ROS_RELEASE_PACKAGES = \
 	scenario_execution \
 	scenario_execution_control \
@@ -101,7 +105,6 @@ ROS_RELEASE_PACKAGES = \
 	scenario_execution_dataops \
 	scenario_execution_gazebo \
 	scenario_execution_interfaces \
-	scenario_execution_nav2 \
 	scenario_execution_network \
 	scenario_execution_os \
 	scenario_execution_ros \

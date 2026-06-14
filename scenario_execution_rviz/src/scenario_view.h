@@ -47,7 +47,7 @@
 #include <py_trees_ros_interfaces/msg/behaviour_tree.hpp>
 #include <rviz_common/panel.hpp>
 #include <rviz_common/view_manager.hpp>
-#include <tf2/utils.h>
+#include <tf2/utils.hpp>
 
 class QPushButton;
 class QComboBox;

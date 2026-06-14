@@ -37,7 +37,7 @@
 #include <cstdio>
 #include <iomanip>
 
-#include <tf2/utils.h>
+#include <tf2/utils.hpp>
 
 #include "rviz_common/display_context.hpp"
 #include <Ogre.h>

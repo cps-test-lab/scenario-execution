@@ -8,11 +8,11 @@ concurrency:
   cancel-in-progress: true
 permissions: read-all
 env:
-  ROS_DISTRO: jazzy
+  ROS_DISTRO: lyrical
 jobs:
   build-and-push-production:
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/humble' || github.ref == 'refs/heads/jazzy')
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/humble' || github.ref == 'refs/heads/jazzy' || github.ref == 'refs/heads/lyrical')
     permissions:
       packages: write
     steps:

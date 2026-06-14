@@ -52,7 +52,19 @@ class SetEntityState(RosServiceCall):
         return result
 
     def execute(self):   # pylint: disable=arguments-differ,arguments-renamed
-        super().execute(data={ "entity": self.entity, "state": { "pose": get_spawn_pose(self, self.pose), "twist": self.convert_value(self.twist), "acceleration": self.convert_value(self.acceleration) }})
+        # simulation_interfaces 2.x added set_pose/set_twist/set_acceleration flags;
+        # the action always provides all three, so enable them all.
+        super().execute(data={
+            "entity": self.entity,
+            "state": {
+                "pose": get_spawn_pose(self, self.pose),
+                "twist": self.convert_value(self.twist),
+                "acceleration": self.convert_value(self.acceleration),
+            },
+            "set_pose": True,
+            "set_twist": True,
+            "set_acceleration": True,
+        })
 
     def check_response(self, msg):
         """

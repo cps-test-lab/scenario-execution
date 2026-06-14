@@ -36,7 +36,9 @@ class SpawnEntity(RosServiceCall):
         data = {
             "name": self.entity_name,
             "allow_renaming": self.allow_renaming,
-            "uri": self.uri,
+            # simulation_interfaces 2.x moved the flat 'uri' field into the
+            # 'entity_resource' (Resource) sub-message.
+            "entity_resource": {"uri": self.uri},
             "entity_namespace": self.entity_namespace,
             "initial_pose": { 
                 "pose": get_spawn_pose(self, self.initial_pose)
