@@ -2,9 +2,9 @@
 name: Scan
 on:
   push:
-    branches: [main, humble, jazzy]
+    branches: [main, humble, jazzy, lyrical]
   pull_request:
-    branches: [main, humble, jazzy]
+    branches: [main, humble, jazzy, lyrical]
   workflow_dispatch:
 permissions: read-all
 jobs:

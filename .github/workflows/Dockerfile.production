@@ -12,7 +12,7 @@ RUN --mount=type=bind,source=.,target=/scenario_execution \
     xargs -a /scenario_execution/deb_requirements.txt apt-get install -y --no-install-recommends && \
     rosdep update --rosdistro=${ROS_DISTRO} && \
     rosdep install --rosdistro=${ROS_DISTRO} --from-paths /scenario_execution/ --ignore-src -r -y \
-        --skip-keys "nav2_simple_commander nav2_msgs nav2_bringup nav2_route nav2_loopback_sim gripper_controllers" && \
+        --skip-keys "nav2_simple_commander nav2_msgs nav2_bringup nav2_route nav2_loopback_sim gripper_controllers moveit moveit_resources moveit_planners_chomp ompl" && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /scenario_execution

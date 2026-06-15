@@ -18,16 +18,20 @@ RUN --mount=type=bind,source=.,target=/scenario_execution \
     xargs -a /scenario_execution/libs/scenario_execution_kubernetes/deb_requirements.txt apt-get install -y --no-install-recommends && \
     rosdep update --rosdistro=${ROS_DISTRO} && \
     rosdep install --rosdistro=${ROS_DISTRO} --from-paths /scenario_execution/ --ignore-src -r -y \
-        --skip-keys "nav2_simple_commander nav2_msgs nav2_bringup nav2_route nav2_loopback_sim gripper_controllers" && \
+        --skip-keys "nav2_simple_commander nav2_msgs nav2_bringup nav2_route nav2_loopback_sim gripper_controllers moveit moveit_resources moveit_planners_chomp ompl" && \
     rm -rf /var/lib/apt/lists/*
 
 # install dependencies for license check
-RUN PIPX_HOME="" PIPX_BIN_DIR="/python_bin" pipx install -v ros-license-toolkit==1.2.2 && \
+# ros-license-toolkit 2.x is required on lyrical: 1.x depends on the old `spdx`
+# namespace package which fails to import on Python 3.14.
+RUN PIPX_HOME="" PIPX_BIN_DIR="/python_bin" pipx install -v ros-license-toolkit==2.0.2 && \
     GOPATH=/go go install github.com/google/addlicense@v1.1.1
 
 # install pybullet dependencies
-RUN --mount=type=bind,source=.,target=/scenario_execution \
-    pip3 install  --no-cache-dir -r /scenario_execution/libs/scenario_execution_pybullet/requirements.txt --break-system-packages
+# Disabled on lyrical: pybullet==3.2.5 does not build against Ubuntu 26.04's toolchain
+# (GCC 15) / Python 3.14. Re-enable once a pybullet release supports this platform.
+# RUN --mount=type=bind,source=.,target=/scenario_execution \
+#     pip3 install  --no-cache-dir -r /scenario_execution/libs/scenario_execution_pybullet/requirements.txt --break-system-packages
 
 # install rosbag2_to_video used within github actions
 WORKDIR /rosbag2_to_video/src
