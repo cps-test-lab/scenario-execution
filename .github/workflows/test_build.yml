@@ -353,9 +353,16 @@ jobs:
           # shellcheck source=/dev/null
           source "/opt/ros/${ROS_DISTRO}/setup.bash"
           source install/setup.bash
-          find . -name "*.osc" | grep -Ev "lib_osc/*|examples/example_scenario_variation|scenario_execution_coverage|fail*|install|build" | while read -r file; do 
-            echo "$file"; 
-            ros2 run scenario_execution scenario_execution "$file" -n; 
+          find . -name "*.osc" | grep -Ev "lib_osc/*|examples/example_scenario_variation|scenario_execution_coverage|fail*|install|build" | while read -r file; do
+            # TEMPORARY (lyrical): nav2, pybullet and moveit are not available on
+            # lyrical, so scenarios importing them cannot be parsed. Skip them until
+            # those land.
+            if grep -qE "^import osc\.(nav2|pybullet|moveit2)" "$file"; then
+              echo "skipping (nav2/pybullet/moveit not available on lyrical): $file";
+              continue;
+            fi
+            echo "$file";
+            ros2 run scenario_execution scenario_execution "$file" -n;
           done
   test-example-ros-examples:
     needs: [build, build-and-push-testing]

@@ -77,7 +77,7 @@ setup(
         "Topic :: Scientific/Engineering",
     ],
     keywords=['scenario', 'simulation', 'testing', 'robotics', 'OpenSCENARIO', 'ROS'],
-    tests_require=['pytest'],
+    extras_require={'test': ['pytest']},
     entry_points={
         'console_scripts': [
             'scenario_execution = scenario_execution.scenario_execution_base:main',
