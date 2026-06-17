@@ -115,60 +115,58 @@ class SetYamlValue(BaseAction):
             # If no type specified or unknown type, return as-is
             return value
 
-    def update(self) -> py_trees.common.Status:
-        result = True
+    def update(self) -> py_trees.common.Status:  # pylint: disable=too-many-return-statements
         path = Path(self.file_path)
         if not path.is_file():
-            result = False
+            self.feedback_message = f"File not found: '{self.file_path}'"  # pylint: disable=attribute-defined-outside-init
+            return py_trees.common.Status.FAILURE
 
-        if result:
-            # Load YAML
+        try:
             with open(path, 'r') as f:
                 data = yaml.safe_load(f) or {}
+        except yaml.YAMLError as e:
+            self.feedback_message = f"Failed to parse YAML file '{self.file_path}': {e}"  # pylint: disable=attribute-defined-outside-init
+            return py_trees.common.Status.FAILURE
 
-            # Parse the key_path
-            keys = parse_yaml_path(self.key_path)
+        keys = parse_yaml_path(self.key_path)
 
-            # Navigate to the target location
-            current = data
-            for key in keys[:-1]:
-                if isinstance(key, int):
-                    # Array access
-                    current = current[key]
-                else:
-                    # Dictionary access
-                    if key not in current:
-                        if self.create_missing:
-                            current[key] = {}
-                        else:
-                            result = False
-                            break
-                    current = current[key]
-
-        if result:
-            # Perform the operation on the final key
-            final_key = keys[-1]
-
-            # Check if final key exists when create_missing is False
-            if not self.create_missing and final_key not in current:
-                result = False
-            else:
-                # Convert the value to the specified type
+        # Navigate to the target location
+        current = data
+        for i, key in enumerate(keys[:-1]):
+            if isinstance(key, int):
                 try:
-                    converted_value = self.convert_value(self.value, self.value_type)
-                    current[final_key] = converted_value
-                except (ValueError, TypeError) as e:
-                    self.feedback_message = f"Could not convert value {self.value} to {self.value_type}: {e}"  # pylint: disable= attribute-defined-outside-init
-                    result = False
-
-        # Write back to file only if operation succeeded
-        if result:
-            if self.output_file:
-                output = self.output_file
+                    current = current[key]
+                except (IndexError, TypeError) as e:
+                    self.feedback_message = f"Array index {key} out of range at '{'.'.join(str(k) for k in keys[:i+1])}': {e}"  # pylint: disable=attribute-defined-outside-init
+                    return py_trees.common.Status.FAILURE
             else:
-                output = self.file_path
+                if key not in current:
+                    if self.create_missing:
+                        current[key] = {}
+                    else:
+                        self.feedback_message = f"Key '{key}' not found at '{'.'.join(str(k) for k in keys[:i+1])}' in '{self.file_path}' (create_missing=False)"  # pylint: disable=attribute-defined-outside-init
+                        return py_trees.common.Status.FAILURE
+                current = current[key]
+
+        final_key = keys[-1]
+        if not self.create_missing and final_key not in current:
+            self.feedback_message = f"Key '{final_key}' not found at '{self.key_path}' in '{self.file_path}' (create_missing=False)"  # pylint: disable=attribute-defined-outside-init
+            return py_trees.common.Status.FAILURE
+
+        try:
+            converted_value = self.convert_value(self.value, self.value_type)
+        except (ValueError, TypeError) as e:
+            self.feedback_message = f"Could not convert value {self.value!r} to {self.value_type}: {e}"  # pylint: disable=attribute-defined-outside-init
+            return py_trees.common.Status.FAILURE
+
+        current[final_key] = converted_value
+
+        output = self.output_file if self.output_file else self.file_path
+        try:
             with open(output, 'w') as f:
                 yaml.safe_dump(data, f, default_flow_style=False, sort_keys=False)
-            return py_trees.common.Status.SUCCESS
-        else:
+        except OSError as e:
+            self.feedback_message = f"Failed to write output file '{output}': {e}"  # pylint: disable=attribute-defined-outside-init
             return py_trees.common.Status.FAILURE
+
+        return py_trees.common.Status.SUCCESS
