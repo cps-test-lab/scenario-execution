@@ -41,7 +41,7 @@ setup(
         changes in behaviour states as strings at the time they are \
         happening.',
     license='Apache License 2.0',
-    tests_require=['pytest'],
+    extras_require={'test': ['pytest']},
     entry_points={
         'console_scripts': [
             'scenario_status_node = scenario_status.scenario_status_node:main'

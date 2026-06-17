@@ -1,4 +1,5 @@
 //  Copyright (C) 2024 Intel Corporation
+//  Copyright (C) 2026 Frederik Pasch
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -47,7 +48,7 @@
 #include <py_trees_ros_interfaces/msg/behaviour_tree.hpp>
 #include <rviz_common/panel.hpp>
 #include <rviz_common/view_manager.hpp>
-#include <tf2/utils.h>
+#include <tf2/utils.hpp>
 
 class QPushButton;
 class QComboBox;

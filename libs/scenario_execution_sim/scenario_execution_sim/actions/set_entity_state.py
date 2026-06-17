@@ -1,4 +1,4 @@
-# Copyright (C) 2025 Frederik Pasch
+# Copyright (C) 2025-2026 Frederik Pasch
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -52,7 +52,19 @@ class SetEntityState(RosServiceCall):
         return result
 
     def execute(self):   # pylint: disable=arguments-differ,arguments-renamed
-        super().execute(data={ "entity": self.entity, "state": { "pose": get_spawn_pose(self, self.pose), "twist": self.convert_value(self.twist), "acceleration": self.convert_value(self.acceleration) }})
+        # simulation_interfaces 2.x added set_pose/set_twist/set_acceleration flags;
+        # the action always provides all three, so enable them all.
+        super().execute(data={
+            "entity": self.entity,
+            "state": {
+                "pose": get_spawn_pose(self, self.pose),
+                "twist": self.convert_value(self.twist),
+                "acceleration": self.convert_value(self.acceleration),
+            },
+            "set_pose": True,
+            "set_twist": True,
+            "set_acceleration": True,
+        })
 
     def check_response(self, msg):
         """

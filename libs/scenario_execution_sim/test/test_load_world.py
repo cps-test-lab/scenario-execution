@@ -1,4 +1,4 @@
-# Copyright (C) 2025 Frederik Pasch
+# Copyright (C) 2025-2026 Frederik Pasch
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -84,4 +84,4 @@ scenario test_load_world:
 """
         self.execute(scenario_content)
         self.assertTrue(self.scenario_execution_ros.process_results())
-        self.assertEqual(self.request_received.uri, 'file:///path/to/world.sdf')
+        self.assertEqual(self.request_received.world_resource.uri, 'file:///path/to/world.sdf')

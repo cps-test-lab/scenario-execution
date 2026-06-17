@@ -38,7 +38,7 @@ setup(
     maintainer_email='fred-labs@mailbox.org',
     description='Robotics Scenario Execution Kubernetes Addon',
     license='Apache License 2.0',
-    tests_require=['pytest'],
+    extras_require={'test': ['pytest']},
     entry_points={
         'scenario_execution.actions': [
             'kubernetes_create_from_yaml = scenario_execution_kubernetes.kubernetes_create_from_yaml:KubernetesCreateFromYaml',

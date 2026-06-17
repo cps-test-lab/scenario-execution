@@ -2,9 +2,9 @@ name: "CodeQL"
 
 on:
   push:
-    branches: [main, humble, jazzy]
+    branches: [main, humble, jazzy, lyrical]
   pull_request:
-    branches: [main, humble, jazzy]
+    branches: [main, humble, jazzy, lyrical]
   schedule:
     - cron: '16 21 * * 6'
 permissions: read-all
@@ -13,7 +13,8 @@ jobs:
     name: Analyze (${{ matrix.language }})
     runs-on: ${{ (matrix.language == 'swift' && 'macos-latest') || 'ubuntu-latest' }}
     container:
-      image:  osrf/ros:humble-desktop-full
+      # Must match this branch's ROS distro: the C++ rviz plugin uses Qt6 + tf2/utils.hpp (lyrical).
+      image:  osrf/ros:lyrical-desktop-full
     timeout-minutes: ${{ (matrix.language == 'swift' && 120) || 360 }}
     permissions:
       # required for all workflows
@@ -47,12 +48,12 @@ jobs:
     - if: matrix.build-mode == 'manual'
       shell: bash
       run: |
-        source /opt/ros/humble/setup.bash
+        source /opt/ros/lyrical/setup.bash
         colcon build --packages-up-to scenario_execution_interfaces
         source install/setup.bash
         apt update
-        rosdep update --rosdistro=humble
-        rosdep install --rosdistro=humble --from-paths scenario_execution_rviz --ignore-src -r -y;
+        rosdep update --rosdistro=lyrical
+        rosdep install --rosdistro=lyrical --from-paths scenario_execution_rviz --ignore-src -r -y;
         mkdir build_rviz
         cd build_rviz
         cmake ../scenario_execution_rviz

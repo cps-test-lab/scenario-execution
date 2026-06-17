@@ -102,11 +102,11 @@ Then, once the pull request is merged, tag and publish from ``main``:
 
    git switch main && git pull
    git tag 1.6.0 && git push origin 1.6.0               # 5. tag the merged release commit
-   git tag jazzy-1.6.0 1.6.0 && git push origin jazzy-1.6.0   # 5b. distro tag bloom releases from
+   git tag lyrical-1.6.0 1.6.0 && git push origin lyrical-1.6.0   # 5b. distro tag bloom releases from
 
    make release                        # 6. publish to PyPI
 
-   make ros_release ROS_DISTRO=jazzy   # 7. publish to the ROS build farm (bloom)
+   make ros_release                    # 7. publish to the ROS build farm (bloom); ROS_DISTRO defaults to lyrical
 
 Notes:
 
@@ -118,9 +118,9 @@ Notes:
 - ``make ros_release`` is interactive, needs a configured release repository, and opens a
   ``rosdistro`` pull request. It takes the rosdistro *repository* key (``ROS_REPO``,
   default ``scenario_execution``), not individual package names; ``ROS_DISTRO`` defaults to
-  ``jazzy``.
+  ``lyrical`` on this branch (each distro branch sets its own default).
 - bloom exports the upstream sources from a distro-prefixed ``<distro>-<version>`` tag
-  (e.g. ``jazzy-1.6.0``), **not** the bare ``<version>`` tag. Both must exist on the upstream
+  (e.g. ``lyrical-1.6.0``), **not** the bare ``<version>`` tag. Both must exist on the upstream
   repository before running ``make ros_release`` — if the distro tag is missing,
   ``bloom-export-upstream`` fails with ``'<distro>-<version>' is not a tag in the upstream
   repository`` and no tarball is created. Step 5b above creates it alongside the bare tag.
@@ -131,6 +131,8 @@ Notes:
   for this repository in `rosdistro <https://github.com/ros/rosdistro>`_. Run
   ``make ros_release_packages`` to print the released vs. disabled split before opening a
   rosdistro pull request, and keep the disabled packages out of that list.
+- On Lyrical, ``scenario_execution_nav2`` is additionally held back until navigation2 is
+  released for that distro; it stays released on Jazzy.
 
 Developing and Debugging with Visual Studio Code
 ------------------------------------------------
