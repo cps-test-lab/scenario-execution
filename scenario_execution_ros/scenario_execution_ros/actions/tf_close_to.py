@@ -90,8 +90,7 @@ class TfCloseTo(BaseAction):
             raise ActionError(error_message, action=self) from e
 
         self.reference_point = (float(self.reference_point['x']), float(self.reference_point['y']))
-        self.feedback_message = f"Waiting for transform {
-            self.parent_frame_id} --> {self.robot_frame_id}"  # pylint: disable= attribute-defined-outside-init
+        self.feedback_message = f"Waiting for transform {self.parent_frame_id} --> {self.robot_frame_id}"  # pylint: disable= attribute-defined-outside-init
         self.tf_buffer = Buffer()
         tf_prefix = self.namespace
         if not tf_prefix.startswith('/') and tf_prefix != '':
@@ -124,8 +123,7 @@ class TfCloseTo(BaseAction):
         """
         translation, success = self.get_translation_from_tf()
         if not success:
-            self.feedback_message = f"the pose of {
-                self.robot_frame_id} could not be retrieved from tf"  # pylint: disable= attribute-defined-outside-init
+            self.feedback_message = f"the pose of {self.robot_frame_id} could not be retrieved from tf"  # pylint: disable= attribute-defined-outside-init
             return Status.RUNNING
         dist = self.euclidean_dist(translation)
         marker = self.marker_handler.get_marker(self.marker_id)
@@ -138,8 +136,7 @@ class TfCloseTo(BaseAction):
             self.marker_handler.update_marker(self.marker_id, marker)
             return Status.SUCCESS
         else:
-            self.feedback_message = f"{self.robot_frame_id} has not reached point (distance={
-                dist-self.threshold:.2f})"  # pylint: disable= attribute-defined-outside-init
+            self.feedback_message = f"{self.robot_frame_id} has not reached point (distance={dist-self.threshold:.2f})"  # pylint: disable= attribute-defined-outside-init
             marker.color.r = 1.0
             marker.color.g = 1.0
             marker.color.b = 0.0
@@ -150,11 +147,9 @@ class TfCloseTo(BaseAction):
         t = None
         try:
             t = self.tf_buffer.lookup_transform(self.parent_frame_id, self.robot_frame_id, rclpy.time.Time())
-            self.feedback_message = f"Transform {
-                self.parent_frame_id} -> {self.robot_frame_id} got available."  # pylint: disable= attribute-defined-outside-init
+            self.feedback_message = f"Transform {self.parent_frame_id} -> {self.robot_frame_id} got available."  # pylint: disable= attribute-defined-outside-init
         except TransformException as e:
-            self.feedback_message = f"Could not transform {self.parent_frame_id} to {
-                self.robot_frame_id}"  # pylint: disable= attribute-defined-outside-init
+            self.feedback_message = f"Could not transform {self.parent_frame_id} to {self.robot_frame_id}"  # pylint: disable= attribute-defined-outside-init
             self.node.get_logger().warn(
                 f'Could not transform {self.parent_frame_id} to {self.robot_frame_id}: {e}')
             return None, False
