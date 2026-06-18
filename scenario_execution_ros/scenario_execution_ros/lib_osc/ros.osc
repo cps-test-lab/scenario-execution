@@ -126,8 +126,9 @@ action differential_drive_robot.tf_close_to:
     # Wait until a TF frame is close to a defined reference point
     threshold: length                    # distance at which the action succeeds
     reference_point: position_3d         # z is not considered
+    parent_frame_id: string = 'map'      # defines the TF parent frame id of the robot. Defaults to map.
     robot_frame_id: string = 'base_link' # defines the TF frame id of the robot 
-    sim: bool = false                    # in simulation, we need to look up the transform map --> base_link at a different time as the scenario execution node is not allowed to use the sim time
+    sim: bool = false                    # in simulation, we need to look up the transform parent_frame_id --> robot_frame_id at a different time as the scenario execution node is not allowed to use the sim time
     namespace_override: string = ''      # if set, it's used as namespace (instead of the associated actor's name)
 
 action log_check:

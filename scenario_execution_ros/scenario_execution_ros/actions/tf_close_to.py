@@ -42,6 +42,7 @@ class TfCloseTo(BaseAction):
         threshold: float,
         sim: bool,
         robot_frame_id: str,
+        parent_frame_id: str = 'map',
     ):
         super().__init__()
 
@@ -56,7 +57,7 @@ class TfCloseTo(BaseAction):
         self.reference_point = reference_point
         self.threshold = threshold
         self.sim = sim
-
+        self.parent_frame_id = parent_frame_id
         if robot_frame_id:
             self.robot_frame_id = robot_frame_id
         else:
@@ -89,7 +90,7 @@ class TfCloseTo(BaseAction):
             raise ActionError(error_message, action=self) from e
 
         self.reference_point = (float(self.reference_point['x']), float(self.reference_point['y']))
-        self.feedback_message = f"Waiting for transform map --> base_link"  # pylint: disable= attribute-defined-outside-init
+        self.feedback_message = f"Waiting for transform {self.parent_frame_id} --> {self.robot_frame_id}"  # pylint: disable= attribute-defined-outside-init
         self.tf_buffer = Buffer()
         tf_prefix = self.namespace
         if not tf_prefix.startswith('/') and tf_prefix != '':
@@ -102,7 +103,7 @@ class TfCloseTo(BaseAction):
         )
 
         marker = Marker()
-        marker.header.frame_id = 'map'
+        marker.header.frame_id = self.parent_frame_id
         marker.type = Marker.CYLINDER
         marker.scale.x = self.threshold
         marker.scale.y = self.threshold
@@ -145,12 +146,12 @@ class TfCloseTo(BaseAction):
     def get_translation_from_tf(self):
         t = None
         try:
-            t = self.tf_buffer.lookup_transform('map', self.robot_frame_id, rclpy.time.Time())
-            self.feedback_message = f"Transform map -> base_link got available."  # pylint: disable= attribute-defined-outside-init
+            t = self.tf_buffer.lookup_transform(self.parent_frame_id, self.robot_frame_id, rclpy.time.Time())
+            self.feedback_message = f"Transform {self.parent_frame_id} -> {self.robot_frame_id} got available."  # pylint: disable= attribute-defined-outside-init
         except TransformException as e:
-            self.feedback_message = f"Could not transform map to base_link"  # pylint: disable= attribute-defined-outside-init
+            self.feedback_message = f"Could not transform {self.parent_frame_id} to {self.robot_frame_id}"  # pylint: disable= attribute-defined-outside-init
             self.node.get_logger().warn(
-                f'Could not transform map to base_link: {e}')
+                f'Could not transform {self.parent_frame_id} to {self.robot_frame_id}: {e}')
             return None, False
 
         return t.transform.translation, True
