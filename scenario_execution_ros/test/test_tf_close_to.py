@@ -102,7 +102,7 @@ class TestTfCloseTo(unittest.TestCase):
         for node in tree.iterate():
             if isinstance(node, TfCloseTo):
                 return node
-        self.fail("TfCloseTo action not found in parsed scenario")
+        raise AssertionError("TfCloseTo action not found in parsed scenario")
 
     def test_defaults_to_map_parent_frame(self):
         scenario_content = (
