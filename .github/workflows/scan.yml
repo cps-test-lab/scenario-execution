@@ -27,6 +27,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VALIDATE_CLANG_FORMAT: true
           VALIDATE_PYTHON_PYLINT: true
+          VALIDATE_PYTHON_BLACK: true
           VALIDATE_YAML: true
           VALIDATE_DOCKERFILE_HADOLINT: true
           VALIDATE_MARKDOWN: true
@@ -34,9 +35,10 @@ jobs:
           VALIDATE_GITHUB_ACTIONS: true
           YAML_ERROR_ON_WARNING: false
           PYTHON_PYLINT_CONFIG_FILE: .pylintrc
+          PYTHON_BLACK_CONFIG_FILE: .python-black
           LOG_FILE: super-linter.log
           CREATE_LOG_FILE: true
-          FILTER_REGEX_EXCLUDE: .*/pull_request_template.md
+          FILTER_REGEX_EXCLUDE: (.*/pull_request_template.md|.*/osc2_parsing/.*)
   trivy:
     name: Trivy
     runs-on: ubuntu-latest
