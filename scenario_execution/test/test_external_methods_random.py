@@ -31,11 +31,7 @@ class TestExternalMethodsRandom(unittest.TestCase):
         self.logger = DebugLogger("")
         self.parser = OpenScenario2Parser(self.logger)
         self.tree = py_trees.composites.Sequence(name="", memory=True)
-        self.scenario_execution = ScenarioExecution(debug=False,
-                                                    log_model=False,
-                                                    live_tree=False,
-                                                    scenario_file='test',
-                                                    output_dir='', logger=self.logger)
+        self.scenario_execution = ScenarioExecution(debug=False, log_model=False, live_tree=False, scenario_file='test', output_dir='', logger=self.logger)
         self.tree = py_trees.composites.Sequence(name="", memory=True)
 
     def execute(self, scenario_content):
@@ -65,7 +61,7 @@ scenario test_success:
         self.assertTrue(self.scenario_execution.process_results())
 
         delta = end_time - start_time
-        self.assertLess(delta.total_seconds(), 5.)
+        self.assertLess(delta.total_seconds(), 5.0)
 
     def test_get_random_string(self):
         scenario_content = """

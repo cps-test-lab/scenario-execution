@@ -76,7 +76,7 @@ scenario test:
         check_file_exists(file_name: '""" + self.tmp_dir.name + '/test_started' + """')
         check_file_exists(file_name: '""" + self.tmp_dir.name + '/test_success' + """')
         check_file_not_exists(file_name: '""" + self.tmp_dir.name + '/test_aborted' + """')
-"""
+"""  # fmt: skip
         self.execute(scenario_content)
         self.assertTrue(self.scenario_execution_ros.process_results())
 
@@ -106,7 +106,7 @@ scenario test:
         check_file_exists(file_name: '""" + self.tmp_dir.name + '/test_aborted' + """') with:
             inverter()
         emit end
-"""
+"""  # fmt: skip
         self.execute(scenario_content)
         self.assertTrue(self.scenario_execution_ros.process_results())
 
@@ -128,7 +128,7 @@ scenario test:
             shutdown_timeout: 5s)
         wait elapsed(2s)
         emit end
-"""
+"""  # fmt: skip
         self.execute(scenario_content)
         self.assertTrue(os.path.isfile(self.tmp_dir.name + '/test_started'))
         self.assertFalse(os.path.isfile(self.tmp_dir.name + '/test_success'))

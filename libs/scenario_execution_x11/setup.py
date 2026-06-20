@@ -22,11 +22,7 @@ setup(
     name=PACKAGE_NAME,
     version='1.5.0',
     packages=find_namespace_packages(),
-    data_files=[
-        ('share/ament_index/resource_index/packages',
-            ['resource/' + PACKAGE_NAME]),
-        ('share/' + PACKAGE_NAME, ['package.xml'])
-    ],
+    data_files=[('share/ament_index/resource_index/packages', ['resource/' + PACKAGE_NAME]), ('share/' + PACKAGE_NAME, ['package.xml'])],
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='Frederik Pasch',
@@ -40,8 +36,7 @@ setup(
             'capture_screen = scenario_execution_x11.actions.capture_screen:CaptureScreen',
         ],
         'scenario_execution.osc_libraries': [
-            'x11 = '
-            'scenario_execution_x11.get_osc_library:get_osc_library',
-        ]
+            'x11 = scenario_execution_x11.get_osc_library:get_osc_library',
+        ],
     },
 )

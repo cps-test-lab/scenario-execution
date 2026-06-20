@@ -31,8 +31,7 @@ class TestSetYamlValue(unittest.TestCase):
 
     def setUp(self) -> None:
         self.parser = OpenScenario2Parser(Logger('test', False))
-        self.scenario_execution = ScenarioExecution(debug=False, log_model=False, live_tree=False,
-                                                    scenario_file="test.osc", output_dir=None)
+        self.scenario_execution = ScenarioExecution(debug=False, log_model=False, live_tree=False, scenario_file="test.osc", output_dir=None)
         self.tree = py_trees.composites.Sequence(name="", memory=True)
         self.tmp_file = tempfile.NamedTemporaryFile()
 
@@ -45,13 +44,14 @@ scenario test:
     timeout(1s)
     do serial:
         set_yaml_value({FILE_PATH}{OUTPUT_FILE}{KEY_PATH}{VALUE}{VALUE_TYPE}{CREATE_MISSING})
-""".format(FILE_PATH="" if self.tmp_file is None else f"'{self.tmp_file.name}'",
+""".format(
+            FILE_PATH="" if self.tmp_file is None else f"'{self.tmp_file.name}'",
             OUTPUT_FILE="" if output_file == '' else f", output_file:'{output_file}'",
-            KEY_PATH= f", key_path:'{key_path}'",
-            VALUE= f", value:'{value}'",
+            KEY_PATH=f", key_path:'{key_path}'",
+            VALUE=f", value:'{value}'",
             VALUE_TYPE="" if value_type is None else f", value_type:'{value_type}'",
-            CREATE_MISSING= f", create_missing:{str(create_missing).lower()}"
-            )
+            CREATE_MISSING=f", create_missing:{str(create_missing).lower()}",
+        )
         print(scenario_content)
 
         with open(self.tmp_file.name, 'w') as f:
@@ -63,125 +63,124 @@ scenario test:
         self.scenario_execution.run()
 
     def test_success(self):
-        self.run_yaml_test(yaml_content="""
+        self.run_yaml_test(
+            yaml_content="""
 config:
   servers:
     host: localhost
-""", output_file='', key_path='config.servers.host', value='127.0.0.1', create_missing=False)
+""",
+            output_file='',
+            key_path='config.servers.host',
+            value='127.0.0.1',
+            create_missing=False,
+        )
         self.assertTrue(self.scenario_execution.process_results())
         with open(self.tmp_file.name, 'r') as f:
             file_dict = yaml.safe_load(f)
 
-        expected_dict = {
-            "config": {
-                "servers": {
-                    "host": "127.0.0.1"
-                }
-            }
-        }
+        expected_dict = {"config": {"servers": {"host": "127.0.0.1"}}}
 
         self.assertEqual(file_dict, expected_dict)
 
     def test_success_create_missing(self):
-        self.run_yaml_test(yaml_content="""
+        self.run_yaml_test(
+            yaml_content="""
 config:
   servers:
     host: localhost
-""", output_file='', key_path='config.servers.unknown', value='NEW_VALUE', create_missing=True)
+""",
+            output_file='',
+            key_path='config.servers.unknown',
+            value='NEW_VALUE',
+            create_missing=True,
+        )
         self.assertTrue(self.scenario_execution.process_results())
         with open(self.tmp_file.name, 'r') as f:
             file_dict = yaml.safe_load(f)
 
-        expected_dict = {
-            "config": {
-                "servers": {
-                    "host": "localhost",
-                    "unknown": "NEW_VALUE"
-                }
-            }
-        }
+        expected_dict = {"config": {"servers": {"host": "localhost", "unknown": "NEW_VALUE"}}}
 
         self.assertEqual(file_dict, expected_dict)
 
     def test_failure_create_missing(self):
-        self.run_yaml_test(yaml_content="""
+        self.run_yaml_test(
+            yaml_content="""
 config:
   servers:
     host: localhost
-""", output_file='', key_path='config.servers.unknown', value='NEW_VALUE', create_missing=False)
+""",
+            output_file='',
+            key_path='config.servers.unknown',
+            value='NEW_VALUE',
+            create_missing=False,
+        )
         self.assertFalse(self.scenario_execution.process_results())
         with open(self.tmp_file.name, 'r') as f:
             file_dict = yaml.safe_load(f)
 
         # File should remain unchanged since create_missing=False
-        expected_dict = {
-            "config": {
-                "servers": {
-                    "host": "localhost"
-                }
-            }
-        }
+        expected_dict = {"config": {"servers": {"host": "localhost"}}}
 
         self.assertEqual(file_dict, expected_dict)
 
     def test_success_int_as_string(self):
-        self.run_yaml_test(yaml_content="""
+        self.run_yaml_test(
+            yaml_content="""
 config:
   value: 1
-""", output_file='', key_path='config.value', value='42', create_missing=False)
+""",
+            output_file='',
+            key_path='config.value',
+            value='42',
+            create_missing=False,
+        )
         self.assertTrue(self.scenario_execution.process_results())
         with open(self.tmp_file.name, 'r') as f:
             file_dict = yaml.safe_load(f)
 
         # File should remain unchanged since create_missing=False
-        expected_dict = {
-            "config": {
-                "value": '42'
-            }
-        }
+        expected_dict = {"config": {"value": '42'}}
 
         self.assertEqual(file_dict, expected_dict)
-
 
     def test_success_int_as_int(self):
-        self.run_yaml_test(yaml_content="""
+        self.run_yaml_test(
+            yaml_content="""
 config:
   value: 1
-""", output_file='', key_path='config.value', value='42', value_type='int', create_missing=False)
+""",
+            output_file='',
+            key_path='config.value',
+            value='42',
+            value_type='int',
+            create_missing=False,
+        )
         self.assertTrue(self.scenario_execution.process_results())
         with open(self.tmp_file.name, 'r') as f:
             file_dict = yaml.safe_load(f)
 
         # File should remain unchanged since create_missing=False
-        expected_dict = {
-            "config": {
-                "value": 42
-            }
-        }
+        expected_dict = {"config": {"value": 42}}
 
         self.assertEqual(file_dict, expected_dict)
 
-
-
     def test_success_dict(self):
-        self.run_yaml_test(yaml_content="""
+        self.run_yaml_test(
+            yaml_content="""
 config:
   value: 1
-""", output_file='', key_path='config.value', value='{\\"key\\": \\"value\\", \\"subdict\\": {\\"subkey\\": \\"subvalue\\"}}', value_type='dict', create_missing=False)
+""",
+            output_file='',
+            key_path='config.value',
+            value='{\\"key\\": \\"value\\", \\"subdict\\": {\\"subkey\\": \\"subvalue\\"}}',
+            value_type='dict',
+            create_missing=False,
+        )
         self.assertTrue(self.scenario_execution.process_results())
         with open(self.tmp_file.name, 'r') as f:
             file_dict = yaml.safe_load(f)
 
         # File should remain unchanged since create_missing=False
-        expected_dict = {
-            "config": {
-                "value": {
-                    "key": "value",
-                    "subdict": {
-                        "subkey": "subvalue"
-                    }
-                }
-            }
-        }
+        expected_dict = {"config": {"value": {"key": "value", "subdict": {"subkey": "subvalue"}}}}
 
         self.assertEqual(file_dict, expected_dict)

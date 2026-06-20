@@ -11,7 +11,6 @@ jobs:
   lint:
     name: 'Super-linter'
     runs-on: ubuntu-latest
-    container: 'ghcr.io/github/super-linter:v5.0.0'
     permissions:
       contents: read
       packages: read
@@ -20,13 +19,14 @@ jobs:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 #v4.1.1
         with:
           fetch-depth: 0
-      - uses: super-linter/super-linter@e0fc164bba85f4b58c6cd17ba1dfd435d01e8a06 #v6.3.0
+      - uses: super-linter/super-linter@4ce20838b8ab83717e78138c5b3a1407148e0918 #v8.7.0
         env:
           DEFAULT_BRANCH: main
           # To report GitHub Actions status checks
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VALIDATE_CLANG_FORMAT: true
           VALIDATE_PYTHON_PYLINT: true
+          VALIDATE_PYTHON_BLACK: true
           VALIDATE_YAML: true
           VALIDATE_DOCKERFILE_HADOLINT: true
           VALIDATE_MARKDOWN: true
@@ -34,9 +34,10 @@ jobs:
           VALIDATE_GITHUB_ACTIONS: true
           YAML_ERROR_ON_WARNING: false
           PYTHON_PYLINT_CONFIG_FILE: .pylintrc
+          PYTHON_BLACK_CONFIG_FILE: .python-black
           LOG_FILE: super-linter.log
           CREATE_LOG_FILE: true
-          FILTER_REGEX_EXCLUDE: .*/pull_request_template.md
+          FILTER_REGEX_EXCLUDE: (.*/pull_request_template.md|.*/osc2_parsing/.*)
   trivy:
     name: Trivy
     runs-on: ubuntu-latest

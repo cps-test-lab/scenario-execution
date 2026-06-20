@@ -47,15 +47,13 @@ class OdometryDistanceTraveled(BaseAction):
         try:
             self.node = kwargs['node']
         except KeyError as e:
-            error_message = "didn't find 'node' in setup's kwargs [{}][{}]".format(
-                self.name, self.__class__.__name__)
+            error_message = "didn't find 'node' in setup's kwargs [{}][{}]".format(self.name, self.__class__.__name__)
             raise ActionError(error_message, action=self) from e
         self.callback_group = rclpy.callback_groups.MutuallyExclusiveCallbackGroup()
         namespace = self.namespace
         if self.namespace_override:
             namespace = self.namespace_override
-        self.subscriber = self.node.create_subscription(
-            Odometry, namespace + '/odom', self._callback, 1000, callback_group=self.callback_group)
+        self.subscriber = self.node.create_subscription(Odometry, namespace + '/odom', self._callback, 1000, callback_group=self.callback_group)
 
     def execute(self, associated_actor, distance: float):
         if self.namespace != associated_actor["namespace"] and not self.namespace_override:
@@ -83,8 +81,7 @@ class OdometryDistanceTraveled(BaseAction):
         else:
             x = msg.pose.pose.position.x
             y = msg.pose.pose.position.y
-            d_increment = sqrt((x - self.previous_x) * (x - self.previous_x) +
-                               (y - self.previous_y) * (y - self.previous_y))
+            d_increment = sqrt((x - self.previous_x) * (x - self.previous_x) + (y - self.previous_y) * (y - self.previous_y))
             self.distance_traveled = self.distance_traveled + d_increment
             self.logger.debug(f'Total distance traveled is {self.distance_traveled}m')
 
@@ -104,5 +101,7 @@ class OdometryDistanceTraveled(BaseAction):
             self.feedback_message = f"expected traveled distance reached: {float(self.distance_expected):.3}"  # pylint: disable= attribute-defined-outside-init
             return Status.SUCCESS
         else:
-            self.feedback_message = f"distance traveled: {float(self.distance_traveled):.3} < {float(self.distance_expected):.3}"  # pylint: disable= attribute-defined-outside-init
+            self.feedback_message = (
+                f"distance traveled: {float(self.distance_traveled):.3} < {float(self.distance_expected):.3}"  # pylint: disable= attribute-defined-outside-init
+            )
         return Status.RUNNING

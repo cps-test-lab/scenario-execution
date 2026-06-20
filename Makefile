@@ -9,12 +9,12 @@ LINKCHECKDIR  = build/linkcheck
 check: check_format pylint
 
 format:
-	$(PY_FILES) | xargs autopep8 --in-place --max-line-length=140
+	$(PY_FILES) | xargs black --config .github/linters/.python-black
 	$(CPP_FILES) | xargs clang-format -i
 	$(H_FILES) | xargs clang-format -i
 
 check_format:
-	$(PY_FILES) | xargs autopep8 --diff --max-line-length=140 --exit-code
+	$(PY_FILES) | xargs black --check --diff --config .github/linters/.python-black
 
 pylint:
 	$(PY_FILES) | xargs pylint --rcfile=.github/linters/.pylintrc

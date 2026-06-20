@@ -44,21 +44,12 @@ class ScenarioExecutionControl(Node):
         super(ScenarioExecutionControl, self).__init__('scenario_execution_control')
         self.shutdown_requested = False
         self._status_publisher = self.create_publisher(
-            ScenarioExecutionStatus,
-            "/scenario_execution_control/status",
-            qos_profile=QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL))
+            ScenarioExecutionStatus, "/scenario_execution_control/status", qos_profile=QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
+        )
         self.scenario_execution_status_updated(ApplicationStatus.STOPPED)
-        self._scenario_execution = ScenarioExecutionRunner(
-            self.scenario_execution_status_updated,
-            self.scenario_execution_log)
-        self._execute_scenario_service = self.create_service(
-            ExecuteScenario,
-            '/scenario_execution_control/execute_scenario',
-            self.execute_scenario)
-        self._stop_scenario_service = self.create_service(
-            Empty,
-            '/scenario_execution_control/stop_scenario',
-            self.stop_scenario)
+        self._scenario_execution = ScenarioExecutionRunner(self.scenario_execution_status_updated, self.scenario_execution_log)
+        self._execute_scenario_service = self.create_service(ExecuteScenario, '/scenario_execution_control/execute_scenario', self.execute_scenario)
+        self._stop_scenario_service = self.create_service(Empty, '/scenario_execution_control/stop_scenario', self.stop_scenario)
         self.declare_parameter('output_directory', "")
         self.output_directory = ""
         if self.get_parameter('output_directory').value:
@@ -102,8 +93,7 @@ class ScenarioExecutionControl(Node):
         response = ExecuteScenario.Response()
         response.result = True
         if not os.path.isfile(req.scenario.scenario_file):
-            self.get_logger().warn(
-                f"Requested scenario file not existing {req.scenario.scenario_file}")
+            self.get_logger().warn(f"Requested scenario file not existing {req.scenario.scenario_file}")
             response.result = False
         else:
             self.executor.create_task(self.run, req.scenario)

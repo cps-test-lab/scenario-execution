@@ -53,8 +53,14 @@ class KubernetesPatchNetworkPolicy(BaseAction):
 
     def update(self) -> py_trees.common.Status:  # pylint: disable=too-many-return-statements
         if self.current_state == KubernetesPatchNetworkPolicyState.IDLE:
-            self.current_request = self.network_client.patch_namespaced_network_policy(self.target, body=self.get_network_policy(
-                policy_name=self.target, enable_ingress=self.ingress_enabled, enable_egress=self.egress_enabled, match_label=self.match_label), namespace=self.namespace, async_req=True)
+            self.current_request = self.network_client.patch_namespaced_network_policy(
+                self.target,
+                body=self.get_network_policy(
+                    policy_name=self.target, enable_ingress=self.ingress_enabled, enable_egress=self.egress_enabled, match_label=self.match_label
+                ),
+                namespace=self.namespace,
+                async_req=True,
+            )
             self.current_state = KubernetesPatchNetworkPolicyState.REQUEST_SENT
             self.feedback_message = f"Requested patching '{self.target}' in namespace '{self.namespace}'"  # pylint: disable= attribute-defined-outside-init
             return py_trees.common.Status.RUNNING

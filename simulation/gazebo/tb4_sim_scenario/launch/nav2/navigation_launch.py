@@ -73,13 +73,9 @@ def generate_launch_description():
         allow_substs=True,
     )
 
-    stdout_linebuf_envvar = SetEnvironmentVariable(
-        'RCUTILS_LOGGING_BUFFERED_STREAM', '1'
-    )
+    stdout_linebuf_envvar = SetEnvironmentVariable('RCUTILS_LOGGING_BUFFERED_STREAM', '1')
 
-    declare_namespace_cmd = DeclareLaunchArgument(
-        'namespace', default_value='', description='Top-level namespace'
-    )
+    declare_namespace_cmd = DeclareLaunchArgument('namespace', default_value='', description='Top-level namespace')
 
     declare_use_sim_time_cmd = DeclareLaunchArgument(
         'use_sim_time',
@@ -117,9 +113,7 @@ def generate_launch_description():
         description='Whether to respawn if a node crashes. Applied when composition is disabled.',
     )
 
-    declare_log_level_cmd = DeclareLaunchArgument(
-        'log_level', default_value='info', description='log level'
-    )
+    declare_log_level_cmd = DeclareLaunchArgument('log_level', default_value='info', description='log level')
 
     load_nodes = GroupAction(
         condition=IfCondition(PythonExpression(['not ', use_composition])),
@@ -199,8 +193,7 @@ def generate_launch_description():
                 respawn_delay=2.0,
                 parameters=[configured_params],
                 arguments=['--ros-args', '--log-level', log_level],
-                remappings=remappings
-                + [('cmd_vel', 'cmd_vel_nav')],
+                remappings=remappings + [('cmd_vel', 'cmd_vel_nav')],
             ),
             Node(
                 package='nav2_collision_monitor',
@@ -230,7 +223,7 @@ def generate_launch_description():
                 name='lifecycle_manager_navigation',
                 output='screen',
                 arguments=['--ros-args', '--log-level', log_level],
-                parameters=[{'autostart': autostart}, {'node_names': lifecycle_nodes}, {'bond_timeout': 60000.}],
+                parameters=[{'autostart': autostart}, {'node_names': lifecycle_nodes}, {'bond_timeout': 60000.0}],
             ),
         ],
     )
@@ -289,8 +282,7 @@ def generate_launch_description():
                         plugin='nav2_velocity_smoother::VelocitySmoother',
                         name='velocity_smoother',
                         parameters=[configured_params],
-                        remappings=remappings
-                        + [('cmd_vel', 'cmd_vel_nav')],
+                        remappings=remappings + [('cmd_vel', 'cmd_vel_nav')],
                     ),
                     ComposableNode(
                         package='nav2_collision_monitor',
@@ -310,9 +302,7 @@ def generate_launch_description():
                         package='nav2_lifecycle_manager',
                         plugin='nav2_lifecycle_manager::LifecycleManager',
                         name='lifecycle_manager_navigation',
-                        parameters=[
-                            {'autostart': autostart, 'node_names': lifecycle_nodes, 'bond_timeout': 60000.}
-                        ],
+                        parameters=[{'autostart': autostart, 'node_names': lifecycle_nodes, 'bond_timeout': 60000.0}],
                     ),
                 ],
             ),

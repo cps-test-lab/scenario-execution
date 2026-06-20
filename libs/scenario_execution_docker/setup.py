@@ -23,11 +23,7 @@ setup(
     name=PACKAGE_NAME,
     version='1.5.0',
     packages=find_namespace_packages(),
-    data_files=[
-        ('share/ament_index/resource_index/packages',
-            ['resource/' + PACKAGE_NAME]),
-        ('share/' + PACKAGE_NAME, ['package.xml'])
-    ],
+    data_files=[('share/ament_index/resource_index/packages', ['resource/' + PACKAGE_NAME]), ('share/' + PACKAGE_NAME, ['package.xml'])],
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='Frederik Pasch',
@@ -44,8 +40,7 @@ setup(
             'docker_put = scenario_execution_docker.actions.docker_put:DockerPut',
         ],
         'scenario_execution.osc_libraries': [
-            'docker = '
-            'scenario_execution_docker.get_osc_library:get_osc_library',
-        ]
+            'docker = scenario_execution_docker.get_osc_library:get_osc_library',
+        ],
     },
 )

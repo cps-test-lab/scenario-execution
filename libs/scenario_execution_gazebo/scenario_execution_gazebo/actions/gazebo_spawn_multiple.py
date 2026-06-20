@@ -18,6 +18,7 @@ from .gazebo_spawn_actor import GazeboSpawnActor
 from scenario_execution.actions.base_action import ActionError
 from scenario_execution.actions.base_action_subtree import BaseActionSubtree
 
+
 class GazeboSpawnMultiple(BaseActionSubtree):
 
     def __init__(self, entities: list, world_name: str):
@@ -29,24 +30,16 @@ class GazeboSpawnMultiple(BaseActionSubtree):
         entity_names = [entity["entity_name"] for entity in entities]
         duplicates = [name for name in entity_names if entity_names.count(name) > 1]
         if duplicates:
-            raise ActionError(
-                f"Duplicate entity_name(s) found: {set(duplicates)}. Each entity must have a unique name.", action=self)
+            raise ActionError(f"Duplicate entity_name(s) found: {set(duplicates)}. Each entity must have a unique name.", action=self)
 
     def get_execution_args(self, child):
         if child not in self.children:
-            raise ActionError(
-                f"Child {child} is not part of this GazeboSpawnMultiple action!", action=self)
+            raise ActionError(f"Child {child} is not part of this GazeboSpawnMultiple action!", action=self)
         idx = self.children.index(child)
-        return {"associated_actor": {'name': self.entities[idx]["entity_name"]},
-                "spawn_pose": self.entities[idx]["spawn_pose"],
-                "world_name": self.world_name}
+        return {"associated_actor": {'name': self.entities[idx]["entity_name"]}, "spawn_pose": self.entities[idx]["spawn_pose"], "world_name": self.world_name}
 
     def create_subtree(self):
         for entity in self.entities:
-            spawn_action = GazeboSpawnActor(
-                associated_actor={'name': entity["entity_name"]},
-                xacro_arguments=entity["xacro_arguments"],
-                model=entity["model"])
-            spawn_action._set_base_properities(   # pylint: disable=protected-access
-                self.name, None, self.logger)
+            spawn_action = GazeboSpawnActor(associated_actor={'name': entity["entity_name"]}, xacro_arguments=entity["xacro_arguments"], model=entity["model"])
+            spawn_action._set_base_properities(self.name, None, self.logger)  # pylint: disable=protected-access
             self.add_child(spawn_action)

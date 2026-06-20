@@ -26,11 +26,10 @@ setup(
     version='1.5.0',
     packages=[PACKAGE_NAME],
     data_files=[
-        ('share/ament_index/resource_index/packages',
-            ['resource/' + PACKAGE_NAME]),
+        ('share/ament_index/resource_index/packages', ['resource/' + PACKAGE_NAME]),
         ('share/' + PACKAGE_NAME, ['package.xml']),
         (os.path.join('share', PACKAGE_NAME, 'scenarios'), glob('scenarios/*.osc')),
-        (os.path.join('share', PACKAGE_NAME, 'launch'), glob('launch/*launch.py'))
+        (os.path.join('share', PACKAGE_NAME, 'launch'), glob('launch/*launch.py')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -39,6 +38,5 @@ setup(
     description='TODO: Package description',
     license='Apache License 2.0',
     tests_require=['pytest'],
-    entry_points={
-    },
+    entry_points={},
 )

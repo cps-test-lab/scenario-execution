@@ -26,21 +26,24 @@ def generate_launch_description():
     test_path = LaunchConfiguration('test_path')
     timeout = LaunchConfiguration('timeout')
 
-    return LaunchDescription([
-        DeclareLaunchArgument('test_param', description='test parameter'),
-        DeclareLaunchArgument('test_path', description='Test path parameter'),
-        DeclareLaunchArgument('timeout', description='Timeout', default_value='5'),
-
-        Node(
-            # condition=IfCondition(scenario_status),
-            package='scenario_execution_ros_test',
-            executable='scenario_execution_ros_test',
-            name='scenario_execution_ros_test',
-            parameters=[{
-                'test_param': test_param,
-                'test_path': test_path,
-                'timeout': timeout,
-            }],
-            output='screen'
-        ),
-    ])
+    return LaunchDescription(
+        [
+            DeclareLaunchArgument('test_param', description='test parameter'),
+            DeclareLaunchArgument('test_path', description='Test path parameter'),
+            DeclareLaunchArgument('timeout', description='Timeout', default_value='5'),
+            Node(
+                # condition=IfCondition(scenario_status),
+                package='scenario_execution_ros_test',
+                executable='scenario_execution_ros_test',
+                name='scenario_execution_ros_test',
+                parameters=[
+                    {
+                        'test_param': test_param,
+                        'test_path': test_path,
+                        'timeout': timeout,
+                    }
+                ],
+                output='screen',
+            ),
+        ]
+    )

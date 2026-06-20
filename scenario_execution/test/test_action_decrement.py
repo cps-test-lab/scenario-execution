@@ -30,11 +30,7 @@ class TestScenarioExecutionSuccess(unittest.TestCase):
 
     def setUp(self) -> None:
         self.parser = OpenScenario2Parser(Logger('test', False))
-        self.scenario_execution = ScenarioExecution(debug=False,
-                                                    log_model=False,
-                                                    live_tree=False,
-                                                    scenario_file='test',
-                                                    output_dir='')
+        self.scenario_execution = ScenarioExecution(debug=False, log_model=False, live_tree=False, scenario_file='test', output_dir='')
         self.tree = py_trees.composites.Sequence(name="", memory=True)
 
     def execute(self, scenario_content):

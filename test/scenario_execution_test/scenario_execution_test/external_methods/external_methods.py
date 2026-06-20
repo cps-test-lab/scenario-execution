@@ -14,6 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
 def test(n: int, text: str):  # pylint: disable=invalid-name
     if n == 99:  # pylint: disable=invalid-name
         raise ValueError("External Function Error!")

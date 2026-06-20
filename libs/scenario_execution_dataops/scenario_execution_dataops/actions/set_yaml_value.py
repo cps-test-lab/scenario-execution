@@ -35,6 +35,7 @@ def parse_yaml_path(yaml_path: str) -> list:
             keys.append(part)
     return keys
 
+
 class SetYamlValue(BaseAction):
     """
     Set value within yaml file
@@ -49,7 +50,7 @@ class SetYamlValue(BaseAction):
         self.value_type = value_type
         self.create_missing = create_missing
 
-    def convert_value(self, value, value_type): # pylint: disable=too-many-return-statements
+    def convert_value(self, value, value_type):  # pylint: disable=too-many-return-statements
         """
         Convert the value to the specified type.
 
@@ -137,7 +138,9 @@ class SetYamlValue(BaseAction):
                 try:
                     current = current[key]
                 except (IndexError, TypeError) as e:
-                    self.feedback_message = f"Array index {key} out of range at '{'.'.join(str(k) for k in keys[:i+1])}': {e}"  # pylint: disable=attribute-defined-outside-init
+                    self.feedback_message = (
+                        f"Array index {key} out of range at '{'.'.join(str(k) for k in keys[:i+1])}': {e}"  # pylint: disable=attribute-defined-outside-init
+                    )
                     return py_trees.common.Status.FAILURE
             else:
                 if key not in current:

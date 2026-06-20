@@ -64,7 +64,8 @@ class TestRosActionCall(unittest.TestCase):
             execute_callback=self.execute_callback,
             callback_group=ReentrantCallbackGroup(),
             goal_callback=self.goal_callback,
-            cancel_callback=self.cancel_callback)
+            cancel_callback=self.cancel_callback,
+        )
         self.tree = py_trees.composites.Sequence(name="", memory=True)
 
     def execute(self, scenario_content):
@@ -135,7 +136,7 @@ scenario test:
         run_process('touch """ + self.tmp_file1.name + """')
         action_call(action_name: "/test_action", action_type: "example_interfaces.action.Fibonacci", data: '{\\"order\\": 3}', success_on_acceptance: true)
         run_process('touch """ + self.tmp_file2.name + """')
-"""
+"""  # fmt: skip
         self.execute(scenario_content)
         diff = os.path.getmtime(self.tmp_file2.name) - os.path.getmtime(self.tmp_file1.name)
         self.assertLessEqual(diff, 2)

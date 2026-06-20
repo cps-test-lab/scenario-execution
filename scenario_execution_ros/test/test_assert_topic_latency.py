@@ -63,20 +63,19 @@ class TestAssertTopicLatency(unittest.TestCase):
         self.node.destroy_node()
         rclpy.try_shutdown()
 
-
-# REQUIRED PARAMETERS
+    # REQUIRED PARAMETERS
     # topic_name: Name of the topic to test.
     # latency: The acceptable latency in seconds.
 
-# DEFAULT VALUES
+    # DEFAULT VALUES
     # comparison_operator: 'le' (less than or equal to)
     # rolling_average_count: 1
     # wait_for_first_message: True
     # topic_type: (optional)
 
-# TESTS PERFORMED
+    # TESTS PERFORMED
 
-# 1. Minimal Test:
+    # 1. Minimal Test:
     # Description: All default values remain; only topic name and latency are specified.
     # Case 1: Test fails if recorded latency is more than the specified one.
     # Case 2 & 3: Test fails if the topic type is specified and is incorrect or invalid.
@@ -84,25 +83,24 @@ class TestAssertTopicLatency(unittest.TestCase):
     # Case 5: Test keeps running and ends with timeout if topic provided not exist.
     # Case 6: Test keeps running and ends with a scenario timeout as latency condition is satisfied (recorded latency is less than the specified one).
 
-# 2. Comparison Operator 'ge' (greater than or equal to):
+    # 2. Comparison Operator 'ge' (greater than or equal to):
     # Case 7: Test fails if recorded latency is less than the specified one.
 
-# 3. failure_is_success
+    # 3. failure_is_success
     # Case 8: Test succeeds if recorded latency is more than the specified one (for default comparison operator 'le').
 
-# 4. rolling_average_count: > 1
+    # 4. rolling_average_count: > 1
     # Case 9: Test fails if recorded latency is more than the specified one (for default comparison operator 'le').
 
-# 5. wait_for_first_message: False
+    # 5. wait_for_first_message: False
     # Case 10: Test should fail if topic type is not given.
     # Case 11: Test fails if topic type is invalid or wrong.
     # Case 12: Test fails if the first message arrives after the specified latency time.
     # Case 13: Test continues running if message arrives within the latency time.
     # Case 14: Test fails if the topic provided doesn't show up in the latency time.
 
-# 5. Retrigger
+    # 5. Retrigger
     # Case 15: Test succeeds with timeout as action fails everytime (as recorded latency is greater than actual latency) and repeat gets triggered because of failure_is_success modifier.
-
 
     def test_case_1(self):
         scenario_content = """

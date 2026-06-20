@@ -25,6 +25,7 @@ class ActorExistsActionState(Enum):
     """
     States for executing a entity check in gazebo
     """
+
     IDLE = 1
     WAITING_FOR_ACTOR = 2
     DONE = 3
@@ -44,8 +45,7 @@ class GazeboActorExists(RunProcess):
 
     def execute(self, entity_name: str, world_name: str):  # pylint: disable=arguments-differ
         self.entity_name = entity_name
-        self.set_command(["gz", "topic", "-t", "/world/" +
-                          world_name + "/pose/info", "-e", "--json-output"])
+        self.set_command(["gz", "topic", "-t", "/world/" + world_name + "/pose/info", "-e", "--json-output"])
 
     def on_executed(self):
         """

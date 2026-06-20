@@ -34,7 +34,9 @@ class MoveToPose(RosActionCall):
         self.goal_pose = None
         super().__init__(self.namespace + '/' + action_topic, "moveit_msgs.action.MoveGroup", success_on_acceptance=success_on_acceptance)
 
-    def execute(self, associated_actor, goal_pose: list, plan_only: bool, tolerance: float, replan: bool, max_velocity_scaling_factor: float) -> None:  # pylint: disable=arguments-differ,arguments-renamed
+    def execute(
+        self, associated_actor, goal_pose: list, plan_only: bool, tolerance: float, replan: bool, max_velocity_scaling_factor: float
+    ) -> None:  # pylint: disable=arguments-differ,arguments-renamed
         self.goal_pose = goal_pose
         self.group = associated_actor['arm_group']
         self.base_link = associated_actor['base_link']

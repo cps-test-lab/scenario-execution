@@ -29,11 +29,7 @@ class RosTopicCheckData(BaseAction):
     Class to check if the message on ROS topic equals to the target message
     """
 
-    def __init__(self,
-                 topic_name: str,
-                 topic_type: str,
-                 member_name: str,
-                 qos_profile: tuple):
+    def __init__(self, topic_name: str, topic_type: str, member_name: str, qos_profile: tuple):
         super().__init__()
         self.topic_name = topic_name
         self.topic_type = topic_type
@@ -55,8 +51,7 @@ class RosTopicCheckData(BaseAction):
         try:
             self.node: rclpy.Node = kwargs['node']
         except KeyError as e:
-            error_message = "didn't find 'node' in setup's kwargs [{}][{}]".format(
-                self.name, self.__class__.__name__)
+            error_message = "didn't find 'node' in setup's kwargs [{}][{}]".format(self.name, self.__class__.__name__)
             raise ActionError(error_message, action=self) from e
 
         # check if msg type exists and has member
@@ -72,17 +67,19 @@ class RosTopicCheckData(BaseAction):
             topic=self.topic_name,
             callback=self._callback,
             qos_profile=get_qos_preset_profile(self.qos_profile),
-            callback_group=rclpy.callback_groups.ReentrantCallbackGroup()
+            callback_group=rclpy.callback_groups.ReentrantCallbackGroup(),
         )
         self.feedback_message = f"Waiting for data on {self.topic_name}"  # pylint: disable= attribute-defined-outside-init
 
-    def execute(self,
-                expected_value: str,
-                eval_expected_value: bool,
-                comparison_operator: int,
-                fail_if_no_data: bool,
-                fail_if_bad_comparison: bool,
-                wait_for_first_message: bool):
+    def execute(
+        self,
+        expected_value: str,
+        eval_expected_value: bool,
+        comparison_operator: int,
+        fail_if_no_data: bool,
+        fail_if_bad_comparison: bool,
+        wait_for_first_message: bool,
+    ):
         self.set_expected_value(expected_value, eval_expected_value)
         self.comparison_operator = get_comparison_operator(comparison_operator)
         self.fail_if_no_data = fail_if_no_data

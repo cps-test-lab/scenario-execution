@@ -30,8 +30,7 @@ class TestCheckFileExists(unittest.TestCase):
 
     def setUp(self) -> None:
         self.parser = OpenScenario2Parser(Logger('test', False))
-        self.scenario_execution = ScenarioExecution(debug=False, log_model=False, live_tree=False,
-                                                    scenario_file="test.osc", output_dir=None)
+        self.scenario_execution = ScenarioExecution(debug=False, log_model=False, live_tree=False, scenario_file="test.osc", output_dir=None)
         self.tree = py_trees.composites.Sequence(name="", memory=True)
         self.tmp_file = tempfile.NamedTemporaryFile()
 
@@ -51,11 +50,12 @@ scenario test:
     timeout(1s)
     do serial:
         check_file_exists('""" + self.tmp_file.name + """')
-""")
+""")  # fmt: skip
         self.assertTrue(self.scenario_execution.process_results())
 
     def test_fail(self):
-        self.parse("""
+        self.parse(
+            """
 import osc.helpers
 import osc.os
 
@@ -63,11 +63,13 @@ scenario test:
     timeout(1s)
     do serial:
         check_file_exists('UNKNOWN_FILE')
-""")
+"""
+        )
         self.assertFalse(self.scenario_execution.process_results())
 
     def test_fail_inverted(self):
-        self.parse("""
+        self.parse(
+            """
 import osc.helpers
 import osc.os
 
@@ -76,5 +78,6 @@ scenario test:
     do serial:
         check_file_exists('UNKNOWN_FILE') with:
             inverter()
-""")
+"""
+        )
         self.assertTrue(self.scenario_execution.process_results())

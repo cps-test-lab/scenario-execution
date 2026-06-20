@@ -11,7 +11,7 @@ correct by running:
 
    make
 
-In case of errors you can run the autoformatter by executing:
+In case of errors you can run the autoformatter (``black``) by executing:
 
 .. code-block:: bash
 

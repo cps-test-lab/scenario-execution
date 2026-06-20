@@ -30,12 +30,9 @@ class ScenarioListPublisher(Node):
         super().__init__('scenario_list_publisher')
 
         transient_local_qos = QoSProfile(
-            durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
-            reliability=QoSReliabilityPolicy.RELIABLE,
-            history=QoSHistoryPolicy.KEEP_LAST,
-            depth=1)
-        self.publisher = self.create_publisher(
-            ScenarioList, '/scenario_execution_control/available_scenarios', transient_local_qos)
+            durability=QoSDurabilityPolicy.TRANSIENT_LOCAL, reliability=QoSReliabilityPolicy.RELIABLE, history=QoSHistoryPolicy.KEEP_LAST, depth=1
+        )
+        self.publisher = self.create_publisher(ScenarioList, '/scenario_execution_control/available_scenarios', transient_local_qos)
 
         self.declare_parameter('directory', '.')
         scenario_dir = self.get_parameter('directory').value

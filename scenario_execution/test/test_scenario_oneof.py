@@ -58,4 +58,4 @@ scenario test:
         self.assertTrue(self.scenario_execution.process_results())
 
         delta = end_time - start_time
-        self.assertLess(delta.total_seconds(), 15.)
+        self.assertLess(delta.total_seconds(), 15.0)

@@ -14,9 +14,50 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from scenario_execution.model.types import ActionDeclaration, ActionInherits, EnumDeclaration, EnumValueReference, KeepConstraintDeclaration, EmitDirective, Type
+from scenario_execution.model.types import (
+    ActionDeclaration,
+    ActionInherits,
+    EnumDeclaration,
+    EnumValueReference,
+    KeepConstraintDeclaration,
+    EmitDirective,
+    Type,
+)
 
-from .types import Argument, UnitDeclaration, EnumValueReference, StructInherits, ActionDeclaration, ActionInherits, ActorInherits, FieldAccessExpression,  BehaviorInvocation, EmitDirective, GlobalParameterDeclaration, IdentifierReference, Parameter, MethodBody, MethodDeclaration, ModelElement, StructuredDeclaration, KeepConstraintDeclaration, NamedArgument, ParameterDeclaration, PhysicalLiteral,  PositionalArgument,  RelationExpression, ScenarioInherits, SIUnitSpecifier,  Type, EnumMemberDeclaration, ListExpression, print_tree, ModifierInvocation, ScenarioDeclaration, DoDirective
+from .types import (
+    Argument,
+    UnitDeclaration,
+    EnumValueReference,
+    StructInherits,
+    ActionDeclaration,
+    ActionInherits,
+    ActorInherits,
+    FieldAccessExpression,
+    BehaviorInvocation,
+    EmitDirective,
+    GlobalParameterDeclaration,
+    IdentifierReference,
+    Parameter,
+    MethodBody,
+    MethodDeclaration,
+    ModelElement,
+    StructuredDeclaration,
+    KeepConstraintDeclaration,
+    NamedArgument,
+    ParameterDeclaration,
+    PhysicalLiteral,
+    PositionalArgument,
+    RelationExpression,
+    ScenarioInherits,
+    SIUnitSpecifier,
+    Type,
+    EnumMemberDeclaration,
+    ListExpression,
+    print_tree,
+    ModifierInvocation,
+    ScenarioDeclaration,
+    DoDirective,
+)
 
 from .model_base_visitor import ModelBaseVisitor
 from scenario_execution.model.error import OSC2ParsingError
@@ -46,13 +87,11 @@ class ModelResolver(ModelBaseVisitor):
     def visit_physical_literal(self, node: PhysicalLiteral):
         unit = node.resolve(node.unit)
         if unit is None:
-            raise OSC2ParsingError(
-                msg=f'Physical unit "{node.unit}" not defined.', context=node.get_ctx())
+            raise OSC2ParsingError(msg=f'Physical unit "{node.unit}" not defined.', context=node.get_ctx())
         node.unit = unit
         si_unit_specifier = node.unit.find_first_child_of_type(SIUnitSpecifier)
         if si_unit_specifier is None:
-            raise OSC2ParsingError(
-                msg=f'SIUnitSpecifier of physical unit "{node.unit.name}" not defined.', context=node.get_ctx())
+            raise OSC2ParsingError(msg=f'SIUnitSpecifier of physical unit "{node.unit.name}" not defined.', context=node.get_ctx())
 
     def visit_identifier_reference(self, node: IdentifierReference):
         reference = None
@@ -62,8 +101,7 @@ class ModelResolver(ModelBaseVisitor):
             current = node.resolve(splitted[0])
 
             if not current:
-                raise OSC2ParsingError(
-                    msg=f'Identifier "{node.ref}": Could not resolved {splitted[0]}.', context=node.get_ctx())
+                raise OSC2ParsingError(msg=f'Identifier "{node.ref}": Could not resolved {splitted[0]}.', context=node.get_ctx())
             reference.append(current)
             for elem in splitted[1:]:
                 if isinstance(current, ParameterDeclaration):
@@ -72,57 +110,48 @@ class ModelResolver(ModelBaseVisitor):
                 else:
                     current = current.get_named_child(elem)
                 if not current:
-                    raise OSC2ParsingError(
-                        msg=f'Identifier "{node.ref}": Could not resolved {elem}.', context=node.get_ctx())
+                    raise OSC2ParsingError(msg=f'Identifier "{node.ref}": Could not resolved {elem}.', context=node.get_ctx())
                 reference.append(current)
         else:
             reference = node.resolve(node.ref)
         if reference is None:
-            raise OSC2ParsingError(
-                msg=f'Identifier "{node.ref}" not defined.', context=node.get_ctx())
+            raise OSC2ParsingError(msg=f'Identifier "{node.ref}" not defined.', context=node.get_ctx())
         node.ref = reference
 
     def visit_type(self, node: Type):
         type_string = node.type_def
         if node.is_list:
             if not type_string.startswith('listof'):
-                raise OSC2ParsingError(
-                    msg=f'Invalid list type "{type_string}".', context=node.get_ctx())
+                raise OSC2ParsingError(msg=f'Invalid list type "{type_string}".', context=node.get_ctx())
             type_string = type_string.removeprefix('listof')
 
         if type_string not in ['string', 'int', 'bool', 'float', 'uint']:
             resolved = node.resolve(type_string)
             if resolved is None:
-                raise OSC2ParsingError(
-                    msg=f'Type "{type_string}" not defined.', context=node.get_ctx())
+                raise OSC2ParsingError(msg=f'Type "{type_string}" not defined.', context=node.get_ctx())
             node.type_def = resolved
 
     def visit_unit_declaration(self, node: UnitDeclaration):
         resolved = node.resolve(node.physical_name)
         if resolved is None:
-            raise OSC2ParsingError(
-                msg=f'Unit declaration refers to unknown physical name "{node.physical_name}".', context=node.get_ctx())
+            raise OSC2ParsingError(msg=f'Unit declaration refers to unknown physical name "{node.physical_name}".', context=node.get_ctx())
         node.physical_name = resolved
 
     def visit_keep_constraint_declaration(self, node: KeepConstraintDeclaration):
         self.visit_children(node)
         if node.get_child_count() == 1 and isinstance(node.get_child(0), RelationExpression) and node.get_child(0).get_child_count() == 2:
             if node.get_child(0).operator != "==":
-                raise OSC2ParsingError(
-                    msg=f'Only relation "==" is currently supported in "keep".', context=node.get_ctx())
+                raise OSC2ParsingError(msg=f'Only relation "==" is currently supported in "keep".', context=node.get_ctx())
             field_exp = node.get_child(0).find_first_child_of_type(FieldAccessExpression)
 
             if not field_exp:
-                raise OSC2ParsingError(
-                    msg=f'FieldAccessExpression not found.', context=node.get_ctx())
+                raise OSC2ParsingError(msg=f'FieldAccessExpression not found.', context=node.get_ctx())
             if not field_exp.field_name.startswith('it.'):
-                raise OSC2ParsingError(
-                    msg=f'FieldAccessExpression only supports "it." prefix, not "{field_exp.field_name}".', context=node.get_ctx())
+                raise OSC2ParsingError(msg=f'FieldAccessExpression only supports "it." prefix, not "{field_exp.field_name}".', context=node.get_ctx())
 
             definition, _ = node.get_parent().get_type()
             if not isinstance(definition, StructuredDeclaration):
-                raise OSC2ParsingError(
-                    msg=f'keep expected reference to structured type.', context=node.get_ctx())
+                raise OSC2ParsingError(msg=f'keep expected reference to structured type.', context=node.get_ctx())
 
             parameters = definition.get_resolved_value()
             expected_member_name = field_exp.field_name.removeprefix("it.")
@@ -132,11 +161,11 @@ class ModelResolver(ModelBaseVisitor):
             for current in member_path:
                 if current not in current_params:
                     raise OSC2ParsingError(
-                        msg=f'keep reference {field_exp.field_name} not found in {definition.name}. Unknown key "{current}"', context=node.get_ctx())
+                        msg=f'keep reference {field_exp.field_name} not found in {definition.name}. Unknown key "{current}"', context=node.get_ctx()
+                    )
                 current_params = current_params[current]
         else:
-            raise OSC2ParsingError(
-                msg=f'Keep uses unsupported expression: allowed "==" only.', context=node.get_ctx())
+            raise OSC2ParsingError(msg=f'Keep uses unsupported expression: allowed "==" only.', context=node.get_ctx())
 
     def check_parameter_type(self, node: Parameter):
         val = node.get_value_child()
@@ -151,8 +180,7 @@ class ModelResolver(ModelBaseVisitor):
                 if param_type == 'uint':
                     param_type = 'int'
                 if val_type != param_type:
-                    raise OSC2ParsingError(
-                        msg=f'Parameter type "{param_type}" does not match value type "{val_type}".', context=node.get_ctx())
+                    raise OSC2ParsingError(msg=f'Parameter type "{param_type}" does not match value type "{val_type}".', context=node.get_ctx())
 
                 # check list entries
                 if isinstance(val, ListExpression):
@@ -161,7 +189,8 @@ class ModelResolver(ModelBaseVisitor):
                         member_type = child.get_type_string()
                         if expected_type != member_type:
                             raise OSC2ParsingError(
-                                msg=f'List entry does not have valid type. Expected "{expected_type}", found "{member_type}".', context=node.get_ctx())
+                                msg=f'List entry does not have valid type. Expected "{expected_type}", found "{member_type}".', context=node.get_ctx()
+                            )
 
     def visit_global_parameter_declaration(self, node: GlobalParameterDeclaration):
         self.visit_children(node)
@@ -174,29 +203,25 @@ class ModelResolver(ModelBaseVisitor):
     def visit_actor_inherits(self, node: ActorInherits):
         resolved = node.resolve(node.actor)
         if resolved is None:
-            raise OSC2ParsingError(
-                msg=f'Actor inherits from unknown "{node.actor}".', context=node.get_ctx())
+            raise OSC2ParsingError(msg=f'Actor inherits from unknown "{node.actor}".', context=node.get_ctx())
         node.actor = resolved
 
     def visit_struct_inherits(self, node: StructInherits):
         resolved = node.resolve(node.struct_name)
         if resolved is None:
-            raise OSC2ParsingError(
-                msg=f'Struct inherits from unknown "{node.struct_name}".', context=node.get_ctx())
+            raise OSC2ParsingError(msg=f'Struct inherits from unknown "{node.struct_name}".', context=node.get_ctx())
         node.struct_name = resolved
 
     def visit_action_inherits(self, node: ActionInherits):
         resolved = node.resolve(node.qualified_behavior_name)
         if resolved is None:
-            raise OSC2ParsingError(
-                msg=f'Action inherits from unknown "{node.qualified_behavior_name}".', context=node.get_ctx())
+            raise OSC2ParsingError(msg=f'Action inherits from unknown "{node.qualified_behavior_name}".', context=node.get_ctx())
         node.qualified_behavior_name = resolved
 
     def visit_scenario_inherits(self, node: ScenarioInherits):
         resolved = node.resolve(node.qualified_behavior_name)
         if resolved is None:
-            raise OSC2ParsingError(
-                msg=f'Scenario inherits from unknown "{node.qualified_behavior_name}".', context=node.get_ctx())
+            raise OSC2ParsingError(msg=f'Scenario inherits from unknown "{node.qualified_behavior_name}".', context=node.get_ctx())
         node.qualified_behavior_name = resolved
 
     def visit_behavior_invocation(self, node: BehaviorInvocation):
@@ -204,8 +229,7 @@ class ModelResolver(ModelBaseVisitor):
         if node.actor:
             resolved_actor = node.resolve(node.actor)
             if resolved_actor is None:
-                raise OSC2ParsingError(
-                    msg=f'BehaviorInvocation refers to unknown actor "{node.actor}".', context=node.get_ctx())
+                raise OSC2ParsingError(msg=f'BehaviorInvocation refers to unknown actor "{node.actor}".', context=node.get_ctx())
             node.actor = resolved_actor
 
             current, _ = node.actor.get_type()
@@ -218,8 +242,7 @@ class ModelResolver(ModelBaseVisitor):
             resolved = node.resolve(node.behavior)
 
         if not resolved:
-            raise OSC2ParsingError(
-                msg=f'BehaviorInvocation uses unknown behavior "{qualified_behavior_name}".', context=node.get_ctx())
+            raise OSC2ParsingError(msg=f'BehaviorInvocation uses unknown behavior "{qualified_behavior_name}".', context=node.get_ctx())
         node.behavior = resolved
 
         pos_arg_count = 0
@@ -230,16 +253,13 @@ class ModelResolver(ModelBaseVisitor):
             if isinstance(child, NamedArgument):
                 named = True
                 if child.name not in param_keys:
-                    raise OSC2ParsingError(
-                        msg=f'Named argument {child.name} unknown.', context=node.get_ctx())
+                    raise OSC2ParsingError(msg=f'Named argument {child.name} unknown.', context=node.get_ctx())
 
             elif isinstance(child, PositionalArgument):
                 if named:
-                    raise OSC2ParsingError(
-                        msg=f'No positional argument allowed after named.', context=node.get_ctx())
+                    raise OSC2ParsingError(msg=f'No positional argument allowed after named.', context=node.get_ctx())
                 if pos_arg_count >= max_named_arg_count:
-                    raise OSC2ParsingError(
-                        msg=f'Too many positional arguments.', context=node.get_ctx())
+                    raise OSC2ParsingError(msg=f'Too many positional arguments.', context=node.get_ctx())
                 pos_arg_count += 1
 
         super().visit_behavior_invocation(node)
@@ -249,11 +269,9 @@ class ModelResolver(ModelBaseVisitor):
 
         param_names = node.get_parameter_names()
         if 'name' in param_names:
-            raise OSC2ParsingError(
-                msg=f'ActionDeclaration {node.name} uses reserved paramater name "name".', context=node.get_ctx())
+            raise OSC2ParsingError(msg=f'ActionDeclaration {node.name} uses reserved paramater name "name".', context=node.get_ctx())
         if 'associated_actor' in param_names:
-            raise OSC2ParsingError(
-                msg=f'ActionDeclaration {node.name} uses reserved paramater name "associated_actor".', context=node.get_ctx())
+            raise OSC2ParsingError(msg=f'ActionDeclaration {node.name} uses reserved paramater name "associated_actor".', context=node.get_ctx())
 
         actor_name = None
         if "." in node.qualified_behavior_name:
@@ -261,16 +279,14 @@ class ModelResolver(ModelBaseVisitor):
         if actor_name:
             resolved_actor = node.resolve(actor_name)
             if resolved_actor is None:
-                raise OSC2ParsingError(
-                    msg=f'ActionDeclaration {node.name} refers to unknown actor "{actor_name}".', context=node.get_ctx())
+                raise OSC2ParsingError(msg=f'ActionDeclaration {node.name} refers to unknown actor "{actor_name}".', context=node.get_ctx())
             node.actor = resolved_actor
 
     def visit_enum_value_reference(self, node: EnumValueReference):
         # skip parameter level (to allow parameter names to be similar to enum-type-names)
         enum_type = node.get_parent().resolve(node.enum_name)
         if enum_type is None:
-            raise OSC2ParsingError(
-                msg=f'Enum type {node.enum_name} unknown.', context=node.get_ctx())
+            raise OSC2ParsingError(msg=f'Enum type {node.enum_name} unknown.', context=node.get_ctx())
         node.enum_name = enum_type
 
         member = None
@@ -279,16 +295,14 @@ class ModelResolver(ModelBaseVisitor):
                 member = child
                 break
         if member is None:
-            raise OSC2ParsingError(
-                msg=f'Enum type {node.enum_name} does not have a member "{node.enum_member_name}".', context=node.get_ctx())
+            raise OSC2ParsingError(msg=f'Enum type {node.enum_name} does not have a member "{node.enum_member_name}".', context=node.get_ctx())
         node.enum_member_name = member
 
     def visit_emit_directive(self, node: EmitDirective):
         if node.event_name not in ['start', 'end', 'fail']:
             node.event = node.resolve(node.event_name)
             if node.event is None:
-                raise OSC2ParsingError(
-                    msg=f'EmitDirective refers to unknown event {node.event_name}.', context=node.get_ctx())
+                raise OSC2ParsingError(msg=f'EmitDirective refers to unknown event {node.event_name}.', context=node.get_ctx())
 
     def visit_enum_declaration(self, node: EnumDeclaration):
         next_numeric_val = 0
@@ -323,23 +337,19 @@ class ModelResolver(ModelBaseVisitor):
                     raise OSC2ParsingError(msg=f'Argument "{arg.name}" not found in external method definition', context=node.get_ctx())
                 external_args.remove(arg.name)
         else:
-            raise OSC2ParsingError(
-                msg=f'MethodDeclaration currently only supports "external", not "{body.type_ref}"', context=node.get_ctx())
+            raise OSC2ParsingError(msg=f'MethodDeclaration currently only supports "external", not "{body.type_ref}"', context=node.get_ctx())
 
     def visit_modifier_invocation(self, node: ModifierInvocation):
         if node.actor:
-            raise OSC2ParsingError(
-                msg=f'Actor not supported yet.', context=node.get_ctx())
+            raise OSC2ParsingError(msg=f'Actor not supported yet.', context=node.get_ctx())
         resolved = node.resolve(node.modifier)
         if not resolved:
-            raise OSC2ParsingError(
-                msg=f'ModifierInvocation uses unknown modifier "{node.modifier}".', context=node.get_ctx())
+            raise OSC2ParsingError(msg=f'ModifierInvocation uses unknown modifier "{node.modifier}".', context=node.get_ctx())
         node.modifier = resolved
         super().visit_modifier_invocation(node)
 
     def visit_do_directive(self, node: DoDirective):
         if not isinstance(node.get_parent(), ScenarioDeclaration):
-            raise OSC2ParsingError(
-                msg=f'Do directory currently only supported within scenario.', context=node.get_ctx())
+            raise OSC2ParsingError(msg=f'Do directory currently only supported within scenario.', context=node.get_ctx())
 
         return super().visit_do_directive(node)

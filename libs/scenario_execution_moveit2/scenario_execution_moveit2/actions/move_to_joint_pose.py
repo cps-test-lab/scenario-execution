@@ -35,7 +35,9 @@ class MoveToJointPose(RosActionCall):
         self.join_names = None
         super().__init__(self.namespace + '/' + action_topic, "moveit_msgs.action.MoveGroup", success_on_acceptance=success_on_acceptance)
 
-    def execute(self, associated_actor, goal_pose: list, move_group: str, plan_only: bool, tolerance: float, replan: bool, max_velocity_scaling_factor: float) -> None:  # pylint: disable=arguments-differ,arguments-renamed
+    def execute(
+        self, associated_actor, goal_pose: list, move_group: str, plan_only: bool, tolerance: float, replan: bool, max_velocity_scaling_factor: float
+    ) -> None:  # pylint: disable=arguments-differ,arguments-renamed
         self.goal_pose = goal_pose
 
         if not isinstance(move_group, tuple) or not isinstance(move_group[0], str):

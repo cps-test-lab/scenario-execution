@@ -16,20 +16,21 @@
 
 
 from scenario_execution_ros.actions.ros_service_call import RosServiceCall, ServiceCallActionState
+
 try:
     from simulation_interfaces.msg import Result
 except ImportError as e:
     raise ImportError("simulation_interfaces package not found. Please make sure ros-<ROS_DISTRO>-simulation-interfaces is installed and sourced.") from e
 
+
 class StepSimulation(RosServiceCall):
 
     def __init__(self, steps: int = 1):
         self.steps = steps
-        super().__init__(service_name='/step_simulation',
-                         service_type='simulation_interfaces.srv.StepSimulation')
+        super().__init__(service_name='/step_simulation', service_type='simulation_interfaces.srv.StepSimulation')
 
-    def execute(self):   # pylint: disable=arguments-differ,arguments-renamed
-        super().execute(data={ "steps": self.steps })
+    def execute(self):  # pylint: disable=arguments-differ,arguments-renamed
+        super().execute(data={"steps": self.steps})
 
     def check_response(self, msg):
         """

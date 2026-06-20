@@ -20,8 +20,7 @@ release = '1.2.0'
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = ['sphinx.ext.extlinks',
-              'sphinxcontrib.spelling']
+extensions = ['sphinx.ext.extlinks', 'sphinxcontrib.spelling']
 
 extlinks = {'repo_link': ('https://github.com/cps-test-lab/scenario-execution/blob/main/%s', '%s')}
 

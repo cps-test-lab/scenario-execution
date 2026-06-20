@@ -46,18 +46,13 @@ class RosTopicPublish(BaseAction):
         try:
             self.node: Node = kwargs['node']
         except KeyError as e:
-            error_message = "didn't find 'node' in setup's kwargs [{}][{}]".format(
-                self.name, self.__class__.__name__)
+            error_message = "didn't find 'node' in setup's kwargs [{}][{}]".format(self.name, self.__class__.__name__)
             raise ActionError(error_message, action=self) from e
 
         try:
             topic_type = get_ros_message_type(self.topic_type)
             self.msg_to_pub = topic_type()
-            self.publisher = self.node.create_publisher(
-                msg_type=topic_type,
-                topic=self.topic_name,
-                qos_profile=get_qos_preset_profile(self.qos_profile)
-            )
+            self.publisher = self.node.create_publisher(msg_type=topic_type, topic=self.topic_name, qos_profile=get_qos_preset_profile(self.qos_profile))
         except ValueError as e:
             raise ActionError(f"{e}", action=self) from e
 

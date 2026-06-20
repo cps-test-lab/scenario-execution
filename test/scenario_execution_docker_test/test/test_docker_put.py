@@ -30,8 +30,7 @@ class TestDockerPut(unittest.TestCase):
 
     def setUp(self) -> None:
         self.parser = OpenScenario2Parser(Logger('test', False))
-        self.scenario_execution = ScenarioExecution(debug=False, log_model=False, live_tree=False,
-                                                    scenario_file="test.osc", output_dir=None)
+        self.scenario_execution = ScenarioExecution(debug=False, log_model=False, live_tree=False, scenario_file="test.osc", output_dir=None)
         self.tree = py_trees.composites.Sequence(name="", memory=True)
         self.tmp_file = tempfile.NamedTemporaryFile()
 
@@ -55,11 +54,12 @@ scenario test_success:
             docker_put(container: 'sleeping_beauty_put', source_path: '""" + self.tmp_file.name + """', target_path: '/tmp/')
             docker_exec(container: 'sleeping_beauty_put', command: 'test -f """ + self.tmp_file.name + """')
             emit end
-""")
+""")  # fmt: skip
         self.assertTrue(self.scenario_execution.process_results())
 
     def test_failure_missing_file(self):
-        self.parse("""
+        self.parse(
+            """
 import osc.docker
 import osc.helpers
 
@@ -69,5 +69,6 @@ scenario test_failure_unknown_file:
         docker_run(image: 'ubuntu', command: 'sleep 5', detach: true, container_name: 'sleeping_beauty_put_fail', remove: true)
         serial: 
             docker_put(container: 'sleeping_beauty_put_fail', source_path: 'UNKNOWN', target_path: '/tmp/')
-""")
+"""
+        )
         self.assertFalse(self.scenario_execution.process_results())

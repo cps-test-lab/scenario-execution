@@ -23,15 +23,8 @@ setup(
     name=PACKAGE_NAME,
     version='1.5.0',
     packages=find_namespace_packages(),
-    data_files=[
-        ('share/ament_index/resource_index/packages',
-            ['resource/' + PACKAGE_NAME]),
-        ('share/' + PACKAGE_NAME, ['package.xml'])
-    ],
-    install_requires=[
-        'setuptools',
-        'psutil'
-    ],
+    data_files=[('share/ament_index/resource_index/packages', ['resource/' + PACKAGE_NAME]), ('share/' + PACKAGE_NAME, ['package.xml'])],
+    install_requires=['setuptools', 'psutil'],
     zip_safe=True,
     maintainer='Frederik Pasch',
     maintainer_email='fred-labs@mailbox.org',
@@ -47,8 +40,7 @@ setup(
             'monitor_resources = scenario_execution_os.actions.monitor_resources:MonitorResources',
         ],
         'scenario_execution.osc_libraries': [
-            'os = '
-            'scenario_execution_os.get_osc_library:get_osc_library',
-        ]
+            'os = scenario_execution_os.get_osc_library:get_osc_library',
+        ],
     },
 )

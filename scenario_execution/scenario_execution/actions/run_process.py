@@ -83,13 +83,12 @@ class RunProcess(BaseAction):
                     pass
                 except Exception as e:  # pylint: disable=broad-except
                     self.logger.error(f"Error while logging output: {e}")
-            self.log_stdout_thread = Thread(target=log_output, args=(
-                self.process.stdout, self.get_logger_stdout(), self.output))
+
+            self.log_stdout_thread = Thread(target=log_output, args=(self.process.stdout, self.get_logger_stdout(), self.output))
             self.log_stdout_thread.daemon = True  # die with the program
             self.log_stdout_thread.start()
 
-            self.log_stderr_thread = Thread(target=log_output, args=(
-                self.process.stderr, self.get_logger_stderr(), self.output))
+            self.log_stderr_thread = Thread(target=log_output, args=(self.process.stderr, self.get_logger_stderr(), self.output))
             self.log_stderr_thread.daemon = True  # die with the program
             self.log_stderr_thread.start()
 

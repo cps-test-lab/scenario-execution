@@ -15,10 +15,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from scenario_execution_ros.actions.ros_service_call import RosServiceCall
+
 try:
     from simulation_interfaces.msg import Result, SimulationState
 except ImportError as e:
     raise ImportError("simulation_interfaces package not found. Please make sure ros-<ROS_DISTRO>-simulation-interfaces is installed and sourced.") from e
+
 
 class SetSimulationState(RosServiceCall):
 
@@ -31,11 +33,10 @@ class SetSimulationState(RosServiceCall):
             self.state = SimulationState.STATE_PAUSED
         else:
             raise ValueError(f"Invalid simulation state: {state[0]}")
-        super().__init__(service_name='/set_simulation_state',
-                         service_type='simulation_interfaces.srv.SetSimulationState')
+        super().__init__(service_name='/set_simulation_state', service_type='simulation_interfaces.srv.SetSimulationState')
 
-    def execute(self):   # pylint: disable=arguments-differ,arguments-renamed
-        super().execute(data={ "state": {"state": int(self.state)} })
+    def execute(self):  # pylint: disable=arguments-differ,arguments-renamed
+        super().execute(data={"state": {"state": int(self.state)}})
 
     def check_response(self, msg):
         """

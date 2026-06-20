@@ -41,16 +41,19 @@ class ActorDistanceTraveled(BaseAction):
             return py_trees.common.Status.FAILURE
 
         if self.distance_traveled is not None:
-            d_increment = sqrt((pos[0] - self.previous_pos[0]) * (pos[0] - self.previous_pos[0]) +
-                               (pos[1] - self.previous_pos[1]) * (pos[1] - self.previous_pos[1]))
+            d_increment = sqrt(
+                (pos[0] - self.previous_pos[0]) * (pos[0] - self.previous_pos[0]) + (pos[1] - self.previous_pos[1]) * (pos[1] - self.previous_pos[1])
+            )
             self.distance_traveled = self.distance_traveled + d_increment
         else:
-            self.distance_traveled = 0.
+            self.distance_traveled = 0.0
         self.previous_pos = pos
 
         if self.distance_traveled >= self.distance_expected:
             self.feedback_message = f"expected traveled distance reached: {float(self.distance_expected):.3}"  # pylint: disable= attribute-defined-outside-init
             return py_trees.common.Status.SUCCESS
         else:
-            self.feedback_message = f"distance traveled: {float(self.distance_traveled):.3} < {float(self.distance_expected):.3}"  # pylint: disable= attribute-defined-outside-init
+            self.feedback_message = (
+                f"distance traveled: {float(self.distance_traveled):.3} < {float(self.distance_expected):.3}"  # pylint: disable= attribute-defined-outside-init
+            )
         return py_trees.common.Status.RUNNING

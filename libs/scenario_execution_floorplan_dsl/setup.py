@@ -23,11 +23,7 @@ setup(
     name=PACKAGE_NAME,
     version='1.5.0',
     packages=find_namespace_packages(),
-    data_files=[
-        ('share/ament_index/resource_index/packages',
-            ['resource/' + PACKAGE_NAME]),
-        ('share/' + PACKAGE_NAME, ['package.xml'])
-    ],
+    data_files=[('share/ament_index/resource_index/packages', ['resource/' + PACKAGE_NAME]), ('share/' + PACKAGE_NAME, ['package.xml'])],
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='Frederik Pasch',
@@ -42,8 +38,7 @@ setup(
             'floorplan_generator.generate_gazebo_world = scenario_execution_floorplan_dsl.actions.generate_gazebo_world:GenerateGazeboWorld',
         ],
         'scenario_execution.osc_libraries': [
-            'floorplan_dsl = '
-            'scenario_execution_floorplan_dsl.get_osc_library:get_osc_library',
-        ]
+            'floorplan_dsl = scenario_execution_floorplan_dsl.get_osc_library:get_osc_library',
+        ],
     },
 )

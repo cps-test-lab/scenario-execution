@@ -66,21 +66,19 @@ class GenerateFloorplan(BaseAction):
         if self.current_state == GenerateFloorplanStatus.IDLE:
             model_dir = os.path.dirname(os.path.abspath(self.file_path))
             try:
-                self.container = self.client.containers.run("floorplan:latest",
-                                                            command="blender --background --python exsce_floorplan/exsce_floorplan.py --python-use-system-env -- ../models/" +
-                                                            os.path.basename(self.file_path),
-                                                            detach=True,
-                                                            remove=True,
-                                                            user=os.getuid(),
-                                                            group_add=[os.getgid()],
-                                                            volumes={
-                                                                model_dir: {
-                                                                    "bind": "/usr/src/app/models",
-                                                                    "mode": "ro"},
-                                                                self.output_dir: {
-                                                                    "bind": "/usr/src/app/output",
-                                                                    "mode": "rw"},
-                                                            })
+                self.container = self.client.containers.run(
+                    "floorplan:latest",
+                    command="blender --background --python exsce_floorplan/exsce_floorplan.py --python-use-system-env -- ../models/"
+                    + os.path.basename(self.file_path),
+                    detach=True,
+                    remove=True,
+                    user=os.getuid(),
+                    group_add=[os.getgid()],
+                    volumes={
+                        model_dir: {"bind": "/usr/src/app/models", "mode": "ro"},
+                        self.output_dir: {"bind": "/usr/src/app/output", "mode": "rw"},
+                    },
+                )
             except docker.errors.APIError as e:
                 self.feedback_message = f"Generating meshes failed: {e}"  # pylint: disable= attribute-defined-outside-init
                 return py_trees.common.Status.FAILURE

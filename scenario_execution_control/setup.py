@@ -28,10 +28,9 @@ setup(
     version='1.5.0',
     packages=[PACKAGE_NAME],
     data_files=[
-        ('share/ament_index/resource_index/packages',
-            ['resource/' + PACKAGE_NAME]),
+        ('share/ament_index/resource_index/packages', ['resource/' + PACKAGE_NAME]),
         ('share/' + PACKAGE_NAME, ['package.xml']),
-        (os.path.join('share', PACKAGE_NAME, 'launch'), glob('launch/*launch.py'))
+        (os.path.join('share', PACKAGE_NAME, 'launch'), glob('launch/*launch.py')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -42,7 +41,7 @@ setup(
     entry_points={
         'console_scripts': [
             'scenario_execution_control = scenario_execution_control.scenario_execution_control_node:main',
-            'scenario_list_publisher = scenario_execution_control.scenario_list_publisher:main'
+            'scenario_list_publisher = scenario_execution_control.scenario_list_publisher:main',
         ],
     },
 )

@@ -58,7 +58,9 @@ class KubernetesWaitForNetworkPolicyStatus(BaseAction):
                     self.feedback_message = f"Expected status '{item[1].lower()}' found."  # pylint: disable= attribute-defined-outside-init
                     return py_trees.common.Status.SUCCESS
                 else:
-                    self.feedback_message = f"Status changed to '{item[1].lower()}', expected '{self.expected_status}'."  # pylint: disable= attribute-defined-outside-init
+                    self.feedback_message = (
+                        f"Status changed to '{item[1].lower()}', expected '{self.expected_status}'."  # pylint: disable= attribute-defined-outside-init
+                    )
         return py_trees.common.Status.RUNNING
 
     def watch_network(self):

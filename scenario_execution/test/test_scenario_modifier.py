@@ -32,8 +32,7 @@ class TestOSC2Parser(unittest.TestCase):
     def setUp(self) -> None:
         self.logger = DebugLogger("")
         self.parser = OpenScenario2Parser(self.logger)
-        self.scenario_execution = ScenarioExecution(debug=False, log_model=False, live_tree=False,
-                                                    scenario_file='test.osc', output_dir="", logger=self.logger)
+        self.scenario_execution = ScenarioExecution(debug=False, log_model=False, live_tree=False, scenario_file='test.osc', output_dir="", logger=self.logger)
         self.tree = py_trees.composites.Sequence(name="", memory=True)
 
     def execute(self, scenario_content):
@@ -59,10 +58,7 @@ scenario test:
         self.scenario_execution.scenarios_list = [(self.tree, {}, None)]
         self.scenario_execution.run()
         self.assertTrue(self.scenario_execution.process_results())
-        self.assertEqual([
-            "Executing scenario 'test'",
-            "TestA", "TestB", "TestA", "TestB",
-            "Scenario 'test' succeeded."], self.logger.logs_info)
+        self.assertEqual(["Executing scenario 'test'", "TestA", "TestB", "TestA", "TestB", "Scenario 'test' succeeded."], self.logger.logs_info)
 
     def test_repeat_sub_tree(self):
         scenario_content = """
@@ -80,21 +76,25 @@ scenario test:
 """
         self.execute(scenario_content)
         self.assertTrue(self.scenario_execution.process_results())
-        self.assertEqual([
-            "Executing scenario 'test'",
-            "foo",
-            "TestA",
-            "TestB",
-            "TestA",
-            "TestB",
-            "bar",
-            "foo",
-            "TestA",
-            "TestB",
-            "TestA",
-            "TestB",
-            "bar",
-            "Scenario 'test' succeeded."], self.logger.logs_info)
+        self.assertEqual(
+            [
+                "Executing scenario 'test'",
+                "foo",
+                "TestA",
+                "TestB",
+                "TestA",
+                "TestB",
+                "bar",
+                "foo",
+                "TestA",
+                "TestB",
+                "TestA",
+                "TestB",
+                "bar",
+                "Scenario 'test' succeeded.",
+            ],
+            self.logger.logs_info,
+        )
 
     def test_unknown_modifier(self):
         scenario_content = """

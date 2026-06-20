@@ -40,8 +40,9 @@ def to_pose_3d(in_value):
     if isinstance(in_value, PoseWithCovarianceStamped):
         pose3d = {}
         pose3d["position"] = to_dict(in_value.pose.pose.position)
-        roll, pitch, yaw = quat2euler([in_value.pose.pose.orientation.w, in_value.pose.pose.orientation.x,
-                                      in_value.pose.pose.orientation.y, in_value.pose.pose.orientation.z])
+        roll, pitch, yaw = quat2euler(
+            [in_value.pose.pose.orientation.w, in_value.pose.pose.orientation.x, in_value.pose.pose.orientation.y, in_value.pose.pose.orientation.z]
+        )
         pose3d["orientation"] = {'roll': roll, 'pitch': pitch, 'yaw': yaw}
         return pose3d
     elif isinstance(in_value, dict) and in_value == {}:  # allow empty input to enable expression evaluation

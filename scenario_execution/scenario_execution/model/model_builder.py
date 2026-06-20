@@ -15,7 +15,61 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-from .types import CompilationUnit, PhysicalTypeDeclaration, UnitDeclaration, EnumDeclaration, EnumMemberDeclaration, EnumValueReference, StructDeclaration, StructInherits, ActionDeclaration, ActionInherits, ActorDeclaration, ActorInherits, FieldAccessExpression,  FloatLiteral, FunctionApplicationExpression, Argument, BehaviorInvocation, BinaryExpression, BoolLiteral, DoDirective, ElapsedExpression, DoMember, EmitDirective,  EventCondition, EventDeclaration, EventFieldDecl, EventReference,  GlobalParameterDeclaration, Identifier, IdentifierReference, IntegerLiteral, KeepConstraintDeclaration,  LogicalExpression, MethodBody, MethodDeclaration, NamedArgument, OnDirective, ParameterDeclaration, PhysicalLiteral, ParameterReference, PositionalArgument,  RelationExpression, ScenarioInherits, SIUnitSpecifier, StringLiteral, ScenarioDeclaration, StructuredTypeExtension,  Type, VariableDeclaration, WaitDirective, ListExpression, ModifierDeclaration, ModifierInvocation
+from .types import (
+    CompilationUnit,
+    PhysicalTypeDeclaration,
+    UnitDeclaration,
+    EnumDeclaration,
+    EnumMemberDeclaration,
+    EnumValueReference,
+    StructDeclaration,
+    StructInherits,
+    ActionDeclaration,
+    ActionInherits,
+    ActorDeclaration,
+    ActorInherits,
+    FieldAccessExpression,
+    FloatLiteral,
+    FunctionApplicationExpression,
+    Argument,
+    BehaviorInvocation,
+    BinaryExpression,
+    BoolLiteral,
+    DoDirective,
+    ElapsedExpression,
+    DoMember,
+    EmitDirective,
+    EventCondition,
+    EventDeclaration,
+    EventFieldDecl,
+    EventReference,
+    GlobalParameterDeclaration,
+    Identifier,
+    IdentifierReference,
+    IntegerLiteral,
+    KeepConstraintDeclaration,
+    LogicalExpression,
+    MethodBody,
+    MethodDeclaration,
+    NamedArgument,
+    OnDirective,
+    ParameterDeclaration,
+    PhysicalLiteral,
+    ParameterReference,
+    PositionalArgument,
+    RelationExpression,
+    ScenarioInherits,
+    SIUnitSpecifier,
+    StringLiteral,
+    ScenarioDeclaration,
+    StructuredTypeExtension,
+    Type,
+    VariableDeclaration,
+    WaitDirective,
+    ListExpression,
+    ModifierDeclaration,
+    ModifierInvocation,
+)
 
 
 from ..osc2_parsing.OpenSCENARIO2Parser import OpenSCENARIO2Parser
@@ -89,11 +143,10 @@ class ModelBuilder(OpenSCENARIO2Listener):  # pylint: disable=too-many-public-me
             import_reference = import_reference_string.split('.')
             self.logger.debug(f'import_reference is: {import_reference}')
             if len(import_reference) < 2 or import_reference[0] != 'osc':
-                raise OSC2ParsingError(
-                    msg=f'import_reference can only be of format osc.<library-name>, found "{import_reference}', context=ctx)
+                raise OSC2ParsingError(msg=f'import_reference can only be of format osc.<library-name>, found "{import_reference}', context=ctx)
 
             library_name = ".".join(import_reference[1:])
-            if self.skip_external_imports and library_name not in  ['helpers', 'robotics', 'standard', 'types']:
+            if self.skip_external_imports and library_name not in ['helpers', 'robotics', 'standard', 'types']:
                 self.logger.debug(f'Skipping external import library: {library_name}')
                 return
             # iterate through all packages
@@ -105,8 +158,7 @@ class ModelBuilder(OpenSCENARIO2Listener):  # pylint: disable=too-many-public-me
                 if entry_point.name == library_name:
                     libraries_found.append(entry_point)
             if not libraries_found:
-                raise OSC2ParsingError(
-                    msg=f'No import library "{library_name}" found.', context=ctx)
+                raise OSC2ParsingError(msg=f'No import library "{library_name}" found.', context=ctx)
             if len(libraries_found) > 1:
                 pkgs = []
                 for elem in libraries_found:
@@ -118,8 +170,7 @@ class ModelBuilder(OpenSCENARIO2Listener):  # pylint: disable=too-many-public-me
                         pkgs.append('<unknown>')
                         pass
 
-                raise OSC2ParsingError(
-                    msg=f'More than one import library for "{library_name}" found: {", ".join(pkgs)}', context=ctx)
+                raise OSC2ParsingError(msg=f'More than one import library for "{library_name}" found: {", ".join(pkgs)}', context=ctx)
 
             lib_class = libraries_found[0].load()
             resource, filename = lib_class()
@@ -347,6 +398,7 @@ class ModelBuilder(OpenSCENARIO2Listener):  # pylint: disable=too-many-public-me
     # Exit a parse tree produced by OpenSCENARIO2Parser#inheritsCondition.
     def exitInheritsCondition(self, ctx: OpenSCENARIO2Parser.InheritsConditionContext):
         self.__cur_node = self.__node_stack.pop()
+
     # Enter a parse tree produced by OpenSCENARIO2Parser#structDeclaration.
 
     def enterStructDeclaration(self, ctx: OpenSCENARIO2Parser.StructDeclarationContext):
@@ -599,9 +651,7 @@ class ModelBuilder(OpenSCENARIO2Listener):  # pylint: disable=too-many-public-me
         # The two ifs here are syntactically mutually exclusive
         qualified_behavior_name = None
         if ctx.extendableTypeName().qualifiedBehaviorName():
-            qualified_behavior_name = (
-                ctx.extendableTypeName().qualifiedBehaviorName().getText()
-            )
+            qualified_behavior_name = ctx.extendableTypeName().qualifiedBehaviorName().getText()
 
         node = StructuredTypeExtension(type_name, qualified_behavior_name)
         node.set_ctx(ctx, self.current_file)
@@ -1384,7 +1434,7 @@ class ModelBuilder(OpenSCENARIO2Listener):  # pylint: disable=too-many-public-me
     def enterCoverageDeclaration(self, ctx: OpenSCENARIO2Parser.CoverageDeclarationContext):
         pass
 
-   # Exit a parse tree produced by OpenSCENARIO2Parser#coverageDeclaration.
+    # Exit a parse tree produced by OpenSCENARIO2Parser#coverageDeclaration.
     def exitCoverageDeclaration(self, ctx: OpenSCENARIO2Parser.CoverageDeclarationContext):
         pass
 

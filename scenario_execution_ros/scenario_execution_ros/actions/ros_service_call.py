@@ -31,6 +31,7 @@ class ServiceCallActionState(Enum):
     """
     States for executing a service call
     """
+
     IDLE = 1
     SERVICE_CALLED = 2
     DONE = 3
@@ -66,8 +67,7 @@ class RosServiceCall(BaseAction):
         try:
             self.node: Node = kwargs['node']
         except KeyError as e:
-            error_message = "didn't find 'node' in setup's kwargs [{}][{}]".format(
-                self.name, self.__class__.__name__)
+            error_message = "didn't find 'node' in setup's kwargs [{}][{}]".format(self.name, self.__class__.__name__)
             raise ActionError(error_message, action=self) from e
 
         self.service_type = get_ros_message_type(self.service_type_str)
@@ -81,11 +81,7 @@ class RosServiceCall(BaseAction):
             qos_profile.durability = DurabilityPolicy.TRANSIENT_LOCAL
             client_kwargs["qos_profile"] = qos_profile
 
-        self.client = self.node.create_client(
-            self.service_type,
-            self.service_name,
-            **client_kwargs
-        )
+        self.client = self.node.create_client(self.service_type, self.service_name, **client_kwargs)
 
     def execute(self, data: str, response_variable: str = "", response_member_name: str = ""):
         self.result_message = None
@@ -133,7 +129,7 @@ class RosServiceCall(BaseAction):
 
         return result
 
-    def get_feedback_message(self) -> str: # pylint: disable=too-many-return-statements
+    def get_feedback_message(self) -> str:  # pylint: disable=too-many-return-statements
         """
         Get feedback message
         """
@@ -161,7 +157,7 @@ class RosServiceCall(BaseAction):
             result = self.check_response(future.result())
             # Support both bool and tuple (bool, result_message) return types
             if isinstance(result, tuple):
-                success, error_msg = result # pylint: disable=unpacking-non-sequence
+                success, error_msg = result  # pylint: disable=unpacking-non-sequence
                 if success:
                     self.current_state = ServiceCallActionState.DONE
                 else:

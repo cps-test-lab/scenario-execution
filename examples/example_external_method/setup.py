@@ -25,8 +25,7 @@ setup(
     version='1.5.0',
     packages=find_namespace_packages(),
     data_files=[
-        ('share/ament_index/resource_index/packages',
-            ['resource/' + PACKAGE_NAME]),
+        ('share/ament_index/resource_index/packages', ['resource/' + PACKAGE_NAME]),
         (os.path.join('share', PACKAGE_NAME, 'scenarios'), glob('scenarios/*.osc')),
     ],
     install_requires=['setuptools'],

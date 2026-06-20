@@ -30,6 +30,7 @@ from simulation_interfaces.msg import Result
 
 os.environ["PYTHONUNBUFFERED"] = '1'
 
+
 class TestDeleteEntity(unittest.TestCase):
     # pylint: disable=missing-function-docstring
 

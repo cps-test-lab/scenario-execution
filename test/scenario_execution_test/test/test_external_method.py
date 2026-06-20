@@ -30,8 +30,7 @@ class TestCheckData(unittest.TestCase):
 
     def setUp(self) -> None:
         self.parser = OpenScenario2Parser(Logger('test', False))
-        self.scenario_execution = ScenarioExecution(debug=False, log_model=False, live_tree=False,
-                                                    scenario_file="test.osc", output_dir=None)
+        self.scenario_execution = ScenarioExecution(debug=False, log_model=False, live_tree=False, scenario_file="test.osc", output_dir=None)
         self.tmp_file = tempfile.NamedTemporaryFile()
         self.tree = py_trees.composites.Sequence(name="", memory=True)
         self.tmp_file = tempfile.NamedTemporaryFile()
@@ -54,7 +53,7 @@ action store_action:
     
 scenario test:
     do store_action('""" + self.tmp_file.name + """', lib.test(1, "foo"))
-"""
+"""  # fmt: skip
         self.execute(scenario_content)
         self.assertTrue(self.scenario_execution.process_results())
         with open(self.tmp_file.name) as f:
@@ -72,7 +71,7 @@ action store_action:
     
 scenario test:
     do store_action('""" + self.tmp_file.name + """', lib.test(n: 1, text: "foo"))
-"""
+"""  # fmt: skip
         self.execute(scenario_content)
         self.assertTrue(self.scenario_execution.process_results())
         with open(self.tmp_file.name) as f:
@@ -90,7 +89,7 @@ action store_action:
     
 scenario test:
     do store_action('""" + self.tmp_file.name + """', lib.test(n: 1, UNKNOWN: "foo"))
-"""
+"""  # fmt: skip
         parsed_tree = self.parser.parse_input_stream(InputStream(scenario_content))
         model = self.parser.create_internal_model(parsed_tree, self.tree, "test.osc", False)
         self.tree = create_py_tree(model, self.tree, self.parser.logger, False)
@@ -108,7 +107,7 @@ action store_action:
     
 scenario test:
     do store_action('""" + self.tmp_file.name + """', lib.test())
-"""
+"""  # fmt: skip
         self.execute(scenario_content)
         self.assertTrue(self.scenario_execution.process_results())
         with open(self.tmp_file.name) as f:
@@ -126,7 +125,7 @@ action store_action:
     
 scenario test:
     do store_action('""" + self.tmp_file.name + """', lib.test(99, "foo"))
-"""
+"""  # fmt: skip
         parsed_tree = self.parser.parse_input_stream(InputStream(scenario_content))
         model = self.parser.create_internal_model(parsed_tree, self.tree, "test.osc", False)
         self.tree = create_py_tree(model, self.tree, self.parser.logger, False)
@@ -148,7 +147,7 @@ action store_action:
     
 scenario test:
     do store_action('""" + self.tmp_file.name + """', lib.test_dict(test_struct(mem1: 1, mem2: "bar")))
-"""
+"""  # fmt: skip
         self.execute(scenario_content)
         self.assertTrue(self.scenario_execution.process_results())
         with open(self.tmp_file.name) as f:
@@ -170,7 +169,7 @@ action store_action:
     
 scenario test:
     do store_action('""" + self.tmp_file.name + """', ['test', lib.test_dict(test_struct(mem1: 1, mem2: "bar")), 'prefix' + lib.test_dict(test_struct(mem1: 2, mem2: "foo"))])
-"""
+"""  # fmt: skip
         self.execute(scenario_content)
         self.assertTrue(self.scenario_execution.process_results())
         with open(self.tmp_file.name) as f:

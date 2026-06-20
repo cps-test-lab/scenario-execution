@@ -71,8 +71,7 @@ class DockerCopy(BaseAction):
 
         if self.current_state == CopyStatus.FOUND_CONTAINER:
             try:
-                self.result_data, _ = self.container_object.get_archive(
-                    path=self.file_path)
+                self.result_data, _ = self.container_object.get_archive(path=self.file_path)
                 self.current_state = CopyStatus.COPYING
                 self.feedback_message = f"Copying data from path {self.file_path} in container {self.container} to {self.output_dir}"  # pylint: disable= attribute-defined-outside-init
             except docker.errors.APIError as e:
@@ -93,7 +92,9 @@ class DockerCopy(BaseAction):
                 return py_trees.common.Status.FAILURE
 
         if self.current_state == CopyStatus.DONE:
-            self.feedback_message = f"Finished copying of data from path {self.file_path} to {self.output_dir}"  # pylint: disable= attribute-defined-outside-init
+            self.feedback_message = (
+                f"Finished copying of data from path {self.file_path} to {self.output_dir}"  # pylint: disable= attribute-defined-outside-init
+            )
             return py_trees.common.Status.SUCCESS
 
         return py_trees.common.Status.RUNNING

@@ -31,9 +31,11 @@ class SimRun(BaseAction):
             tick_period: float = kwargs['tick_period']
         except KeyError as e:
             raise ActionError("didn't find 'tick_period' in setup's kwargs", action=self) from e
-        if not math.isclose(240 % tick_period, 0., abs_tol=1e-4):
+        if not math.isclose(240 % tick_period, 0.0, abs_tol=1e-4):
             raise ActionError(
-                f"Scenario Execution Tick Period of {tick_period} is not compatible with PyBullet stepping. Please set step-duration to be a multiple of 1/240s", action=self)
+                f"Scenario Execution Tick Period of {tick_period} is not compatible with PyBullet stepping. Please set step-duration to be a multiple of 1/240s",
+                action=self,
+            )
         self.sim_steps_per_tick = round(240 * tick_period)
         self.logger.info(f"Forward simulation by {self.sim_steps_per_tick} step per scenario tick.")
 

@@ -16,11 +16,13 @@
 
 from scenario_execution.scenario_execution_base import ScenarioExecutionConfig
 
+
 def get_scenario_file_directory():
     """
     Returns the directory where scenario files are stored.
     """
     return ScenarioExecutionConfig().scenario_file_directory
+
 
 def get_output_directory():
     """

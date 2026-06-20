@@ -25,11 +25,10 @@ setup(
     version='1.5.0',
     packages=find_namespace_packages(),
     data_files=[
-        ('share/ament_index/resource_index/packages',
-            ['resource/' + PACKAGE_NAME]),
+        ('share/ament_index/resource_index/packages', ['resource/' + PACKAGE_NAME]),
         ('share/' + PACKAGE_NAME, ['package.xml']),
         (os.path.join('share', PACKAGE_NAME, 'scenarios'), glob('scenarios/*.osc')),
-        (os.path.join('share', PACKAGE_NAME, 'launch'), glob('launch/*launch.py'))
+        (os.path.join('share', PACKAGE_NAME, 'launch'), glob('launch/*launch.py')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -51,6 +50,6 @@ setup(
         ],
         'scenario_execution.osc_libraries': [
             'kubernetes = scenario_execution_kubernetes.get_osc_library:get_kubernetes_library',
-        ]
+        ],
     },
 )

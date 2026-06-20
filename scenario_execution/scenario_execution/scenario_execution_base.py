@@ -128,7 +128,7 @@ class LastSnapshotVisitor(py_trees.visitors.DisplaySnapshotVisitor):
                 show_only_visited=self.display_only_visited_behaviours,
                 show_status=False,
                 visited=self.visited,
-                previously_visited=self.previously_visited
+                previously_visited=self.previously_visited,
             )
 
 
@@ -139,23 +139,25 @@ class ScenarioExecution(object):
     This class can also be executed standalone
     """
 
-    def __init__(self,
-                 debug: bool,
-                 log_model: bool,
-                 live_tree: bool,
-                 scenario_file: str,
-                 output_dir: str,
-                 dry_run=False,
-                 render_dot=False,
-                 setup_timeout=py_trees.common.Duration.INFINITE,
-                 tick_period: float = 0.1,
-                 scenario_parameter_file=None,
-                 create_scenario_parameter_file_template=None,
-                 post_run=None,
-                 logger=None,
-                 register_signal=True,
-                 simulation=None,
-                 output_result_per_scenario: bool = False) -> None:
+    def __init__(
+        self,
+        debug: bool,
+        log_model: bool,
+        live_tree: bool,
+        scenario_file: str,
+        output_dir: str,
+        dry_run=False,
+        render_dot=False,
+        setup_timeout=py_trees.common.Duration.INFINITE,
+        tick_period: float = 0.1,
+        scenario_parameter_file=None,
+        create_scenario_parameter_file_template=None,
+        post_run=None,
+        logger=None,
+        register_signal=True,
+        simulation=None,
+        output_result_per_scenario: bool = False,
+    ) -> None:
 
         def signal_handler(sig, frame):
             self.on_scenario_shutdown(False, "Aborted")
@@ -176,7 +178,7 @@ class ScenarioExecution(object):
         self.dry_run = dry_run
         self.render_dot = render_dot
         self.post_run = []
-        for cmd in (post_run or []):
+        for cmd in post_run or []:
             if not os.path.isfile(cmd):
                 raise ValueError(f"Post-run command '{cmd}' does not exist.")
             if not os.access(cmd, os.X_OK):
@@ -252,19 +254,13 @@ class ScenarioExecution(object):
         if self.debug:
             self.behaviour_tree.add_visitor(py_trees.visitors.DebugVisitor())
         if self.live_tree:
-            self.behaviour_tree.add_visitor(
-                py_trees.visitors.DisplaySnapshotVisitor(
-                    display_blackboard=True
-                ))
+            self.behaviour_tree.add_visitor(py_trees.visitors.DisplaySnapshotVisitor(display_blackboard=True))
         input_dir = None
         if self.scenario_file:
             input_dir = os.path.dirname(self.scenario_file)
-        self.behaviour_tree.setup(timeout=self.setup_timeout,
-                                  logger=self.logger,
-                                  input_dir=input_dir,
-                                  output_dir=effective_output_dir,
-                                  tick_period=self.tick_period,
-                                  **kwargs)
+        self.behaviour_tree.setup(
+            timeout=self.setup_timeout, logger=self.logger, input_dir=input_dir, output_dir=effective_output_dir, tick_period=self.tick_period, **kwargs
+        )
         self.post_setup()
 
     def setup_behaviour_tree(self, tree):
@@ -298,21 +294,29 @@ class ScenarioExecution(object):
         start = datetime.now()
         file_extension = os.path.splitext(self.scenario_file)[1]
         if file_extension not in ('.osc', '.sce'):
-            self.add_result(ScenarioResult(name=f'Parsing of {self.scenario_file}',
-                                           result=False,
-                                           failure_message="parsing failed",
-                                           failure_output=f"File has unknown extension '{file_extension}'. Allowed [.osc, .sce]",
-                                           processing_time=datetime.now() - start,
-                                           start_time=start))
+            self.add_result(
+                ScenarioResult(
+                    name=f'Parsing of {self.scenario_file}',
+                    result=False,
+                    failure_message="parsing failed",
+                    failure_output=f"File has unknown extension '{file_extension}'. Allowed [.osc, .sce]",
+                    processing_time=datetime.now() - start,
+                    start_time=start,
+                )
+            )
             return False
 
         if not os.path.isfile(self.scenario_file):
-            self.add_result(ScenarioResult(name=f'Parsing of {self.scenario_file}',
-                                           result=False,
-                                           failure_message="parsing failed",
-                                           failure_output="File does not exist",
-                                           processing_time=datetime.now() - start,
-                                           start_time=start))
+            self.add_result(
+                ScenarioResult(
+                    name=f'Parsing of {self.scenario_file}',
+                    result=False,
+                    failure_message="parsing failed",
+                    failure_output="File does not exist",
+                    processing_time=datetime.now() - start,
+                    start_time=start,
+                )
+            )
             return False
 
         if file_extension == '.osc':
@@ -320,16 +324,22 @@ class ScenarioExecution(object):
         else:
             parser = ModelFileLoader(self.logger)
         try:
-            self.scenarios_list = parser.process_file(self.scenario_file, self.log_model, self.debug, self.scenario_parameter_file, self.create_scenario_parameter_file_template)
+            self.scenarios_list = parser.process_file(
+                self.scenario_file, self.log_model, self.debug, self.scenario_parameter_file, self.create_scenario_parameter_file_template
+            )
             if self.create_scenario_parameter_file_template:
                 return True
         except Exception as e:  # pylint: disable=broad-except
-            self.add_result(ScenarioResult(name=f'Parsing of {self.scenario_file}',
-                                           result=False,
-                                           failure_message="parsing failed",
-                                           failure_output=str(e),
-                                           processing_time=datetime.now() - start,
-                                           start_time=start))
+            self.add_result(
+                ScenarioResult(
+                    name=f'Parsing of {self.scenario_file}',
+                    result=False,
+                    failure_message="parsing failed",
+                    failure_output=str(e),
+                    processing_time=datetime.now() - start,
+                    start_time=start,
+                )
+            )
             return False
 
         if self.scenarios_list:
@@ -347,8 +357,7 @@ class ScenarioExecution(object):
 
         multiple_scenarios = len(self.scenarios_list) > 1
         for tree, _, scenario_output_dir_override in self.scenarios_list:
-            effective_output_dir = self._resolve_scenario_output_dir(
-                tree.name, scenario_output_dir_override, multiple_scenarios)
+            effective_output_dir = self._resolve_scenario_output_dir(tree.name, scenario_output_dir_override, multiple_scenarios)
             if effective_output_dir is None and multiple_scenarios and self.output_dir:
                 return  # error already reported via on_scenario_shutdown
             try:
@@ -369,8 +378,7 @@ class ScenarioExecution(object):
                     else:
                         time.sleep(self.tick_period - tick_time)
                     if self.live_tree:
-                        self.logger.debug(py_trees.display.unicode_tree(
-                            root=self.behaviour_tree.root, show_status=True))
+                        self.logger.debug(py_trees.display.unicode_tree(root=self.behaviour_tree.root, show_status=True))
                 except KeyboardInterrupt:
                     self.on_scenario_shutdown(False, "Aborted")
                     return
@@ -404,8 +412,7 @@ class ScenarioExecution(object):
         multiple_scenarios = len(self.scenarios_list) > 1
         try:
             for tree, params, scenario_output_dir_override in self.scenarios_list:
-                effective_output_dir = self._resolve_scenario_output_dir(
-                    tree.name, scenario_output_dir_override, multiple_scenarios)
+                effective_output_dir = self._resolve_scenario_output_dir(tree.name, scenario_output_dir_override, multiple_scenarios)
                 if effective_output_dir is None and multiple_scenarios and self.output_dir:
                     return  # error already reported via on_scenario_shutdown
 
@@ -414,8 +421,7 @@ class ScenarioExecution(object):
                     self.on_scenario_shutdown(
                         False,
                         "Simulation reset parameter mismatch",
-                        f"reset() requires parameter(s) {sorted(missing)} but they are not "
-                        f"defined in the OSC scenario file.",
+                        f"reset() requires parameter(s) {sorted(missing)} but they are not " f"defined in the OSC scenario file.",
                     )
                     return
 
@@ -440,8 +446,7 @@ class ScenarioExecution(object):
                         clock.advance()
                         self.behaviour_tree.tick()
                         if self.live_tree:
-                            self.logger.debug(py_trees.display.unicode_tree(
-                                root=self.behaviour_tree.root, show_status=True))
+                            self.logger.debug(py_trees.display.unicode_tree(root=self.behaviour_tree.root, show_status=True))
                 except KeyboardInterrupt:
                     self.on_scenario_shutdown(False, "Aborted")
                     return
@@ -499,11 +504,10 @@ class ScenarioExecution(object):
             with open(result_file, 'w') as out:
                 out.write('<?xml version="1.0" encoding="utf-8"?>\n')
                 out.write(
-                    f'<testsuite errors="0" failures="{failures}" name="scenario_execution"'
-                    f' tests="{len(results)}" time="{overall_time.total_seconds()}">\n')
+                    f'<testsuite errors="0" failures="{failures}" name="scenario_execution"' f' tests="{len(results)}" time="{overall_time.total_seconds()}">\n'
+                )
                 for res in results:
-                    out.write(
-                        f'  <testcase classname="tests.scenario" name="{res.name}" time="{res.processing_time.total_seconds()}">\n')
+                    out.write(f'  <testcase classname="tests.scenario" name="{res.name}" time="{res.processing_time.total_seconds()}">\n')
                     if res.start_time:
                         out.write(f'    <properties>\n')
                         out.write(f'      <property name="start_time" value="{res.start_time.timestamp():.6f}"/>\n')
@@ -552,8 +556,7 @@ class ScenarioExecution(object):
                         # start_new_session=True puts the child in its own process group
                         # so its grandchildren never get re-parented to scenario-execution
                         # and we can kill the whole group cleanly on timeout.
-                        with subprocess.Popen([cmd, self.output_dir or ""],
-                                              start_new_session=True) as proc:
+                        with subprocess.Popen([cmd, self.output_dir or ""], start_new_session=True) as proc:
                             try:
                                 proc.wait(timeout=600)
                             except subprocess.TimeoutExpired:
@@ -572,8 +575,7 @@ class ScenarioExecution(object):
                                 self.logger.error(f"Post-run '{cmd}' timed out after 600s.")
                                 continue
                             if proc.returncode != 0:
-                                self.logger.error(
-                                    f"Post-run '{cmd}' failed with exit code {proc.returncode}.")
+                                self.logger.error(f"Post-run '{cmd}' failed with exit code {proc.returncode}.")
                     except Exception as e:  # pylint: disable=broad-except
                         self.logger.error(f"Post-run '{cmd}' error: {e}")
         return result
@@ -583,8 +585,7 @@ class ScenarioExecution(object):
         Things to do before a round of ticking
         """
         if self.live_tree:
-            self.logger.debug(
-                f"--------- Scenario {behaviour_tree.root.name}: Run {behaviour_tree.count} ---------")
+            self.logger.debug(f"--------- Scenario {behaviour_tree.root.name}: Run {behaviour_tree.count} ---------")
 
     def post_tick_handler(self, behaviour_tree):
         # Shut down if the root has failed
@@ -614,49 +615,71 @@ class ScenarioExecution(object):
                 failure_output += self.last_snapshot_visitor.last_snapshot
                 if self.log_model:
                     self.logger.error(self.last_snapshot_visitor.last_snapshot)
-            self.add_result(ScenarioResult(name=self.current_scenario.name,
-                                           result=result,
-                                           failure_message=failure_message,
-                                           failure_output=failure_output,
-                                           processing_time=datetime.now()-self.current_scenario_start,
-                                           start_time=self.current_scenario_start,
-                                           output_dir=self.current_scenario_output_dir))
+            self.add_result(
+                ScenarioResult(
+                    name=self.current_scenario.name,
+                    result=result,
+                    failure_message=failure_message,
+                    failure_output=failure_output,
+                    processing_time=datetime.now() - self.current_scenario_start,
+                    start_time=self.current_scenario_start,
+                    output_dir=self.current_scenario_output_dir,
+                )
+            )
         else:
-            self.add_result(ScenarioResult(name="",
-                                           result=result,
-                                           failure_message=failure_message,
-                                           failure_output=failure_output,
-                                           start_time=datetime.now(),
-                                           output_dir=self.current_scenario_output_dir))
+            self.add_result(
+                ScenarioResult(
+                    name="",
+                    result=result,
+                    failure_message=failure_message,
+                    failure_output=failure_output,
+                    start_time=datetime.now(),
+                    output_dir=self.current_scenario_output_dir,
+                )
+            )
 
     @staticmethod
     def get_arg_parser():
         parser = argparse.ArgumentParser()
         parser.add_argument('-d', '--debug', action='store_true', help='debugging output')
-        parser.add_argument('-l', '--log-model', action='store_true',
-                            help='Produce tree output of parsed openscenario2 content')
-        parser.add_argument('-t', '--live-tree', action='store_true',
-                            help='For debugging: Show current state of py tree')
+        parser.add_argument('-l', '--log-model', action='store_true', help='Produce tree output of parsed openscenario2 content')
+        parser.add_argument('-t', '--live-tree', action='store_true', help='For debugging: Show current state of py tree')
         parser.add_argument('-o', '--output-dir', type=str, help='Directory for output (e.g. test results)')
         parser.add_argument('-n', '--dry-run', action='store_true', help='Parse and resolve scenario, but do not execute')
         parser.add_argument('--dot', action='store_true', help='Render dot trees of resulting py-tree')
         parser.add_argument('-s', '--step-duration', type=float, help='Duration between the behavior tree step executions', default=0.1)
-        parser.add_argument('--scenario-parameter-file', type=str,
-                            help='File specifying scenario parameter. These will override default values.')
-        parser.add_argument('--create-scenario-parameter-file-template',action='store_true', help='Command to run to create a scenario parameter file template specified by --scenario-parameter-file')
-        parser.add_argument('--post-run', action='append', dest='post_run', metavar='POST_RUN_COMMAND',
-                            help='Command to run after scenario execution (expected commandline: <command> <output_dir>). Can be specified multiple times; commands are executed in order.')
-        parser.add_argument('--simulation', type=str, metavar='MODULE:CLASS',
-                            help='Step-based simulation interface to use. '
-                                 'Accepts a module path ("module.path:ClassName") or a file path '
-                                 '("path/to/file.py" or "path/to/file.py:ClassName"). '
-                                 'The class must implement SimulationInterface.')
-        parser.add_argument('--output-result-per-scenario', action='store_true', dest='output_result_per_scenario',
-                            help='When multiple scenarios are defined (either in the .osc file or via '
-                                 'multiple --scenario-parameter-file documents), write a separate '
-                                 'test.xml inside each scenario\'s output subdirectory instead of a '
-                                 'single combined test.xml in the root output directory. '
-                                 'Has no effect when only one scenario is executed.')
+        parser.add_argument('--scenario-parameter-file', type=str, help='File specifying scenario parameter. These will override default values.')
+        parser.add_argument(
+            '--create-scenario-parameter-file-template',
+            action='store_true',
+            help='Command to run to create a scenario parameter file template specified by --scenario-parameter-file',
+        )
+        parser.add_argument(
+            '--post-run',
+            action='append',
+            dest='post_run',
+            metavar='POST_RUN_COMMAND',
+            help='Command to run after scenario execution (expected commandline: <command> <output_dir>). Can be specified multiple times; commands are executed in order.',
+        )
+        parser.add_argument(
+            '--simulation',
+            type=str,
+            metavar='MODULE:CLASS',
+            help='Step-based simulation interface to use. '
+            'Accepts a module path ("module.path:ClassName") or a file path '
+            '("path/to/file.py" or "path/to/file.py:ClassName"). '
+            'The class must implement SimulationInterface.',
+        )
+        parser.add_argument(
+            '--output-result-per-scenario',
+            action='store_true',
+            dest='output_result_per_scenario',
+            help='When multiple scenarios are defined (either in the .osc file or via '
+            'multiple --scenario-parameter-file documents), write a separate '
+            'test.xml inside each scenario\'s output subdirectory instead of a '
+            'single combined test.xml in the root output directory. '
+            'Has no effect when only one scenario is executed.',
+        )
         parser.add_argument('scenario', type=str, help='scenario file to execute', nargs='?')
         return parser
 
@@ -703,18 +726,13 @@ def _load_simulation(spec: str, kwargs: dict | None = None):
             sys.exit(1)
     else:
         # Auto-detect: find the first class defined in the module that looks like a simulation
-        candidates = [
-            obj for name, obj in inspect.getmembers(module, inspect.isclass)
-            if obj.__module__ == module.__name__
-        ]
+        candidates = [obj for name, obj in inspect.getmembers(module, inspect.isclass) if obj.__module__ == module.__name__]
         if not candidates:
-            print(f"Error: No classes found in '{path_or_module}'. "
-                  "Specify a class name with 'path/to/file.py:ClassName'.")
+            print(f"Error: No classes found in '{path_or_module}'. " "Specify a class name with 'path/to/file.py:ClassName'.")
             sys.exit(1)
         if len(candidates) > 1:
             names = ', '.join(c.__name__ for c in candidates)
-            print(f"Error: Multiple classes found in '{path_or_module}' ({names}). "
-                  "Specify one with 'path/to/file.py:ClassName'.")
+            print(f"Error: Multiple classes found in '{path_or_module}' ({names}). " "Specify one with 'path/to/file.py:ClassName'.")
             sys.exit(1)
         cls = candidates[0]
 
@@ -734,19 +752,21 @@ def main():
     if args.simulation:
         simulation = _load_simulation(args.simulation)
     try:
-        scenario_execution = ScenarioExecution(debug=args.debug,
-                                               log_model=args.log_model,
-                                               live_tree=args.live_tree,
-                                               scenario_file=args.scenario,
-                                               output_dir=args.output_dir,
-                                               dry_run=args.dry_run,
-                                               render_dot=args.dot,
-                                               tick_period=args.step_duration,
-                                               scenario_parameter_file=args.scenario_parameter_file,
-                                               create_scenario_parameter_file_template=args.create_scenario_parameter_file_template,
-                                               post_run=args.post_run,
-                                               simulation=simulation,
-                                               output_result_per_scenario=args.output_result_per_scenario)
+        scenario_execution = ScenarioExecution(
+            debug=args.debug,
+            log_model=args.log_model,
+            live_tree=args.live_tree,
+            scenario_file=args.scenario,
+            output_dir=args.output_dir,
+            dry_run=args.dry_run,
+            render_dot=args.dot,
+            tick_period=args.step_duration,
+            scenario_parameter_file=args.scenario_parameter_file,
+            create_scenario_parameter_file_template=args.create_scenario_parameter_file_template,
+            post_run=args.post_run,
+            simulation=simulation,
+            output_result_per_scenario=args.output_result_per_scenario,
+        )
     except ValueError as e:
         print(f"Error while initializing: {e}")
         sys.exit(1)

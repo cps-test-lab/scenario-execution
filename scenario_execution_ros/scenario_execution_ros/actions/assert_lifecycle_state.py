@@ -54,13 +54,13 @@ class AssertLifecycleState(BaseAction):
         try:
             self.node: Node = kwargs['node']
         except KeyError as e:
-            error_message = "didn't find 'node' in setup's kwargs [{}][{}]".format(
-                self.name, self.__class__.__name__)
+            error_message = "didn't find 'node' in setup's kwargs [{}][{}]".format(self.name, self.__class__.__name__)
             raise ActionError(error_message, action=self) from e
 
         topic_transition_event_name = "/" + self.node_name + "/transition_event"
         self.subscription = self.node.create_subscription(
-            TransitionEvent, topic_transition_event_name, self.lifecycle_callback, qos_profile=get_qos_preset_profile(['system_default']))
+            TransitionEvent, topic_transition_event_name, self.lifecycle_callback, qos_profile=get_qos_preset_profile(['system_default'])
+        )
 
         service_get_state_name = "/" + self.node_name + "/get_state"
         self.client = self.node.create_client(GetState, service_get_state_name)

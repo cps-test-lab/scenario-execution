@@ -124,13 +124,17 @@ class KubernetesPodExec(BaseAction):
         return py_trees.common.Status.FAILURE
 
     def pod_exec(self):
-        resp = stream.stream(self.client.connect_get_namespaced_pod_exec,
-                             self.pod_name,
-                             self.namespace,
-                             command=self.command,
-                             stderr=True, stdin=False,
-                             stdout=True, tty=False,
-                             _preload_content=False)
+        resp = stream.stream(
+            self.client.connect_get_namespaced_pod_exec,
+            self.pod_name,
+            self.namespace,
+            command=self.command,
+            stderr=True,
+            stdin=False,
+            stdout=True,
+            tty=False,
+            _preload_content=False,
+        )
 
         while resp.is_open():
             resp.update(timeout=0.1)

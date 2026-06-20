@@ -41,8 +41,7 @@ class RosTopicMonitor(BaseAction):
         try:
             self.node: rclpy.Node = kwargs['node']
         except KeyError as e:
-            error_message = "didn't find 'node' in setup's kwargs [{}][{}]".format(
-                self.name, self.__class__.__name__)
+            error_message = "didn't find 'node' in setup's kwargs [{}][{}]".format(self.name, self.__class__.__name__)
             raise ActionError(error_message, action=self) from e
 
         msg_type = get_ros_message_type(self.topic_type)
@@ -55,7 +54,7 @@ class RosTopicMonitor(BaseAction):
             topic=self.topic_name,
             callback=self._callback,
             qos_profile=get_qos_preset_profile(self.qos_profile),
-            callback_group=rclpy.callback_groups.ReentrantCallbackGroup()
+            callback_group=rclpy.callback_groups.ReentrantCallbackGroup(),
         )
         self.feedback_message = f"Monitoring data on {self.topic_name}"  # pylint: disable= attribute-defined-outside-init
 

@@ -16,10 +16,12 @@
 
 from .common import get_spawn_pose
 from scenario_execution_ros.actions.ros_service_call import RosServiceCall
+
 try:
     from simulation_interfaces.msg import Result
 except ImportError as e:
     raise ImportError("simulation_interfaces package not found. Please make sure ros-<ROS_DISTRO>-simulation-interfaces is installed and sourced.") from e
+
 
 class SpawnEntity(RosServiceCall):
 
@@ -29,18 +31,15 @@ class SpawnEntity(RosServiceCall):
         self.uri = uri
         self.entity_namespace = entity_namespace
         self.initial_pose = initial_pose
-        super().__init__(service_name='/spawn_entity',
-                         service_type='simulation_interfaces.srv.SpawnEntity')
+        super().__init__(service_name='/spawn_entity', service_type='simulation_interfaces.srv.SpawnEntity')
 
-    def execute(self):   # pylint: disable=arguments-differ,arguments-renamed
+    def execute(self):  # pylint: disable=arguments-differ,arguments-renamed
         data = {
             "name": self.entity_name,
             "allow_renaming": self.allow_renaming,
             "uri": self.uri,
             "entity_namespace": self.entity_namespace,
-            "initial_pose": { 
-                "pose": get_spawn_pose(self, self.initial_pose)
-            }
+            "initial_pose": {"pose": get_spawn_pose(self, self.initial_pose)},
         }
         super().execute(data)
 

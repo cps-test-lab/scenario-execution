@@ -42,11 +42,7 @@ class ScenarioExecutionControlTest(Node):
         self.req = ExecuteScenario.Request()
 
         # Initialize subscriber for scenario status
-        self.subscription = self.create_subscription(
-            ScenarioExecutionStatus,
-            '/scenario_execution_control/status',
-            self.scenario_execution_status_callback,
-            10)
+        self.subscription = self.create_subscription(ScenarioExecutionStatus, '/scenario_execution_control/status', self.scenario_execution_status_callback, 10)
         self.scenario_status = None
         self.future = None
 

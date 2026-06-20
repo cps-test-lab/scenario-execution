@@ -25,10 +25,9 @@ setup(
     version='1.5.0',
     packages=find_packages(exclude=['test']),
     data_files=[
-        ('share/ament_index/resource_index/packages',
-            ['resource/' + PACKAGE_NAME]),
+        ('share/ament_index/resource_index/packages', ['resource/' + PACKAGE_NAME]),
         ('share/' + PACKAGE_NAME, ['package.xml']),
-        (os.path.join('share', PACKAGE_NAME, 'launch'), glob('launch/*launch.py'))
+        (os.path.join('share', PACKAGE_NAME, 'launch'), glob('launch/*launch.py')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,

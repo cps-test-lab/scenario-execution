@@ -37,24 +37,21 @@ def generate_launch_description():
     navigation = LaunchConfiguration('navigation')
     scenario = LaunchConfiguration('scenario')
     scenario_execution = LaunchConfiguration('scenario_execution')
-    arg_navigation = DeclareLaunchArgument('navigation', default_value='true',
-                                           choices=['true', 'false'],
-                                           description='Whether to start navigation')
-    arg_scenario = DeclareLaunchArgument('scenario',
-                                         description='Scenario file to execute')
+    arg_navigation = DeclareLaunchArgument('navigation', default_value='true', choices=['true', 'false'], description='Whether to start navigation')
+    arg_scenario = DeclareLaunchArgument('scenario', description='Scenario file to execute')
     arg_scenario_execution = DeclareLaunchArgument(
-        'scenario_execution', default_value='true',
-        choices=['true', 'false'],
-        description='Whether to execute scenario execution')
+        'scenario_execution', default_value='true', choices=['true', 'false'], description='Whether to execute scenario execution'
+    )
     world_name = LaunchConfiguration('world_name')
-    arg_world_name = DeclareLaunchArgument('world_name', default_value='default',
-                                           description='Name of Simulation World')
+    arg_world_name = DeclareLaunchArgument('world_name', default_value='default', description='Name of Simulation World')
     map_conf = LaunchConfiguration('map')
-    arg_map = DeclareLaunchArgument('map', default_value=os.path.join(tb4_sim_scenario_dir, 'maps', 'maze.yaml'),
-                                    description='Full path to map yaml file to load')
+    arg_map = DeclareLaunchArgument(
+        'map', default_value=os.path.join(tb4_sim_scenario_dir, 'maps', 'maze.yaml'), description='Full path to map yaml file to load'
+    )
     params_file = LaunchConfiguration('params_file')
-    arg_params_file = DeclareLaunchArgument('params_file', default_value=PathJoinSubstitution([nav2_bringup_dir, 'params', 'nav2_params.yaml']),
-                                            description='nav2 parameter file')
+    arg_params_file = DeclareLaunchArgument(
+        'params_file', default_value=PathJoinSubstitution([nav2_bringup_dir, 'params', 'nav2_params.yaml']), description='nav2 parameter file'
+    )
     x, y, z = LaunchConfiguration('x'), LaunchConfiguration('y'), LaunchConfiguration('z')
     yaw = LaunchConfiguration('yaw')
 
@@ -67,7 +64,7 @@ def generate_launch_description():
             'z_pose': z,
             'yaw': yaw,
             'rviz_config_file': [PathJoinSubstitution([tb4_sim_scenario_dir, 'config', 'tb4_sim_scenario.rviz'])],
-        }.items()
+        }.items(),
     )
 
     nav2_bringup = IncludeLaunchDescription(
@@ -77,14 +74,14 @@ def generate_launch_description():
             'use_sim_time': 'True',
             'params_file': params_file,
             'map': map_conf,
-        }.items()
+        }.items(),
     )
 
     groundtruth_publisher = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(os.path.join(gazebo_tf_publisher_dir, 'launch', 'gazebo_tf_publisher_launch.py')),
         launch_arguments=[
             ('gz_pose_topic', ['/world/', world_name, '/dynamic_pose/info']),
-        ]
+        ],
     )
 
     scenario_exec = IncludeLaunchDescription(
@@ -92,7 +89,7 @@ def generate_launch_description():
         condition=IfCondition(scenario_execution),
         launch_arguments=[
             ('scenario', scenario),
-        ]
+        ],
     )
 
     tf_to_pose = IncludeLaunchDescription(
@@ -100,14 +97,7 @@ def generate_launch_description():
         condition=IfCondition(navigation),
     )
 
-    ld = LaunchDescription([
-        arg_navigation,
-        arg_scenario,
-        arg_scenario_execution,
-        arg_world_name,
-        arg_params_file,
-        arg_map
-    ])
+    ld = LaunchDescription([arg_navigation, arg_scenario, arg_scenario_execution, arg_world_name, arg_params_file, arg_map])
 
     for pose_element in ['x', 'y', 'z', 'yaw']:
         ld.add_action(DeclareLaunchArgument(pose_element, default_value='0.0', description=f'{pose_element} component of the robot pose.'))

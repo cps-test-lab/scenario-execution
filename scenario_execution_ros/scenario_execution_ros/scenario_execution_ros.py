@@ -38,7 +38,9 @@ class ROSScenarioExecution(ScenarioExecution):
         # parse from commandline
         args_without_ros = rclpy.utilities.remove_ros_args(sys.argv[1:])
         arg_parser = ScenarioExecution.get_arg_parser()
-        arg_parser.add_argument('--snapshot-period', type=float, help='How often to publish behavior tree snapshots (default: only on status change)', default=sys.float_info.max)
+        arg_parser.add_argument(
+            '--snapshot-period', type=float, help='How often to publish behavior tree snapshots (default: only on status change)', default=sys.float_info.max
+        )
         args, _ = arg_parser.parse_known_args(args_without_ros)
 
         debug = args.debug
@@ -91,18 +93,20 @@ class ROSScenarioExecution(ScenarioExecution):
         if self.node.get_parameter('snapshot_period').value:
             self.snapshot_period = self.node.get_parameter('snapshot_period').value
         self.logger = RosLogger('scenario_execution_ros', debug)
-        super().__init__(debug=debug,
-                         log_model=log_model,
-                         live_tree=live_tree,
-                         scenario_file=scenario,
-                         output_dir=output_dir,
-                         dry_run=self.dry_run,
-                         render_dot=self.render_dot,
-                         scenario_parameter_file=self.scenario_parameter_file,
-                         create_scenario_parameter_file_template=self.create_scenario_parameter_file_template,
-                         post_run=self.post_run,
-                         output_result_per_scenario=self.output_result_per_scenario,
-                         logger=self.logger)
+        super().__init__(
+            debug=debug,
+            log_model=log_model,
+            live_tree=live_tree,
+            scenario_file=scenario,
+            output_dir=output_dir,
+            dry_run=self.dry_run,
+            render_dot=self.render_dot,
+            scenario_parameter_file=self.scenario_parameter_file,
+            create_scenario_parameter_file_template=self.create_scenario_parameter_file_template,
+            post_run=self.post_run,
+            output_result_per_scenario=self.output_result_per_scenario,
+            logger=self.logger,
+        )
 
     def setup_behaviour_tree(self, tree):
         """
@@ -147,8 +151,7 @@ class ROSScenarioExecution(ScenarioExecution):
         try:
             multiple_scenarios = len(self.scenarios_list) > 1
             for tree, _params, scenario_output_dir_override in self.scenarios_list:
-                effective_output_dir = self._resolve_scenario_output_dir(
-                    tree.name, scenario_output_dir_override, multiple_scenarios)
+                effective_output_dir = self._resolve_scenario_output_dir(tree.name, scenario_output_dir_override, multiple_scenarios)
                 if effective_output_dir is None and multiple_scenarios and self.output_dir:
                     # Directory creation failed; failure already recorded.
                     continue
@@ -177,14 +180,13 @@ class ROSScenarioExecution(ScenarioExecution):
 
         try:
             try:
-                self.setup(tree, current_output_dir=effective_output_dir,
-                           node=self.node, marker_handler=self.marker_handler)
+                self.setup(tree, current_output_dir=effective_output_dir, node=self.node, marker_handler=self.marker_handler)
             except Exception as e:  # pylint: disable=broad-except
                 self.on_scenario_shutdown(False, "Setup failed", f"{e}")
                 return
 
             try:
-                self.behaviour_tree.tick_tock(period_ms=1000. * self.tick_period)
+                self.behaviour_tree.tick_tock(period_ms=1000.0 * self.tick_period)
                 shutdown_done_time = None
                 while rclpy.ok():
                     try:
@@ -201,8 +203,7 @@ class ROSScenarioExecution(ScenarioExecution):
                         if shutdown_done_time is None:
                             shutdown_done_time = time.monotonic()
                         elif time.monotonic() - shutdown_done_time > self.SHUTDOWN_TIMEOUT:
-                            self.logger.warning(
-                                f"Shutdown timed out after {self.SHUTDOWN_TIMEOUT}s waiting for async operations.")
+                            self.logger.warning(f"Shutdown timed out after {self.SHUTDOWN_TIMEOUT}s waiting for async operations.")
                             break
             except Exception as e:  # pylint: disable=broad-except
                 self.on_scenario_shutdown(False, "Run failed", f"{e}")

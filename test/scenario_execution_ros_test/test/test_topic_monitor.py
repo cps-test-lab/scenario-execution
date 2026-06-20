@@ -84,7 +84,7 @@ scenario test_scenario:
             topic_monitor("/bla", "std_msgs.msg.String", foo.test)
             wait elapsed(2s)
             store_action('""" + self.tmp_file.name + """', foo.test)
-"""
+"""  # fmt: skip
         self.execute(scenario_content)
         self.assertTrue(self.scenario_execution_ros.process_results())
         with open(self.tmp_file.name) as f:
@@ -113,7 +113,7 @@ scenario test_scenario:
             topic_monitor("/bla", "std_msgs.msg.String", foo.test, member_name: "data")
             wait elapsed(2s)
             store_action('""" + self.tmp_file.name + """', foo.test)
-"""
+"""  # fmt: skip
         self.execute(scenario_content)
         self.assertTrue(self.scenario_execution_ros.process_results())
         with open(self.tmp_file.name) as f:
@@ -142,7 +142,7 @@ scenario test_scenario:
             topic_monitor("/bla", "std_msgs.msg.String", foo.test, member_name: "UNKNOWN")
             wait elapsed(2s)
             store_action('""" + self.tmp_file.name + """', foo.test)
-"""
+"""  # fmt: skip
         self.execute(scenario_content)
         self.assertFalse(self.scenario_execution_ros.process_results())
 

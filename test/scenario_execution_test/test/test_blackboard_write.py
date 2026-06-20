@@ -30,8 +30,7 @@ class TestCheckData(unittest.TestCase):
 
     def setUp(self) -> None:
         self.parser = OpenScenario2Parser(Logger('test', False))
-        self.scenario_execution = ScenarioExecution(debug=False, log_model=False, live_tree=False,
-                                                    scenario_file="test.osc", output_dir=None)
+        self.scenario_execution = ScenarioExecution(debug=False, log_model=False, live_tree=False, scenario_file="test.osc", output_dir=None)
         self.tree = py_trees.composites.Sequence(name="", memory=True)
         self.tmp_file = tempfile.NamedTemporaryFile()
 
@@ -64,7 +63,7 @@ scenario test_scenario:
         foo.set_value("two")
         store_action('""" + self.tmp_file.name + """', foo.test)
         wait foo.test == "two"
-"""
+"""  # fmt: skip
         self.execute(scenario_content)
         self.assertTrue(self.scenario_execution.process_results())
         with open(self.tmp_file.name) as f:

@@ -23,15 +23,8 @@ setup(
     name=PACKAGE_NAME,
     version='1.5.0',
     packages=find_namespace_packages(),
-    data_files=[
-        ('share/ament_index/resource_index/packages',
-            ['resource/' + PACKAGE_NAME]),
-        ('share/' + PACKAGE_NAME, ['package.xml'])
-    ],
-    install_requires=[
-        'setuptools',
-        'yaml'
-    ],
+    data_files=[('share/ament_index/resource_index/packages', ['resource/' + PACKAGE_NAME]), ('share/' + PACKAGE_NAME, ['package.xml'])],
+    install_requires=['setuptools', 'yaml'],
     zip_safe=True,
     maintainer='Frederik Pasch',
     maintainer_email='fred-labs@mailbox.org',
@@ -40,12 +33,9 @@ setup(
     tests_require=['pytest'],
     include_package_data=True,
     entry_points={
-        'scenario_execution.actions': [
-            'set_yaml_value = scenario_execution_dataops.actions.set_yaml_value:SetYamlValue'
-        ],
+        'scenario_execution.actions': ['set_yaml_value = scenario_execution_dataops.actions.set_yaml_value:SetYamlValue'],
         'scenario_execution.osc_libraries': [
-            'dataops = '
-            'scenario_execution_dataops.get_osc_library:get_osc_library',
-        ]
+            'dataops = scenario_execution_dataops.get_osc_library:get_osc_library',
+        ],
     },
 )

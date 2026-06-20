@@ -37,17 +37,11 @@ setup(
     version='1.5.0',
     packages=find_namespace_packages(exclude=['test*']),
     data_files=[
-        ('share/ament_index/resource_index/packages',
-            ['resource/' + PACKAGE_NAME]),
+        ('share/ament_index/resource_index/packages', ['resource/' + PACKAGE_NAME]),
         ('share/' + PACKAGE_NAME, ['package.xml']),
-        (os.path.join('share', PACKAGE_NAME, 'launch'), glob('launch/*launch.py'))
+        (os.path.join('share', PACKAGE_NAME, 'launch'), glob('launch/*launch.py')),
     ],
-    install_requires=[
-        'setuptools',
-        'antlr4-python3-runtime==4.9.2',
-        'pyyaml==6.0.1',
-        'py-trees==2.4.0'
-    ],
+    install_requires=['setuptools', 'antlr4-python3-runtime==4.9.2', 'pyyaml==6.0.1', 'py-trees==2.4.0'],
     python_requires='>=3.10',  # uses PEP 604 'X | None' type syntax
     zip_safe=True,
     include_package_data=True,
@@ -94,6 +88,6 @@ setup(
             'standard = scenario_execution.get_osc_library:get_standard_library',
             'types = scenario_execution.get_osc_library:get_types_library',
             'robotics = scenario_execution.get_osc_library:get_robotics_library',
-        ]
+        ],
     },
 )
