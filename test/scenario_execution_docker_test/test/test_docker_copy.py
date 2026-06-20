@@ -31,8 +31,7 @@ class TestDockerCopy(unittest.TestCase):
     def setUp(self) -> None:
         self.parser = OpenScenario2Parser(Logger('test', False))
         self.tmp_dir = tempfile.TemporaryDirectory()
-        self.scenario_execution = ScenarioExecution(debug=False, log_model=False, live_tree=False,
-                                                    scenario_file="test.osc", output_dir=self.tmp_dir.name)
+        self.scenario_execution = ScenarioExecution(debug=False, log_model=False, live_tree=False, scenario_file="test.osc", output_dir=self.tmp_dir.name)
         self.tree = py_trees.composites.Sequence(name="", memory=True)
 
     def tearDown(self):
@@ -63,11 +62,12 @@ scenario test_success:
             check_file_exists(file_name: '""" + self.tmp_dir.name + '/test_dir/test.txt' + """')
             check_file_exists(file_name: '""" + self.tmp_dir.name + '/test_dir/test_1.txt' + """')
             emit end
-""")
+""")  # fmt: skip
         self.assertTrue(self.scenario_execution.process_results())
 
     def test_failure_missing_file(self):
-        self.parse("""
+        self.parse(
+            """
 import osc.docker
 import osc.helpers
 
@@ -77,5 +77,6 @@ scenario test_fail:
         docker_run(image: 'ubuntu', command: 'sleep 5', detach: true, container_name: 'sleeping_beauty_copy_fail', remove: true)
         serial: 
             docker_copy(container: 'sleeping_beauty_copy_fail', file_path:  '/tmp/test_dir/')
-""")
+"""
+        )
         self.assertFalse(self.scenario_execution.process_results())

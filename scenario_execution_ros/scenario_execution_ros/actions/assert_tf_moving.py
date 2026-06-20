@@ -49,8 +49,7 @@ class AssertTfMoving(BaseAction):
         try:
             self.node: Node = kwargs['node']
         except KeyError as e:
-            error_message = "didn't find 'node' in setup's kwargs [{}][{}]".format(
-                self.name, self.__class__.__name__)
+            error_message = "didn't find 'node' in setup's kwargs [{}][{}]".format(self.name, self.__class__.__name__)
             raise ActionError(error_message, action=self) from e
 
         self.tf_buffer = tf2_ros.Buffer()
@@ -64,7 +63,16 @@ class AssertTfMoving(BaseAction):
             tf_static_topic=(tf_prefix + "/tf_static"),
         )
 
-    def execute(self, frame_id: str, parent_frame_id: str, timeout: int, threshold_translation: float, threshold_rotation: float, wait_for_first_transform: bool, use_sim_time: bool):
+    def execute(
+        self,
+        frame_id: str,
+        parent_frame_id: str,
+        timeout: int,
+        threshold_translation: float,
+        threshold_rotation: float,
+        wait_for_first_transform: bool,
+        use_sim_time: bool,
+    ):
         self.frame_id = frame_id
         self.parent_frame_id = parent_frame_id
         self.timeout = timeout
@@ -86,7 +94,9 @@ class AssertTfMoving(BaseAction):
                 self.wait_for_first_transform = False
                 result = py_trees.common.Status.RUNNING
             else:
-                self.feedback_message = f"Waiting for first tranformation {self.parent_frame_id} -> {self.frame_id}"  # pylint: disable= attribute-defined-outside-init
+                self.feedback_message = (
+                    f"Waiting for first tranformation {self.parent_frame_id} -> {self.frame_id}"  # pylint: disable= attribute-defined-outside-init
+                )
                 result = py_trees.common.Status.RUNNING
         elif transform is not None and self.prev_transform is not None:
             delta_time = now - self.timer
@@ -137,7 +147,12 @@ class AssertTfMoving(BaseAction):
         dz = prev_transform.transform.translation.z - transform.transform.translation.z
         translational_speed = math.sqrt(dx**2 + dy**2 + dz**2) / delta_time
 
-        qx1, qy1, qz1, qw1 = prev_transform.transform.rotation.x, prev_transform.transform.rotation.y, prev_transform.transform.rotation.z, prev_transform.transform.rotation.w
+        qx1, qy1, qz1, qw1 = (
+            prev_transform.transform.rotation.x,
+            prev_transform.transform.rotation.y,
+            prev_transform.transform.rotation.z,
+            prev_transform.transform.rotation.w,
+        )
         qx2, qy2, qz2, qw2 = transform.transform.rotation.x, transform.transform.rotation.y, transform.transform.rotation.z, transform.transform.rotation.w
 
         dqx, dqy, dqz, dqw = qx2 - qx1, qy2 - qy1, qz2 - qz1, qw2 - qw1

@@ -24,7 +24,7 @@ from launch.conditions import IfCondition, UnlessCondition
 
 
 def generate_launch_description():
-    """ generate launch description  """
+    """generate launch description"""
     scenario = LaunchConfiguration('scenario')
     debug = LaunchConfiguration('debug')
     live_tree = LaunchConfiguration('live_tree')
@@ -34,42 +34,54 @@ def generate_launch_description():
     output_dir = LaunchConfiguration('output_dir')
     scenario_parameter_file = LaunchConfiguration('scenario_parameter_file')
 
-    return LaunchDescription([
-        DeclareLaunchArgument('scenario', description='Scenario file to execute'),
-        DeclareLaunchArgument('debug', description='Debug output', default_value='False'),
-        DeclareLaunchArgument('live_tree', default_value='False',
-                              description='output live state of scenario'),
-        DeclareLaunchArgument('log_model', default_value='False',
-                              description='log parsed model'),
-        DeclareLaunchArgument('scenario_execution', default_value='True',
-                              description='Wether to execute scenario execution'),
-        DeclareLaunchArgument('log_level', default_value='info',
-                              description='Log level for scenario execution'),
-        DeclareLaunchArgument('output_dir', description='Output directory', default_value=''),
-        DeclareLaunchArgument('scenario_parameter_file', description='Yaml file specifying scenario parameter overrides', default_value=''),
-
-        Node(
-            condition=IfCondition(scenario_execution),
-            package='scenario_execution_ros',
-            executable='scenario_execution_ros',
-            name='scenario_execution',
-            output='screen',
-            additional_env={'PYTHONUNBUFFERED': '1'},
-            arguments=['--ros-args', '--log-level', log_level],
-            parameters=[{
-                'use_sim_time': False,
-                'debug': debug,
-                'live_tree': live_tree,
-                'log_model': log_model,
-                'output_dir': output_dir,
-                'scenario': scenario,
-                'scenario_parameter_file': scenario_parameter_file
-            }],
-            on_exit=Shutdown()),
-
-        # Parse log for message on how to execute scenario separately
-        LogInfo(
-            condition=UnlessCondition(scenario_execution),
-            msg=["Skipping: ros2 launch scenario_execution_ros scenario_launch.py scenario:=",
-                 scenario, ' log_model:=', log_model, ' live_tree:=', live_tree, ' debug:=', debug, ' output_dir:=', output_dir, ' scenario_parameter_file:=', scenario_parameter_file]),
-    ])
+    return LaunchDescription(
+        [
+            DeclareLaunchArgument('scenario', description='Scenario file to execute'),
+            DeclareLaunchArgument('debug', description='Debug output', default_value='False'),
+            DeclareLaunchArgument('live_tree', default_value='False', description='output live state of scenario'),
+            DeclareLaunchArgument('log_model', default_value='False', description='log parsed model'),
+            DeclareLaunchArgument('scenario_execution', default_value='True', description='Wether to execute scenario execution'),
+            DeclareLaunchArgument('log_level', default_value='info', description='Log level for scenario execution'),
+            DeclareLaunchArgument('output_dir', description='Output directory', default_value=''),
+            DeclareLaunchArgument('scenario_parameter_file', description='Yaml file specifying scenario parameter overrides', default_value=''),
+            Node(
+                condition=IfCondition(scenario_execution),
+                package='scenario_execution_ros',
+                executable='scenario_execution_ros',
+                name='scenario_execution',
+                output='screen',
+                additional_env={'PYTHONUNBUFFERED': '1'},
+                arguments=['--ros-args', '--log-level', log_level],
+                parameters=[
+                    {
+                        'use_sim_time': False,
+                        'debug': debug,
+                        'live_tree': live_tree,
+                        'log_model': log_model,
+                        'output_dir': output_dir,
+                        'scenario': scenario,
+                        'scenario_parameter_file': scenario_parameter_file,
+                    }
+                ],
+                on_exit=Shutdown(),
+            ),
+            # Parse log for message on how to execute scenario separately
+            LogInfo(
+                condition=UnlessCondition(scenario_execution),
+                msg=[
+                    "Skipping: ros2 launch scenario_execution_ros scenario_launch.py scenario:=",
+                    scenario,
+                    ' log_model:=',
+                    log_model,
+                    ' live_tree:=',
+                    live_tree,
+                    ' debug:=',
+                    debug,
+                    ' output_dir:=',
+                    output_dir,
+                    ' scenario_parameter_file:=',
+                    scenario_parameter_file,
+                ],
+            ),
+        ]
+    )

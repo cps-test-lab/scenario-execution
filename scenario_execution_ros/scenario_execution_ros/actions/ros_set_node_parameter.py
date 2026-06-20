@@ -34,7 +34,7 @@ class RosSetNodeParameter(RosServiceCall):
             service_name = '/' + service_name
         super().__init__(service_name=service_name, service_type='rcl_interfaces.srv.SetParameters')
 
-    def execute(self, parameter_value: str):   # pylint: disable=arguments-differ,arguments-renamed
+    def execute(self, parameter_value: str):  # pylint: disable=arguments-differ,arguments-renamed
         parameter_type = ParameterType.PARAMETER_STRING
         parameter_assign_name = 'string_value'
         if parameter_value.lower() == 'true' or parameter_value.lower() == 'false':
@@ -65,8 +65,17 @@ class RosSetNodeParameter(RosServiceCall):
                 else:
                     parameter_type = ParameterType.PARAMETER_STRING_ARRAY
                     parameter_assign_name = 'string_array_value'
-        super().execute(data='{ "parameters": [{ "name": "' + self.parameter_name + '", "value": { "type": ' +
-                        str(parameter_type) + ', "' + parameter_assign_name + '": ' + parameter_value + '}}]}')
+        super().execute(
+            data='{ "parameters": [{ "name": "'
+            + self.parameter_name
+            + '", "value": { "type": '
+            + str(parameter_type)
+            + ', "'
+            + parameter_assign_name
+            + '": '
+            + parameter_value
+            + '}}]}'
+        )
 
     @staticmethod
     def is_float(element: any) -> bool:

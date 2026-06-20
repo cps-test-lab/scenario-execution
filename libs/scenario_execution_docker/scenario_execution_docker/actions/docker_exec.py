@@ -33,9 +33,7 @@ class DockerExec(BaseAction):
     Run a command inside a container
     """
 
-    def __init__(self, container: str, command: str,
-                 environment: list, privileged: bool,
-                 user: str, workdir: str):
+    def __init__(self, container: str, command: str, environment: list, privileged: bool, user: str, workdir: str):
         super().__init__()
         self.container = container
         self.command = command
@@ -66,18 +64,10 @@ class DockerExec(BaseAction):
         if self.current_state == ExecutionStatus.FOUND_CONTAINER:
             try:
                 self.execution_instance = self.client.api.exec_create(
-                    self.container_object.id,
-                    self.command,
-                    environment=self.environment,
-                    privileged=self.privileged,
-                    user=self.user,
-                    workdir=self.workdir)
-
-                self.execution_output = self.client.api.exec_start(
-                    self.execution_instance['Id'],
-                    tty=False,
-                    stream=True
+                    self.container_object.id, self.command, environment=self.environment, privileged=self.privileged, user=self.user, workdir=self.workdir
                 )
+
+                self.execution_output = self.client.api.exec_start(self.execution_instance['Id'], tty=False, stream=True)
                 self.current_state = ExecutionStatus.EXECUTING
                 self.feedback_message = f"Executing '{self.command}' in container {self.container}"  # pylint: disable= attribute-defined-outside-init
             except docker.errors.APIError as e:
@@ -87,7 +77,9 @@ class DockerExec(BaseAction):
         if self.current_state == ExecutionStatus.EXECUTING:
             try:
                 log = next(self.execution_output)
-                self.feedback_message = f"Executing '{self.command}' in container {self.container} with output: {log.decode()}"  # pylint: disable= attribute-defined-outside-init
+                self.feedback_message = (
+                    f"Executing '{self.command}' in container {self.container} with output: {log.decode()}"  # pylint: disable= attribute-defined-outside-init
+                )
             except StopIteration:
                 self.current_state = ExecutionStatus.DONE
 
@@ -96,7 +88,9 @@ class DockerExec(BaseAction):
             assert not exit_metadata['Running']
             exit_code = exit_metadata['ExitCode']
             if exit_code == 0:
-                self.feedback_message = f"Finished execution of '{self.command}' in container {self.container}"  # pylint: disable= attribute-defined-outside-init
+                self.feedback_message = (
+                    f"Finished execution of '{self.command}' in container {self.container}"  # pylint: disable= attribute-defined-outside-init
+                )
                 return py_trees.common.Status.SUCCESS
             else:
                 self.feedback_message = f"Execution of '{self.command}' in container {self.container} failed"  # pylint: disable= attribute-defined-outside-init

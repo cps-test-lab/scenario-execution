@@ -21,7 +21,28 @@ from py_trees.common import Access, Status
 from importlib.metadata import entry_points
 import inspect
 
-from scenario_execution.model.types import KeepConstraintDeclaration, visit_expression, ActionDeclaration, BinaryExpression, EventReference, Expression, FunctionApplicationExpression, ModifierInvocation, ScenarioDeclaration, DoMember, WaitDirective, EmitDirective, BehaviorInvocation, EventCondition, EventDeclaration, RelationExpression, LogicalExpression, ElapsedExpression, PhysicalLiteral, ModifierDeclaration
+from scenario_execution.model.types import (
+    KeepConstraintDeclaration,
+    visit_expression,
+    ActionDeclaration,
+    BinaryExpression,
+    EventReference,
+    Expression,
+    FunctionApplicationExpression,
+    ModifierInvocation,
+    ScenarioDeclaration,
+    DoMember,
+    WaitDirective,
+    EmitDirective,
+    BehaviorInvocation,
+    EventCondition,
+    EventDeclaration,
+    RelationExpression,
+    LogicalExpression,
+    ElapsedExpression,
+    PhysicalLiteral,
+    ModifierDeclaration,
+)
 from scenario_execution.clock_behaviors import ClockTimer, ClockTimeout
 from scenario_execution.model.model_base_visitor import ModelBaseVisitor
 from scenario_execution.model.error import OSC2ParsingError
@@ -148,8 +169,7 @@ class ModelToPyTree(object):
 
             self.__cur_behavior.name = scenario_name
 
-            self.blackboard = self.__cur_behavior.attach_blackboard_client(
-                name="ModelToPyTree")
+            self.blackboard = self.__cur_behavior.attach_blackboard_client(name="ModelToPyTree")
 
             super().visit_scenario_declaration(node)
 
@@ -188,19 +208,16 @@ class ModelToPyTree(object):
                 scenario_elem = node
                 while scenario_elem is not None and not isinstance(scenario_elem, ScenarioDeclaration):
                     scenario_elem = scenario_elem.get_parent()
-                self.__cur_behavior.add_child(TopicPublish(
-                    name=f"emit {node.event_name}", key=f"/{scenario_elem.name}/{node.event_name}", msg=True))
+                self.__cur_behavior.add_child(TopicPublish(name=f"emit {node.event_name}", key=f"/{scenario_elem.name}/{node.event_name}", msg=True))
             else:
                 qualified_name = node.event.get_qualified_name()
-                self.__cur_behavior.add_child(TopicPublish(
-                    name=f"emit {node.event_name}", key=qualified_name, msg=True))
+                self.__cur_behavior.add_child(TopicPublish(name=f"emit {node.event_name}", key=qualified_name, msg=True))
 
         def compare_method_arguments(self, method, expected_args, behavior_name, node):
             method_args = inspect.getfullargspec(method).args
 
             if "self" not in method_args:
-                raise OSC2ParsingError(
-                    msg=f'Plugin {behavior_name} {method.__name__} method is missing argument "self".', context=node.get_ctx())
+                raise OSC2ParsingError(msg=f'Plugin {behavior_name} {method.__name__} method is missing argument "self".', context=node.get_ctx())
 
             unexpected_args = []
             missing_args = copy.copy(expected_args)
@@ -212,8 +229,18 @@ class ModelToPyTree(object):
             return method_args, unexpected_args, missing_args
 
         def create_decorator(self, node: ModifierDeclaration, resolved_values):
-            available_modifiers = ["repeat", "inverter", "timeout", "retry", "failure_is_running", "failure_is_success",
-                                   "running_is_failure", "running_is_success", "success_is_failure", "success_is_running"]
+            available_modifiers = [
+                "repeat",
+                "inverter",
+                "timeout",
+                "retry",
+                "failure_is_running",
+                "failure_is_success",
+                "running_is_failure",
+                "running_is_success",
+                "success_is_failure",
+                "success_is_running",
+            ]
             if node.name not in available_modifiers:
                 # fall back to installed modifier plugins
                 modifier_eps = entry_points(group='scenario_execution.modifiers')
@@ -234,11 +261,11 @@ class ModelToPyTree(object):
                             self.__cur_behavior.parent = instance
                             self.tree = instance
                         else:
-                            raise OSC2ParsingError(
-                                msg=f'Modifier "{node.name}" found at unsupported location.', context=node.get_ctx())
+                            raise OSC2ParsingError(msg=f'Modifier "{node.name}" found at unsupported location.', context=node.get_ctx())
                         return
                 raise OSC2ParsingError(
-                    msg=f'Unknown modifier "{node.name}". Available built-in modifiers: {available_modifiers}. No plugin found either.', context=node.get_ctx())
+                    msg=f'Unknown modifier "{node.name}". Available built-in modifiers: {available_modifiers}. No plugin found either.', context=node.get_ctx()
+                )
             parent = self.__cur_behavior.parent
             if parent:
                 parent.children.remove(self.__cur_behavior)
@@ -275,8 +302,7 @@ class ModelToPyTree(object):
                 self.__cur_behavior.parent = instance
                 self.tree = instance
             else:
-                raise OSC2ParsingError(
-                    msg=f'Modifier "{node.name}" found at unsupported location.', context=node.get_ctx())
+                raise OSC2ParsingError(msg=f'Modifier "{node.name}" found at unsupported location.', context=node.get_ctx())
 
         def visit_behavior_invocation(self, node: BehaviorInvocation):
             if isinstance(node.behavior, ModifierDeclaration):
@@ -295,26 +321,17 @@ class ModelToPyTree(object):
                     if entry_point.name == behavior_name:
                         available_plugins.append(entry_point)
                 if not available_plugins:
-                    raise OSC2ParsingError(
-                        msg=f'No plugins found for action "{behavior_name}".',
-                        context=node.get_ctx()
-                    )
+                    raise OSC2ParsingError(msg=f'No plugins found for action "{behavior_name}".', context=node.get_ctx())
                 if len(available_plugins) > 1:
                     self.logger.error(f'More than one plugin is found for "{behavior_name}".')
                     for available_plugin in available_plugins:
-                        self.logger.error(
-                            f'Found available plugin for "{behavior_name}" '
-                            f'in module "{available_plugin.module_name}".')
-                    raise OSC2ParsingError(
-                        msg=f'More than one plugin is found for "{behavior_name}".',
-                        context=node.get_ctx()
-                    )
+                        self.logger.error(f'Found available plugin for "{behavior_name}" ' f'in module "{available_plugin.module_name}".')
+                    raise OSC2ParsingError(msg=f'More than one plugin is found for "{behavior_name}".', context=node.get_ctx())
                 behavior_cls = available_plugins[0].load()
 
-                if not issubclass(behavior_cls, BaseAction) and not issubclass(behavior_cls, BaseActionSubtree) :
+                if not issubclass(behavior_cls, BaseAction) and not issubclass(behavior_cls, BaseActionSubtree):
                     raise OSC2ParsingError(
-                        msg=f"Found plugin for '{behavior_name}', but it's not derived from BaseAction or BaseActionSubtree.",
-                        context=node.get_ctx()
+                        msg=f"Found plugin for '{behavior_name}', but it's not derived from BaseAction or BaseActionSubtree.", context=node.get_ctx()
                     )
 
                 expected_args = ["self"]
@@ -330,36 +347,43 @@ class ModelToPyTree(object):
                     # - __init__(self)
                     # - __init__(self, resolve_variable_reference_arguments_in_execute)
                     # - __init__(self, <some-or-all-osc-defined-args>)
-                    init_args, unexpected_args, args_not_in_init = self.compare_method_arguments(
-                        init_method, expected_args, behavior_name, node)
-                    if init_args != ["self"] and \
-                            init_args != ["self", "resolve_variable_reference_arguments_in_execute"] and \
-                            not all(x in expected_args for x in init_args):
+                    init_args, unexpected_args, args_not_in_init = self.compare_method_arguments(init_method, expected_args, behavior_name, node)
+                    if (
+                        init_args != ["self"]
+                        and init_args != ["self", "resolve_variable_reference_arguments_in_execute"]
+                        and not all(x in expected_args for x in init_args)
+                    ):
                         raise OSC2ParsingError(
                             msg=f'Plugin {behavior_name}: __init__() either only has "self" argument and osc-defined arguments. Unexpected args: {", ".join(unexpected_args)}\n'
-                                f'expected definition with all arguments: {expected_args}', context=node.get_ctx()
+                            f'expected definition with all arguments: {expected_args}',
+                            context=node.get_ctx(),
                         )
                 execute_method = getattr(behavior_cls, "execute", None)
                 if execute_method is None:
                     if args_not_in_init:
                         raise OSC2ParsingError(
-                            msg=f'Plugin {behavior_name}: execute() required, but not defined. Required arguments (i.e. not defined in __init__()): {", ".join(args_not_in_init)}.', context=node.get_ctx())
+                            msg=f'Plugin {behavior_name}: execute() required, but not defined. Required arguments (i.e. not defined in __init__()): {", ".join(args_not_in_init)}.',
+                            context=node.get_ctx(),
+                        )
                 else:
                     expected_execute_args = copy.deepcopy(args_not_in_init)
                     expected_execute_args.append("self")
                     if node.actor:
                         expected_execute_args.append("associated_actor")
-                    _, unexpected_execute_args, missing_execute_args = self.compare_method_arguments(
-                        execute_method, expected_execute_args, behavior_name, node)
+                    _, unexpected_execute_args, missing_execute_args = self.compare_method_arguments(execute_method, expected_execute_args, behavior_name, node)
                     if missing_execute_args:
                         raise OSC2ParsingError(
-                            msg=f'Plugin {behavior_name}: execute() is missing arguments: {", ".join(missing_execute_args)}. Either specify in __init__() or execute().', context=node.get_ctx())
+                            msg=f'Plugin {behavior_name}: execute() is missing arguments: {", ".join(missing_execute_args)}. Either specify in __init__() or execute().',
+                            context=node.get_ctx(),
+                        )
                     if unexpected_execute_args:
                         error = ""
                         if any(x in init_args for x in unexpected_execute_args):
                             error = " osc2 arguments, that are consumed in __init__() are not allowed to be used in execute() again. Please either remove argument(s) from __init__() or execute()."
                         raise OSC2ParsingError(
-                            msg=f'Plugin {behavior_name}: execute() has unexpected arguments: {", ".join(unexpected_execute_args)}.{error}', context=node.get_ctx())
+                            msg=f'Plugin {behavior_name}: execute() has unexpected arguments: {", ".join(unexpected_execute_args)}.{error}',
+                            context=node.get_ctx(),
+                        )
 
                 # initialize plugin instance
                 action_name = node.name
@@ -390,7 +414,7 @@ class ModelToPyTree(object):
                 self.__cur_behavior = instance
                 super().visit_behavior_invocation(node)
 
-		# For BaseActionSubtree, check create_subtree method instead of execute
+                # For BaseActionSubtree, check create_subtree method instead of execute
                 create_subtree_method = getattr(behavior_cls, "create_subtree", None)
                 if issubclass(behavior_cls, BaseActionSubtree) and create_subtree_method is not None:
                     create_subtree_method(self.__cur_behavior)
@@ -410,8 +434,7 @@ class ModelToPyTree(object):
                     elapsed_condition = self.visit_elapsed_expression(child)
                     expression = ClockTimer(name=f"wait {elapsed_condition}s", duration=float(elapsed_condition))
                 else:
-                    raise OSC2ParsingError(
-                        msg=f'Invalid event condition {child}', context=node.get_ctx())
+                    raise OSC2ParsingError(msg=f'Invalid event condition {child}', context=node.get_ctx())
             return expression
 
         def visit_relation_expression(self, node: RelationExpression):
@@ -430,15 +453,14 @@ class ModelToPyTree(object):
 
             if not elem:
                 raise OSC2ParsingError(
-                    msg=f'Elapsed expression currently only supports PhysicalLiteral and FunctionApplicationExpression.', context=node.get_ctx())
+                    msg=f'Elapsed expression currently only supports PhysicalLiteral and FunctionApplicationExpression.', context=node.get_ctx()
+                )
 
             return elem.get_resolved_value()
 
         def visit_event_declaration(self, node: EventDeclaration):
             if node.name in ['start', 'end', 'fail']:
-                raise OSC2ParsingError(
-                    msg=f'EventDeclaration uses reserved name {node.name}.', context=node.get_ctx()
-                )
+                raise OSC2ParsingError(msg=f'EventDeclaration uses reserved name {node.name}.', context=node.get_ctx())
             else:
                 qualified_name = node.get_qualified_name()
                 client = self.__cur_behavior.attach_blackboard_client()

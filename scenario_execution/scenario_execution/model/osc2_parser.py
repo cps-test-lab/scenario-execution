@@ -27,7 +27,24 @@ from scenario_execution.osc2_parsing.OpenSCENARIO2Parser import OpenSCENARIO2Par
 from scenario_execution.osc2_parsing.OpenSCENARIO2Lexer import OpenSCENARIO2Lexer
 from scenario_execution.model.error import OSC2ParsingError
 from scenario_execution.model.model_builder import ModelBuilder
-from scenario_execution.model.types import print_tree, ScenarioDeclaration, ParameterDeclaration, StringLiteral, FloatLiteral, BoolLiteral, IntegerLiteral, PhysicalTypeDeclaration, PhysicalLiteral, StructDeclaration, FunctionApplicationExpression, IdentifierReference, NamedArgument, PositionalArgument, Type, ListExpression
+from scenario_execution.model.types import (
+    print_tree,
+    ScenarioDeclaration,
+    ParameterDeclaration,
+    StringLiteral,
+    FloatLiteral,
+    BoolLiteral,
+    IntegerLiteral,
+    PhysicalTypeDeclaration,
+    PhysicalLiteral,
+    StructDeclaration,
+    FunctionApplicationExpression,
+    IdentifierReference,
+    NamedArgument,
+    PositionalArgument,
+    Type,
+    ListExpression,
+)
 from scenario_execution.model.model_to_py_tree import create_py_tree
 from scenario_execution.model.model_resolver import resolve_internal_model
 from scenario_execution.model.model_blackboard import create_py_tree_blackboard
@@ -35,15 +52,17 @@ import py_trees
 
 
 class OpenScenario2Parser(object):
-    """ Helper class for parsing openscenario 2 files """
+    """Helper class for parsing openscenario 2 files"""
 
     def __init__(self, logger) -> None:
         self.logger = logger
         self.parsed_files = []
         self.scenario_params = {}
 
-    def process_file(self, file, log_model: bool = False, debug: bool = False, scenario_parameter_file: str = None, create_scenario_parameter_file_template: bool = False):
-        """ Convenience method to execute the parsing and print out tree.
+    def process_file(
+        self, file, log_model: bool = False, debug: bool = False, scenario_parameter_file: str = None, create_scenario_parameter_file_template: bool = False
+    ):
+        """Convenience method to execute the parsing and print out tree.
 
         Returns a list of (py_tree, params) tuples — one entry per (scenario × override
         document).  If ``scenario_parameter_file`` contains a single YAML document (or is
@@ -93,19 +112,15 @@ class OpenScenario2Parser(object):
                     if isinstance(params, dict) and '_output_dir' in params:
                         scenario_output_dir = params['_output_dir']
                         if not isinstance(scenario_output_dir, str):
-                            raise ValueError(
-                                f"_output_dir for scenario '{scenario_name}' must be a string, "
-                                f"got: {type(scenario_output_dir).__name__}")
+                            raise ValueError(f"_output_dir for scenario '{scenario_name}' must be a string, " f"got: {type(scenario_output_dir).__name__}")
                         if not os.path.isabs(scenario_output_dir):
                             norm = os.path.normpath(scenario_output_dir)
                             if norm.split(os.sep)[0] == '..':
                                 raise ValueError(
-                                    f"_output_dir for scenario '{scenario_name}' must not escape the "
-                                    f"output directory: '{scenario_output_dir}'")
+                                    f"_output_dir for scenario '{scenario_name}' must not escape the " f"output directory: '{scenario_output_dir}'"
+                                )
                         override_output_dirs[scenario_name] = scenario_output_dir
-                        cleaned_override_doc[scenario_name] = {
-                            k: v for k, v in params.items() if k != '_output_dir'
-                        }
+                        cleaned_override_doc[scenario_name] = {k: v for k, v in params.items() if k != '_output_dir'}
                     else:
                         cleaned_override_doc[scenario_name] = params
 
@@ -116,7 +131,11 @@ class OpenScenario2Parser(object):
                 parsed_model = self.parse_file(file, log_model)
                 _tmp_tree = py_trees.composites.Sequence(name="", memory=True)
                 self.create_internal_model(
-                    parsed_model, _tmp_tree, file, log_model, debug,
+                    parsed_model,
+                    _tmp_tree,
+                    file,
+                    log_model,
+                    debug,
                     scenario_parameter_file=scenario_parameter_file,
                     create_scenario_parameter_file_template=True,
                 )
@@ -146,16 +165,12 @@ class OpenScenario2Parser(object):
                 # Temporarily hide sibling ScenarioDeclarations so that create_py_tree
                 # and create_py_tree_blackboard process only the current scenario.
                 model._ModelElement__children = [  # pylint: disable=protected-access
-                    c for c in all_children
-                    if not isinstance(c, ScenarioDeclaration) or c is scenario_decl
+                    c for c in all_children if not isinstance(c, ScenarioDeclaration) or c is scenario_decl
                 ]
                 tree = py_trees.composites.Sequence(name="", memory=True)
                 create_py_tree_blackboard(model, tree, self.logger, debug)
                 py_tree = create_py_tree(model, tree, self.logger, log_model)
-                params = {
-                    p.name: p.get_resolved_value()
-                    for p in scenario_decl.find_children_of_type(ParameterDeclaration)
-                }
+                params = {p.name: p.get_resolved_value() for p in scenario_decl.find_children_of_type(ParameterDeclaration)}
                 if multi_doc:
                     py_tree.name = f"{py_tree.name}-{doc_idx}"
                 scenario_output_dir = override_output_dirs.get(scenario_decl.name)
@@ -165,10 +180,7 @@ class OpenScenario2Parser(object):
         names = [tree.name for tree, _, __ in results]
         if len(names) != len(set(names)):
             duplicates = sorted({n for n in names if names.count(n) > 1})
-            raise ValueError(
-                f"Scenario name(s) {duplicates} appear more than once. "
-                f"Ensure scenario names in the .osc file are unique."
-            )
+            raise ValueError(f"Scenario name(s) {duplicates} appear more than once. " f"Ensure scenario names in the .osc file are unique.")
 
         return results
 
@@ -187,7 +199,17 @@ class OpenScenario2Parser(object):
             print_tree(model, self.logger)
         return model
 
-    def create_internal_model(self, parsed_model, tree, file_name: str, log_model: bool = False, debug: bool = False, scenario_parameter_file: str = None, create_scenario_parameter_file_template: bool = False, scenario_parameter_overrides: dict | None = None):
+    def create_internal_model(
+        self,
+        parsed_model,
+        tree,
+        file_name: str,
+        log_model: bool = False,
+        debug: bool = False,
+        scenario_parameter_file: str = None,
+        create_scenario_parameter_file_template: bool = False,
+        scenario_parameter_overrides: dict | None = None,
+    ):
         model = self.load_internal_model(parsed_model, file_name, log_model, debug)
         resolve_internal_model(model, tree, self.logger, log_model)
 
@@ -258,7 +280,6 @@ class OpenScenario2Parser(object):
             yaml.dump(scenario_parameter_overrides, stream)
         self.logger.info(f"Created scenario parameter file template: {scenario_parameter_file}")
 
-
     def apply_parameter_overrides(self, model, scenario_parameter_overrides):
         keys = list(scenario_parameter_overrides.keys())
         self.logger.info(f"Applying parameter overrides for scenarios: {keys}")
@@ -293,11 +314,9 @@ class OpenScenario2Parser(object):
                                         funct_app = FunctionApplicationExpression(type_def.name)
                                         parameter.set_children(funct_app)
                                         funct_app.set_children(IdentifierReference(ref=type_def))
-                                        self.create_override_value_function_application(
-                                            funct_app, type_def, list(override_value.keys()), override_value)
+                                        self.create_override_value_function_application(funct_app, type_def, list(override_value.keys()), override_value)
                                     else:
-                                        raise ValueError(
-                                            f"Type not supported (supported: StructDeclaration, Basic and Physical Literal): {type_def}")
+                                        raise ValueError(f"Type not supported (supported: StructDeclaration, Basic and Physical Literal): {type_def}")
 
                         except ValueError as e:
                             raise ValueError(f"{parameter.name} {e}") from e
@@ -410,8 +429,7 @@ class OpenScenario2Parser(object):
                 funct_app = FunctionApplicationExpression(param_type.name)
                 parameter.set_children(funct_app)
                 funct_app.set_children(IdentifierReference(ref=param_type))
-                self.create_override_value_function_application(
-                    funct_app, param_type, list(param_override_val_entry.keys()), param_override_val_entry)
+                self.create_override_value_function_application(funct_app, param_type, list(param_override_val_entry.keys()), param_override_val_entry)
 
     def create_override_value_function_application(self, parameter, type_def, struct_keys, override_value):
         for param in type_def.get_children():
@@ -460,8 +478,7 @@ class OpenScenario2Parser(object):
                             type_def = param.find_first_child_of_type(Type).type_def
                             funct_app.set_children(IdentifierReference(ref=type_def))
 
-                            self.create_override_value_function_application(funct_app, type_def, list(
-                                param_override_val.keys()), param_override_val)
+                            self.create_override_value_function_application(funct_app, type_def, list(param_override_val.keys()), param_override_val)
                         elif val is None and isinstance(param_override_val, str):
                             literal = StringLiteral(param_override_val)
                             arg.set_children(literal)
@@ -511,11 +528,10 @@ class OpenScenario2Parser(object):
             else:
                 raise ValueError(f"Invalid physical literal.")
         else:
-            raise ValueError(
-                f"Unknown override type (supported: FunctionApplicationExpression, BaseLiteral, PhysicalLiteral, ListExpression) {param}")
+            raise ValueError(f"Unknown override type (supported: FunctionApplicationExpression, BaseLiteral, PhysicalLiteral, ListExpression) {param}")
 
     def parse_file(self, file: str, log_model: bool = False, error_prefix=""):
-        """ Execute the parsing """
+        """Execute the parsing"""
         if file in self.parsed_files:  # skip already parsed/imported files
             return None
         self.parsed_files.append(file)
@@ -526,7 +542,7 @@ class OpenScenario2Parser(object):
         return self.parse_input_stream(input_stream, log_model, error_prefix)
 
     def parse_input_stream(self, input_stream, log_model=False, error_prefix=""):
-        """ Execute the parsing """
+        """Execute the parsing"""
         lexer = OpenSCENARIO2Lexer(input_stream)
         stream = CommonTokenStream(lexer)
 
@@ -547,6 +563,7 @@ class OpenScenario2Parser(object):
                 if ",]" in msg or ",)" in msg:
                     hint = " (trailing commas are not allowed)"
                 self.error_message += self.prefix + "line " + str(line) + ":" + str(column) + " " + msg + hint
+
         error_listener = TestErrorListener(error_prefix)
         parser.addErrorListener(error_listener)
         tree = parser.osc_file()
@@ -560,7 +577,7 @@ class OpenScenario2Parser(object):
 
     @staticmethod
     def print_parsed_osc_tree(tree, logger, rule_names, indent=0):
-        """ Print the parsed tree for debugging purposes """
+        """Print the parsed tree for debugging purposes"""
         if isinstance(tree, TerminalNodeImpl):
             if not re.match(r"\r?\n[ \t]*", tree.getText()):
                 logger.info("{0}TOKEN '{1}'".format("  " * indent, tree.getText()))
@@ -568,4 +585,4 @@ class OpenScenario2Parser(object):
             logger.info("{0}{1}".format("  " * indent, rule_names[tree.getRuleIndex()]))
             if tree.children:
                 for child in tree.children:
-                    OpenScenario2Parser.print_parsed_osc_tree(child, logger, rule_names, indent+1)
+                    OpenScenario2Parser.print_parsed_osc_tree(child, logger, rule_names, indent + 1)

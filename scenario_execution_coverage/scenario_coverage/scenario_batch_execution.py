@@ -107,10 +107,22 @@ class ScenarioBatchExecution(object):
             process = subprocess.Popen(launch_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
             file_handler = logging.FileHandler(filename=os.path.join(output_file_path, scenario_name + '.log'), mode='w')
             logger = configure_logger(os.path.join(output_file_path, scenario_name + '.log'))
-            log_stdout_thread = Thread(target=log_output, args=(process.stdout, logger, ))
+            log_stdout_thread = Thread(
+                target=log_output,
+                args=(
+                    process.stdout,
+                    logger,
+                ),
+            )
             log_stdout_thread.daemon = True  # die with the program
             log_stdout_thread.start()
-            log_stderr_thread = Thread(target=log_output, args=(process.stderr, logger, ))
+            log_stderr_thread = Thread(
+                target=log_output,
+                args=(
+                    process.stderr,
+                    logger,
+                ),
+            )
             log_stderr_thread.daemon = True  # die with the program
             log_stderr_thread.start()
 
@@ -202,8 +214,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--scenario-dir', type=str, help='Directory containing the scenarios')
     parser.add_argument('-o', '--output-dir', type=str, help='Directory containing the output', default='out')
-    parser.add_argument('-r', '--ignore-process-return-value', action='store_true',
-                        help='Should a non-zero return value of the executed process result in a failure?')
+    parser.add_argument(
+        '-r', '--ignore-process-return-value', action='store_true', help='Should a non-zero return value of the executed process result in a failure?'
+    )
     parser.add_argument('launch_command', nargs='+')
     args = parser.parse_args(sys.argv[1:])
 

@@ -24,21 +24,24 @@ from ament_index_python.packages import get_package_share_directory
 from moveit_configs_utils import MoveItConfigsBuilder
 
 ARGUMENTS = [
-    DeclareLaunchArgument('ros2_control_hardware_type', default_value='mock_components',
-                          choices=['ignition', 'mock_components'],
-                          description='ROS2 control hardware interface type to use for the launch file'),
-    DeclareLaunchArgument('use_sim_time', default_value='true',
-                          choices=['true', 'false'],
-                          description='use_sim_time'),
-    DeclareLaunchArgument('use_rviz', default_value='false',
-                          choices=['true', 'false'],
-                          description='launches RViz if set to `true`.'),
-    DeclareLaunchArgument('rviz_config',
-                          default_value=PathJoinSubstitution([get_package_share_directory('arm_sim_scenario'),
-                                                              'config',
-                                                              'arm.rviz',
-                                                              ])
-                          )
+    DeclareLaunchArgument(
+        'ros2_control_hardware_type',
+        default_value='mock_components',
+        choices=['ignition', 'mock_components'],
+        description='ROS2 control hardware interface type to use for the launch file',
+    ),
+    DeclareLaunchArgument('use_sim_time', default_value='true', choices=['true', 'false'], description='use_sim_time'),
+    DeclareLaunchArgument('use_rviz', default_value='false', choices=['true', 'false'], description='launches RViz if set to `true`.'),
+    DeclareLaunchArgument(
+        'rviz_config',
+        default_value=PathJoinSubstitution(
+            [
+                get_package_share_directory('arm_sim_scenario'),
+                'config',
+                'arm.rviz',
+            ]
+        ),
+    ),
 ]
 
 
@@ -55,17 +58,12 @@ def generate_launch_description():
     moveit_config_builder._MoveItConfigsBuilder__urdf_file_path = Path("config/panda.urdf.xacro")  # pylint: disable=W0212
 
     moveit_config = (
-        moveit_config_builder
-        .robot_description(
-            mappings={
-                "ros2_control_hardware_type": ros2_control_hardware_type
-            },
+        moveit_config_builder.robot_description(
+            mappings={"ros2_control_hardware_type": ros2_control_hardware_type},
         )
         .robot_description_semantic(file_path="config/panda.srdf")
         .trajectory_execution(file_path="config/gripper_moveit_controllers.yaml")
-        .planning_pipelines(
-            pipelines=["ompl", "chomp", "pilz_industrial_motion_planner"]
-        )
+        .planning_pipelines(pipelines=["ompl", "chomp", "pilz_industrial_motion_planner"])
         .planning_scene_monitor(publish_robot_description=True)
         .to_moveit_configs()
     )
@@ -74,8 +72,12 @@ def generate_launch_description():
         package="moveit_ros_move_group",
         executable="move_group",
         output="screen",
-        parameters=[{'use_sim_time': use_sim_time, },
-                    moveit_config.to_dict()],
+        parameters=[
+            {
+                'use_sim_time': use_sim_time,
+            },
+            moveit_config.to_dict(),
+        ],
         arguments=["--ros-args", "--log-level", "info"],
     )
 

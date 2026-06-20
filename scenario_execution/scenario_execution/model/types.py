@@ -183,7 +183,8 @@ class ModelElement(object):  # pylint: disable=too-many-public-methods
         child = self.get_child(pos)
         if not isinstance(child, typename):
             raise OSC2ParsingError(
-                msg=f'Child at pos {pos} is expected to be of type {typename.__name__}, but is {type(child).__name__}.', context=child.get_ctx())
+                msg=f'Child at pos {pos} is expected to be of type {typename.__name__}, but is {type(child).__name__}.', context=child.get_ctx()
+            )
         return child
 
     def find_parent(self, typename):
@@ -344,7 +345,23 @@ class Parameter(Declaration):
             return None
 
         for child in self.get_children():
-            if isinstance(child, (StringLiteral, FloatLiteral, BoolLiteral, IntegerLiteral, FunctionApplicationExpression, IdentifierReference, PhysicalLiteral, EnumValueReference, ListExpression, BinaryExpression, RelationExpression, LogicalExpression)):
+            if isinstance(
+                child,
+                (
+                    StringLiteral,
+                    FloatLiteral,
+                    BoolLiteral,
+                    IntegerLiteral,
+                    FunctionApplicationExpression,
+                    IdentifierReference,
+                    PhysicalLiteral,
+                    EnumValueReference,
+                    ListExpression,
+                    BinaryExpression,
+                    RelationExpression,
+                    LogicalExpression,
+                ),
+            ):
                 return child
             elif isinstance(child, KeepConstraintDeclaration):
                 pass
@@ -429,8 +446,7 @@ class StructuredDeclaration(Declaration):
                         tmp = val.get_resolved_value(blackboard)
                         for key, val in tmp.items():
                             if key not in params:
-                                raise OSC2ParsingError(
-                                    msg=f'Keep Constraint Declaration specifies unknown member "{key}".', context=self.get_ctx())
+                                raise OSC2ParsingError(msg=f'Keep Constraint Declaration specifies unknown member "{key}".', context=self.get_ctx())
                             else:
                                 params[key] = val
                     else:
@@ -440,8 +456,7 @@ class StructuredDeclaration(Declaration):
                         params[child.name] = None
             elif isinstance(child, PositionalArgument):
                 if named:
-                    raise OSC2ParsingError(
-                        msg=f'Positional argument after named argument not allowed.', context=child.get_ctx())
+                    raise OSC2ParsingError(msg=f'Positional argument after named argument not allowed.', context=child.get_ctx())
                 if param_keys[pos] not in skip_keys:
                     params[param_keys[pos]] = child.get_resolved_value(blackboard)
                 pos += 1
@@ -1227,7 +1242,9 @@ class NamedArgument(ModelElement):
     def get_resolved_value(self, blackboard=None):
         if self.get_child_count() != 1:
             raise OSC2ParsingError(
-                msg=f'Could not get value of positional argument because the expected child count is not 1, but {self.get_child_count()}.', context=self.get_ctx())
+                msg=f'Could not get value of positional argument because the expected child count is not 1, but {self.get_child_count()}.',
+                context=self.get_ctx(),
+            )
         return self.get_child(0).get_resolved_value(blackboard)
 
 
@@ -1253,7 +1270,9 @@ class PositionalArgument(ModelElement):
     def get_resolved_value(self, blackboard=None):
         if self.get_child_count() != 1:
             raise OSC2ParsingError(
-                msg=f'Could not get value of positional argument because the expected child count is not 1, but {self.get_child_count()}.', context=self.get_ctx())
+                msg=f'Could not get value of positional argument because the expected child count is not 1, but {self.get_child_count()}.',
+                context=self.get_ctx(),
+            )
         return self.get_child(0).get_resolved_value(blackboard)
 
 
@@ -1313,14 +1332,12 @@ class KeepConstraintDeclaration(Declaration):
         result = None
         if self.get_child_count() == 1 and isinstance(self.get_child(0), RelationExpression) and self.get_child(0).get_child_count() == 2:
             if self.get_child(0).operator != "==":
-                raise OSC2ParsingError(
-                    msg=f'Only relation "==" is currently supported in "keep".', context=self.get_ctx())
+                raise OSC2ParsingError(msg=f'Only relation "==" is currently supported in "keep".', context=self.get_ctx())
             field_exp = self.get_child(0).get_child_with_expected_type(0, FieldAccessExpression)
             value = self.get_child(0).get_child(1).get_resolved_value(blackboard)
 
             if not field_exp.field_name.startswith('it.'):
-                raise OSC2ParsingError(
-                    msg=f'FieldAccessExpression only supports "it." prefix, not "{field_exp.field_name}".', context=self.get_ctx())
+                raise OSC2ParsingError(msg=f'FieldAccessExpression only supports "it." prefix, not "{field_exp.field_name}".', context=self.get_ctx())
             field_name = field_exp.field_name.removeprefix("it.")
             result = {}
             member_path = field_name.split('.')
@@ -1332,12 +1349,10 @@ class KeepConstraintDeclaration(Declaration):
                 else:
                     current_params[member_path[current_pos]] = value
         else:
-            raise OSC2ParsingError(
-                msg=f'Keep uses unsupported expression: allowed "==" only.', context=self.get_ctx())
+            raise OSC2ParsingError(msg=f'Keep uses unsupported expression: allowed "==" only.', context=self.get_ctx())
 
         if result is None:
-            raise OSC2ParsingError(
-                msg=f'Error in keep constraint declaration.', context=self.get_ctx())
+            raise OSC2ParsingError(msg=f'Error in keep constraint declaration.', context=self.get_ctx())
 
         return result
 
@@ -1777,11 +1792,9 @@ class FunctionApplicationExpression(ModelExpression):
             key = None
             if isinstance(child, PositionalArgument):
                 if named:
-                    raise OSC2ParsingError(
-                        msg=f'Positional argument after named argument not allowed.', context=child.get_ctx())
+                    raise OSC2ParsingError(msg=f'Positional argument after named argument not allowed.', context=child.get_ctx())
                 if len(param_keys) <= pos:
-                    raise OSC2ParsingError(
-                        msg=f'Positional argument at position {pos} not expected.', context=child.get_ctx())
+                    raise OSC2ParsingError(msg=f'Positional argument at position {pos} not expected.', context=child.get_ctx())
                 key = param_keys[pos]
                 pos += 1
             elif isinstance(child, NamedArgument):

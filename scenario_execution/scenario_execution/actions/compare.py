@@ -20,6 +20,7 @@ from scenario_execution.model.types import VariableReference
 
 import operator as op
 
+
 class Compare(BaseAction):
     """
     Class to evaluate an expression

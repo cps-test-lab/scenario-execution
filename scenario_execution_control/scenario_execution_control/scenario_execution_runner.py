@@ -29,16 +29,12 @@ class ScenarioExecutionRunner(ApplicationRunner):
     """
 
     def __init__(self, status_updated_fct, log_fct):  # pylint: disable=too-many-arguments
-        super(ScenarioExecutionRunner, self).__init__(
-            status_updated_fct,
-            log_fct,
-            "Executing scenario ")
+        super(ScenarioExecutionRunner, self).__init__(status_updated_fct, log_fct, "Executing scenario ")
 
     def execute_scenario(self, scenario_file, output_dir):
         """
         Executes scenario
         """
-        cmdline = ["ros2", "run", "scenario_execution_ros", "scenario_execution_ros",
-                   "--ros-args", "-p", f"scenario:={scenario_file}", output_dir]
+        cmdline = ["ros2", "run", "scenario_execution_ros", "scenario_execution_ros", "--ros-args", "-p", f"scenario:={scenario_file}", output_dir]
 
         return self.execute(cmdline, env=os.environ)

@@ -25,8 +25,8 @@ from visualization_msgs.msg import Marker
 from tf2_ros.buffer import Buffer
 from tf2_ros import TransformException  # pylint: disable= no-name-in-module
 
-from .common import NamespacedTransformListener
 from scenario_execution.actions.base_action import BaseAction, ActionError
+from .common import NamespacedTransformListener
 
 
 class TfCloseTo(BaseAction):
@@ -46,9 +46,9 @@ class TfCloseTo(BaseAction):
         super().__init__()
 
         if not reference_point:
-            raise TypeError(f'reference_point not initialized.')
+            raise TypeError('reference_point not initialized.')
         if not threshold:
-            raise TypeError(f'threshold not initialized.')
+            raise TypeError('threshold not initialized.')
 
         self.namespace = associated_actor["namespace"]
         if namespace_override:
@@ -76,23 +76,20 @@ class TfCloseTo(BaseAction):
         try:
             self.node: Node = kwargs['node']
         except KeyError as e:
-            error_message = "didn't find 'node' in setup's kwargs [{}][{}]".format(
-                self.name, self.__class__.__name__)
+            error_message = f"didn't find 'node' in setup's kwargs [{self.name}][{self.__class__.__name__}]"
             raise ActionError(error_message, action=self) from e
 
         try:
             self.marker_handler = kwargs['marker_handler']
         except KeyError as e:
-            error_message = "didn't find 'marker_handler' in setup's kwargs [{}][{}]".format(
-                self.name, self.__class__.__name__
-            )
+            error_message = f"didn't find 'marker_handler' in setup's kwargs [{self.name}][{self.__class__.__name__}]"
             raise ActionError(error_message, action=self) from e
 
         self.reference_point = (float(self.reference_point['x']), float(self.reference_point['y']))
-        self.feedback_message = f"Waiting for transform map --> base_link"  # pylint: disable= attribute-defined-outside-init
+        self.feedback_message = "Waiting for transform map --> base_link"  # pylint: disable= attribute-defined-outside-init
         self.tf_buffer = Buffer()
         tf_prefix = self.namespace
-        if not tf_prefix.startswith('/') and tf_prefix != '':
+        if not tf_prefix.startswith('/') and tf_prefix:
             tf_prefix = "/" + tf_prefix
         self.tf_listener = NamespacedTransformListener(
             node=self.node,
@@ -134,23 +131,23 @@ class TfCloseTo(BaseAction):
             marker.color.b = 0.0
             self.marker_handler.update_marker(self.marker_id, marker)
             return Status.SUCCESS
-        else:
-            self.feedback_message = f"{self.robot_frame_id} has not reached point (distance={dist-self.threshold:.2f})"  # pylint: disable= attribute-defined-outside-init
-            marker.color.r = 1.0
-            marker.color.g = 1.0
-            marker.color.b = 0.0
-            self.marker_handler.update_marker(self.marker_id, marker)
-            return Status.RUNNING
+        self.feedback_message = (
+            f"{self.robot_frame_id} has not reached point (distance={dist-self.threshold:.2f})"  # pylint: disable= attribute-defined-outside-init
+        )
+        marker.color.r = 1.0
+        marker.color.g = 1.0
+        marker.color.b = 0.0
+        self.marker_handler.update_marker(self.marker_id, marker)
+        return Status.RUNNING
 
     def get_translation_from_tf(self):
         t = None
         try:
             t = self.tf_buffer.lookup_transform('map', self.robot_frame_id, rclpy.time.Time())
-            self.feedback_message = f"Transform map -> base_link got available."  # pylint: disable= attribute-defined-outside-init
+            self.feedback_message = "Transform map -> base_link got available."  # pylint: disable= attribute-defined-outside-init
         except TransformException as e:
-            self.feedback_message = f"Could not transform map to base_link"  # pylint: disable= attribute-defined-outside-init
-            self.node.get_logger().warn(
-                f'Could not transform map to base_link: {e}')
+            self.feedback_message = "Could not transform map to base_link"  # pylint: disable= attribute-defined-outside-init
+            self.node.get_logger().warn(f'Could not transform map to base_link: {e}')
             return None, False
 
         return t.transform.translation, True

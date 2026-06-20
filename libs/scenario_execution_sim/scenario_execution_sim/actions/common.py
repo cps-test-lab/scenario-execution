@@ -17,6 +17,7 @@
 import math
 from scenario_execution.actions.base_action import ActionError
 
+
 def euler2quat(roll, pitch, yaw):
     """
     Convert Euler angles (roll, pitch, yaw) to quaternion (w, x, y, z).
@@ -38,23 +39,14 @@ def euler2quat(roll, pitch, yaw):
 
     return (x, y, z, w)
 
+
 def get_spawn_pose(action, pose):
     try:
-        quaternion = euler2quat(pose["orientation"]["roll"],
-                                pose["orientation"]["pitch"],
-                                pose["orientation"]["yaw"])
+        quaternion = euler2quat(pose["orientation"]["roll"], pose["orientation"]["pitch"], pose["orientation"]["yaw"])
         pose = {
-            "position": {
-                    "x": pose["position"]["x"],
-                    "y": pose["position"]["y"],
-                    "z": pose["position"]["z"]
-            },
-            "orientation": {  
-                    "x": quaternion[0],
-                    "y": quaternion[1],
-                    "z": quaternion[2],
-                    "w": quaternion[3]
-            }}
+            "position": {"x": pose["position"]["x"], "y": pose["position"]["y"], "z": pose["position"]["z"]},
+            "orientation": {"x": quaternion[0], "y": quaternion[1], "z": quaternion[2], "w": quaternion[3]},
+        }
     except KeyError as e:
         raise ActionError("Could not get values", action=action) from e
     return pose

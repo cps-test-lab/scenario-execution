@@ -20,8 +20,4 @@ from . import actions
 from .logging_ros import RosLogger
 from .scenario_execution_ros import ROSScenarioExecution
 
-__all__ = [
-    'actions',
-    'RosLogger',
-    'ROSScenarioExecution'
-]
+__all__ = ['actions', 'RosLogger', 'ROSScenarioExecution']

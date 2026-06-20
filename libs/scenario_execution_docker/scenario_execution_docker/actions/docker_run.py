@@ -33,9 +33,19 @@ class DockerRun(BaseAction):
     Run a container
     """
 
-    def __init__(self, image: str, command: str, container_name: str,
-                 detach: bool, environment: list, network: str,
-                 privileged: bool, remove: bool, stream: bool,  volumes: list):
+    def __init__(
+        self,
+        image: str,
+        command: str,
+        container_name: str,
+        detach: bool,
+        environment: list,
+        network: str,
+        privileged: bool,
+        remove: bool,
+        stream: bool,
+        volumes: list,
+    ):
         super().__init__()
         self.image = image
         self.command = command
@@ -75,7 +85,8 @@ class DockerRun(BaseAction):
                     remove=self.remove,
                     user=os.getuid(),
                     group_add=[os.getgid()],
-                    volumes=self.volumes)
+                    volumes=self.volumes,
+                )
             except docker.errors.APIError as e:
                 self.feedback_message = f"Docker run failed: {e}"  # pylint: disable= attribute-defined-outside-init
                 return py_trees.common.Status.FAILURE

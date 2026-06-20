@@ -195,8 +195,7 @@ struct derived inherits base:
     y: string = "derived"
 """
         model = self.parse(scenario_content)
-        self.assertEqual({'x': 'base', 'y': 'derived'},
-                         model._ModelElement__children[1].get_resolved_value())
+        self.assertEqual({'x': 'base', 'y': 'derived'}, model._ModelElement__children[1].get_resolved_value())
 
     def test_actor_inheritance(self):
         scenario_content = """
@@ -207,8 +206,7 @@ actor derived inherits base:
     y: string = "derived"
 """
         model = self.parse(scenario_content)
-        self.assertEqual({'x': 'base', 'y': 'derived'},
-                         model._ModelElement__children[1].get_resolved_value())
+        self.assertEqual({'x': 'base', 'y': 'derived'}, model._ModelElement__children[1].get_resolved_value())
 
     def test_actor_inheritance_invalid(self):
         scenario_content = """
@@ -227,8 +225,7 @@ action derived inherits base:
     y: string = "derived"
 """
         model = self.parse(scenario_content)
-        self.assertEqual({'x': 'base', 'y': 'derived'},
-                         model._ModelElement__children[1].get_resolved_value())
+        self.assertEqual({'x': 'base', 'y': 'derived'}, model._ModelElement__children[1].get_resolved_value())
 
     def test_action_inheritance_invalid(self):
         scenario_content = """
@@ -357,8 +354,7 @@ struct l2_struct:
         l1_struct = model._ModelElement__children[1]
         self.assertEqual({'b': 'value_x', 'c': {'a': 'base_a'}}, l1_struct.get_resolved_value())
         l2_struct = model._ModelElement__children[2]
-        self.assertEqual({'d': 'value_x', 'e': {'b': 'value_x', 'c': {
-                         'a': 'base_a'}}}, l2_struct.get_resolved_value())
+        self.assertEqual({'d': 'value_x', 'e': {'b': 'value_x', 'c': {'a': 'base_a'}}}, l2_struct.get_resolved_value())
 
     def test_unknown_type(self):
         scenario_content = """
@@ -380,8 +376,7 @@ global test_struct1: test_struct = test_struct(param2: 'OVERRIDE')
 """
         model = self.parse(scenario_content)
         test_struct1 = model._ModelElement__children[1]
-        self.assertEqual({'param1': 'val1', 'param2': 'OVERRIDE'},
-                         test_struct1.get_resolved_value())
+        self.assertEqual({'param1': 'val1', 'param2': 'OVERRIDE'}, test_struct1.get_resolved_value())
 
     def test_struct_param_function_wrong_type(self):
         scenario_content = """
@@ -407,8 +402,7 @@ struct test_struct:
 """
         model = self.parse(scenario_content)
         test_struct = model._ModelElement__children[1]
-        self.assertEqual({'param_base_struct': {'base_param1': 'base1'}},
-                         test_struct.get_resolved_value())
+        self.assertEqual({'param_base_struct': {'base_param1': 'base1'}}, test_struct.get_resolved_value())
 
     def test_struct_assigned_with_params(self):
         scenario_content = """
@@ -420,8 +414,7 @@ struct test_struct:
 """
         model = self.parse(scenario_content)
         test_struct = model._ModelElement__children[1]
-        self.assertEqual({'param_base_struct': {'base_param1': 'OVERRIDE'}},
-                         test_struct.get_resolved_value())
+        self.assertEqual({'param_base_struct': {'base_param1': 'OVERRIDE'}}, test_struct.get_resolved_value())
 
     def test_struct_assigned_by_var(self):
         scenario_content = """
@@ -435,8 +428,7 @@ struct test_struct:
 """
         model = self.parse(scenario_content)
         test_struct = model._ModelElement__children[2]
-        self.assertEqual({'param_base_struct': {'base_param1': 'OVERRIDE'}},
-                         test_struct.get_resolved_value())
+        self.assertEqual({'param_base_struct': {'base_param1': 'OVERRIDE'}}, test_struct.get_resolved_value())
 
     def test_use_struct_member_as_parameter(self):
         scenario_content = """

@@ -37,6 +37,7 @@ from .common import DebugLogger
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 class _CountingSim(SimulationInterface):
     """A minimal SimulationInterface that records every lifecycle call."""
 
@@ -134,6 +135,7 @@ def _parse_and_run(scenario_content, sim=None):
 # SimulationClock unit tests
 # ---------------------------------------------------------------------------
 
+
 class TestSimulationClock(unittest.TestCase):
 
     def test_initial_time_is_zero(self):
@@ -168,6 +170,7 @@ class TestSimulationClock(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # ClockTimer unit tests
 # ---------------------------------------------------------------------------
+
 
 class TestClockTimer(unittest.TestCase):
 
@@ -223,6 +226,7 @@ class TestClockTimer(unittest.TestCase):
 # ClockTimeout unit tests
 # ---------------------------------------------------------------------------
 
+
 class TestClockTimeout(unittest.TestCase):
 
     def test_timeout_does_not_fire_before_deadline(self):
@@ -256,6 +260,7 @@ class TestClockTimeout(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # SimulationInterface lifecycle integration tests
 # ---------------------------------------------------------------------------
+
 
 class TestSimulationLifecycle(unittest.TestCase):
 
@@ -332,6 +337,7 @@ class TestSimulationLifecycle(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # OSC wait elapsed() with simulation clock
 # ---------------------------------------------------------------------------
+
 
 class TestScenarioParamsInReset(unittest.TestCase):
 
@@ -410,6 +416,7 @@ scenario test:
 # OSC wait elapsed() with simulation clock
 # ---------------------------------------------------------------------------
 
+
 class TestWaitElapsedWithSimClock(unittest.TestCase):
 
     def test_wait_elapsed_completes_after_correct_steps(self):
@@ -447,6 +454,7 @@ scenario test:
 # reset() signature validation (_get_missing_reset_params)
 # ---------------------------------------------------------------------------
 
+
 class TestResetSignatureValidation(unittest.TestCase):
 
     def test_no_required_params_ok(self):
@@ -465,9 +473,7 @@ class TestResetSignatureValidation(unittest.TestCase):
             def reset(self, initial_velocity, scenario_params=None):
                 pass
 
-        self.assertEqual(
-            _get_missing_reset_params(_Sim(), {'initial_velocity': 1.0}), set()
-        )
+        self.assertEqual(_get_missing_reset_params(_Sim(), {'initial_velocity': 1.0}), set())
 
     def test_required_param_missing(self):
         """A required keyword arg absent from scenario_params is returned."""
@@ -476,9 +482,7 @@ class TestResetSignatureValidation(unittest.TestCase):
             def reset(self, initial_velocity, scenario_params=None):
                 pass
 
-        self.assertEqual(
-            _get_missing_reset_params(_Sim(), {}), {'initial_velocity'}
-        )
+        self.assertEqual(_get_missing_reset_params(_Sim(), {}), {'initial_velocity'})
 
     def test_optional_param_not_flagged(self):
         """A param with a default value is not flagged even if absent."""
@@ -496,9 +500,7 @@ class TestResetSignatureValidation(unittest.TestCase):
             def reset(self, width, height, scenario_params=None):
                 pass
 
-        self.assertEqual(
-            _get_missing_reset_params(_Sim(), {}), {'width', 'height'}
-        )
+        self.assertEqual(_get_missing_reset_params(_Sim(), {}), {'width', 'height'})
 
     def test_multiple_required_params_partially_present(self):
         """Only the absent required params are returned."""
@@ -507,9 +509,7 @@ class TestResetSignatureValidation(unittest.TestCase):
             def reset(self, width, height, scenario_params=None):
                 pass
 
-        self.assertEqual(
-            _get_missing_reset_params(_Sim(), {'width': 5}), {'height'}
-        )
+        self.assertEqual(_get_missing_reset_params(_Sim(), {'width': 5}), {'height'})
 
     def test_scenario_fails_when_required_reset_param_missing(self):
         """run_with_simulation() fails before reset() when a required param is absent."""

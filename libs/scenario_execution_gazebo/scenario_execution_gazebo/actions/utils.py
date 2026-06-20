@@ -24,7 +24,6 @@ from pathlib import Path
 
 
 class SpawnUtils(object):
-
     """Utils such as reading/parsing xml/sdf/urdf/xacro files for spawning
     actors"""
 
@@ -39,7 +38,7 @@ class SpawnUtils(object):
         if "IGN_GAZEBO_RESOURCE_PATH" in os.environ:
             self.ign_gazebo_resource_paths = os.environ["IGN_GAZEBO_RESOURCE_PATH"].split(':')
 
-    def parse_model_file(self, model_file: str, entity_name: str, xacro_arguments: str) -> str: # pylint: disable=too-many-return-statements
+    def parse_model_file(self, model_file: str, entity_name: str, xacro_arguments: str) -> str:  # pylint: disable=too-many-return-statements
         """
         Parse model file to str:
 
@@ -62,9 +61,7 @@ class SpawnUtils(object):
             elif model_file.lower().endswith('.xacro'):
                 return self.xacro_to_urdf(self.get_packaged_model_file_path(model_file), xacro_arguments)
             elif model_file.lower().endswith(('.sdf', '.urdf')):
-                return self._parse_xml(
-                    self.get_packaged_model_file_path(model_file),
-                    entity_name)
+                return self._parse_xml(self.get_packaged_model_file_path(model_file), entity_name)
             elif model_file.startswith('model://'):
                 # search gazebo model paths for model
                 model_file = model_file.replace('model://', '', 1)
@@ -77,18 +74,15 @@ class SpawnUtils(object):
                         if basename == model_file:
                             path = os.path.join(folder, 'model.sdf')
                             if self.logger is not None:
-                                self.logger.info(
-                                    f"Found model dir for {model_file}: {folder}")
+                                self.logger.info(f"Found model dir for {model_file}: {folder}")
                             else:
                                 print(f"Found model dir for {model_file}: {folder}")
 
                             return self.read_model_file(path)
-                self.logger.error(
-                    f"Could not find {model_file} in IGN_GAZEBO_RESOURCE_PATHS")
+                self.logger.error(f"Could not find {model_file} in IGN_GAZEBO_RESOURCE_PATHS")
         else:
             if self.logger is not None:
-                self.logger.error(
-                    f'[{entity_name}] unrecognized model file definition: {model_file}')
+                self.logger.error(f'[{entity_name}] unrecognized model file definition: {model_file}')
             else:
                 print(f'[{entity_name}] unrecognized model file definition: {model_file}')
         return None
@@ -127,12 +121,11 @@ class SpawnUtils(object):
         if len(model_file) != 2:
             raise ValueError(
                 f'scenario_execution_amr_plugin:spawn: Invalid model file path: {model_path}." \
-                " Expected format <package-name>://<path-to-model.file>.')
-        model_file_path = os.path.join(get_package_share_directory(
-            model_file[0]), model_file[1])
+                " Expected format <package-name>://<path-to-model.file>.'
+            )
+        model_file_path = os.path.join(get_package_share_directory(model_file[0]), model_file[1])
         if not os.path.exists(model_file_path):
-            raise ValueError(
-                f'scenario_execution_amr_plugin:spawn: Model file not existing: {model_file_path}.')
+            raise ValueError(f'scenario_execution_amr_plugin:spawn: Model file not existing: {model_file_path}.')
         return model_file_path
 
     def xacro_to_urdf(self, path_to_xacro, xacro_arguments) -> str:
@@ -147,8 +140,7 @@ class SpawnUtils(object):
             str of content of coverted xacro file
         """
         if self.logger is not None:
-            self.logger.info(
-                f'Parsing xacro: {path_to_xacro}, args: {xacro_arguments}')
+            self.logger.info(f'Parsing xacro: {path_to_xacro}, args: {xacro_arguments}')
         else:
             print(f'Parsing xacro: {path_to_xacro}, args: {xacro_arguments}')
 
@@ -156,8 +148,7 @@ class SpawnUtils(object):
         if xacro_arguments:
             cmd.extend(xacro_arguments.split(','))
         try:
-            with subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                                  stderr=subprocess.PIPE, text=True) as process:
+            with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as process:
                 stdout, stderr = process.communicate()
                 if stderr:
                     if self.logger is not None:
@@ -221,14 +212,12 @@ class SpawnUtils(object):
                         path = Path(filename)
                         if str(path.name) == mesh_file:
                             if self.logger is not None:
-                                self.logger.info(
-                                    f"Found mesh dir for {mesh_file}: {path.parent}")
+                                self.logger.info(f"Found mesh dir for {mesh_file}: {path.parent}")
                             else:
                                 print(f"Found mesh dir for {mesh_file}: {path.parent}")
                             return str(path.resolve())
 
-                self.logger.error(
-                    f"Could not find {mesh_name} in IGN_GAZEBO_RESOURCE_PATHS")
+                self.logger.error(f"Could not find {mesh_name} in IGN_GAZEBO_RESOURCE_PATHS")
             elif mesh_name.endswith('.dae'):
                 try:
                     mesh_file = self.get_packaged_model_file_path(mesh_name)
@@ -241,8 +230,7 @@ class SpawnUtils(object):
 
         else:
             if self.logger is not None:
-                self.logger.error(
-                    f'[{entity_name}] unrecognized model file definition: {mesh_name}')
+                self.logger.error(f'[{entity_name}] unrecognized model file definition: {mesh_name}')
             else:
                 print(f'[{entity_name}] unrecognized model file definition: {mesh_name}')
         return None

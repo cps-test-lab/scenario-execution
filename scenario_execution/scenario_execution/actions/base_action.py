@@ -20,6 +20,7 @@ from scenario_execution.model.error import OSC2Error
 import inspect
 from .base_action_subtree import BaseActionSubtree
 
+
 class BaseAction(py_trees.behaviour.Behaviour):
 
     # subclasses might implement __init__() with osc2 arguments as required
@@ -60,8 +61,7 @@ class BaseAction(py_trees.behaviour.Behaviour):
                     final_args = self._model.get_resolved_value(self.get_blackboard_client(), skip_keys=self.execute_skip_args)
                 else:
                     try:
-                        final_args = self._model.get_resolved_value_with_variable_references(
-                            self.get_blackboard_client(), skip_keys=self.execute_skip_args)
+                        final_args = self._model.get_resolved_value_with_variable_references(self.get_blackboard_client(), skip_keys=self.execute_skip_args)
                     except ValueError as e:
                         raise ActionError(f"Error initializing action: {e}", action=self) from e
 

@@ -23,11 +23,7 @@ setup(
     name=PACKAGE_NAME,
     version='1.5.0',
     packages=find_namespace_packages(),
-    data_files=[
-        ('share/ament_index/resource_index/packages',
-            ['resource/' + PACKAGE_NAME]),
-        ('share/' + PACKAGE_NAME, ['package.xml'])
-    ],
+    data_files=[('share/ament_index/resource_index/packages', ['resource/' + PACKAGE_NAME]), ('share/' + PACKAGE_NAME, ['package.xml'])],
     install_requires=[
         'setuptools',
         'transforms3d==0.4.1',
@@ -50,8 +46,7 @@ setup(
             'wait_for_sim = scenario_execution_gazebo.actions.gazebo_wait_for_sim:GazeboWaitForSim',
         ],
         'scenario_execution.osc_libraries': [
-            'gazebo = '
-            'scenario_execution_gazebo.get_osc_library:get_gazebo_library',
-        ]
+            'gazebo = scenario_execution_gazebo.get_osc_library:get_gazebo_library',
+        ],
     },
 )

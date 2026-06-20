@@ -30,8 +30,7 @@ class TestDockerRun(unittest.TestCase):
 
     def setUp(self) -> None:
         self.parser = OpenScenario2Parser(Logger('test', False))
-        self.scenario_execution = ScenarioExecution(debug=False, log_model=False, live_tree=False,
-                                                    scenario_file="test.osc", output_dir=None)
+        self.scenario_execution = ScenarioExecution(debug=False, log_model=False, live_tree=False, scenario_file="test.osc", output_dir=None)
         self.tree = py_trees.composites.Sequence(name="", memory=True)
         self.tmp_dir = tempfile.TemporaryDirectory()
 
@@ -46,7 +45,8 @@ class TestDockerRun(unittest.TestCase):
         self.scenario_execution.run()
 
     def test_success_stream(self):
-        self.parse("""
+        self.parse(
+            """
 import osc.docker
 import osc.helpers
 
@@ -55,11 +55,13 @@ scenario test:
     do serial:
         docker_run(image: 'ubuntu', command: 'echo hello world')
         emit end
-""")
+"""
+        )
         self.assertTrue(self.scenario_execution.process_results())
 
     def test_success_detach(self):
-        self.parse("""
+        self.parse(
+            """
 import osc.docker
 import osc.helpers
 
@@ -68,11 +70,13 @@ scenario test:
     do serial:
         docker_run(image: 'ubuntu', command: 'sleep 5', detach: true)
         emit end
-""")
+"""
+        )
         self.assertTrue(self.scenario_execution.process_results())
 
     def test_fail_unknown_command(self):
-        self.parse("""
+        self.parse(
+            """
 import osc.docker
 import osc.helpers
 
@@ -81,7 +85,8 @@ scenario test:
     do serial:
         docker_run(image: 'ubuntu', command: 'UKNOWN', detach: true)
         emit end
-""")
+"""
+        )
         self.assertFalse(self.scenario_execution.process_results())
 
     def test_success_volume_mount(self):
@@ -96,5 +101,5 @@ scenario test:
         serial:
             docker_exec(container: 'sleeping_beauty_run_volume', command: 'ls /data')
             emit end
-""")
+""")  # fmt: skip
         self.assertTrue(self.scenario_execution.process_results())

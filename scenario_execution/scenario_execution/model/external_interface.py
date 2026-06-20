@@ -33,6 +33,7 @@ from scenario_execution.model.types import (
 )
 from scenario_execution.utils.logging import Logger
 
+
 def get_scenario_parameters(scenario_file: str, logger=None):
     """
     Extract scenario parameters from an OpenSCENARIO 2 file without resolving dependencies.
@@ -102,11 +103,7 @@ def get_scenario_parameters(scenario_file: str, logger=None):
             else:
                 type_str = str(param_type)
 
-            scenario_params.append({
-                'name': param.name,
-                'type': type_str,
-                'is_list': is_list
-            })
+            scenario_params.append({'name': param.name, 'type': type_str, 'is_list': is_list})
 
         result[scenario.name] = scenario_params
 

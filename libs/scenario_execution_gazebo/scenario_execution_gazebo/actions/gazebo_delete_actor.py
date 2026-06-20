@@ -25,6 +25,7 @@ class DeleteActionState(Enum):
     """
     States for executing a delete-entity in gazebo
     """
+
     IDLE = 1
     WAITING_FOR_RESPONSE = 2
     DONE = 3
@@ -43,10 +44,22 @@ class GazeboDeleteActor(RunProcess):
         self.current_state = DeleteActionState.IDLE
 
     def execute(self, associated_actor, entity_name: str, world_name: str):  # pylint: disable=arguments-differ
-        self.set_command(["gz", "service", "-s", "/world/" + world_name + "/remove",
-                          "--reqtype", "gz.msgs.Entity",
-                          "--reptype", "gz.msgs.Boolean",
-                          "--timeout", "1000", "--req", "name: \"" + entity_name + "\" type: MODEL"])
+        self.set_command(
+            [
+                "gz",
+                "service",
+                "-s",
+                "/world/" + world_name + "/remove",
+                "--reqtype",
+                "gz.msgs.Entity",
+                "--reptype",
+                "gz.msgs.Boolean",
+                "--timeout",
+                "1000",
+                "--req",
+                "name: \"" + entity_name + "\" type: MODEL",
+            ]
+        )
 
     def on_executed(self):
         """
@@ -68,7 +81,9 @@ class GazeboDeleteActor(RunProcess):
                         line = self.output.popleft()
                         line = line.lower()
                         if 'error' in line or 'timed out' in line:
-                            self.feedback_message = f"Found error output while executing '{self.get_command()}'"  # pylint: disable= attribute-defined-outside-init
+                            self.feedback_message = (
+                                f"Found error output while executing '{self.get_command()}'"  # pylint: disable= attribute-defined-outside-init
+                            )
                             self.current_state = DeleteActionState.FAILURE
                             return py_trees.common.Status.FAILURE
                     except IndexError:

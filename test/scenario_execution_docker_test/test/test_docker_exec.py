@@ -30,8 +30,7 @@ class TestDockerExec(unittest.TestCase):
 
     def setUp(self) -> None:
         self.parser = OpenScenario2Parser(Logger('test', False))
-        self.scenario_execution = ScenarioExecution(debug=False, log_model=False, live_tree=False,
-                                                    scenario_file="test.osc", output_dir=None)
+        self.scenario_execution = ScenarioExecution(debug=False, log_model=False, live_tree=False, scenario_file="test.osc", output_dir=None)
         self.tree = py_trees.composites.Sequence(name="", memory=True)
         self.tmp_file = tempfile.NamedTemporaryFile()
 
@@ -43,7 +42,8 @@ class TestDockerExec(unittest.TestCase):
         self.scenario_execution.run()
 
     def test_success(self):
-        self.parse("""
+        self.parse(
+            """
 import osc.docker
 import osc.helpers
 
@@ -54,11 +54,13 @@ scenario test_success:
         serial: 
             docker_exec(container: 'sleeping_beauty_exec_success', command: 'echo hello world')
             emit end
-""")
+"""
+        )
         self.assertTrue(self.scenario_execution.process_results())
 
     def test_failure(self):
-        self.parse("""
+        self.parse(
+            """
 import osc.docker
 import osc.helpers
 
@@ -68,11 +70,13 @@ scenario test_failure:
         docker_run(image: 'ubuntu', command: 'sleep 10', detach: true, container_name: 'sleeping_beauty_exec_fail', remove: true)
         serial: 
             docker_exec(container: 'sleeping_beauty_exec_fail', command: 'ls UKNOWN_DIR')
-""")
+"""
+        )
         self.assertFalse(self.scenario_execution.process_results())
 
     def test_failure_container_not_running(self):
-        self.parse("""
+        self.parse(
+            """
 import osc.docker
 import osc.helpers
 
@@ -80,5 +84,6 @@ scenario test_failure_container_not_running:
     timeout(3s)
     do serial: 
         docker_exec(container: 'sleeping_beauty', command: 'echo hello world')
-""")
+"""
+        )
         self.assertFalse(self.scenario_execution.process_results())

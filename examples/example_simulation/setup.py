@@ -25,8 +25,7 @@ setup(
     version='1.5.0',
     packages=[PACKAGE_NAME],
     data_files=[
-        ('share/ament_index/resource_index/packages',
-            ['resource/' + PACKAGE_NAME]),
+        ('share/ament_index/resource_index/packages', ['resource/' + PACKAGE_NAME]),
         ('share/' + PACKAGE_NAME, ['package.xml']),
         (os.path.join('share', PACKAGE_NAME, 'scenarios'), glob('scenarios/*.osc')),
         (os.path.join('share', PACKAGE_NAME, 'models'), glob('models/*.sdf')),
@@ -38,6 +37,5 @@ setup(
     description='Scenario Execution Example for Simulation',
     license='Apache License 2.0',
     tests_require=['pytest'],
-    entry_points={
-    },
+    entry_points={},
 )

@@ -29,11 +29,7 @@ class TestScenarioExecutionSuccess(unittest.TestCase):
 
     def setUp(self) -> None:
         self.parser = OpenScenario2Parser(Logger('test', False))
-        self.scenario_execution = ScenarioExecution(debug=False,
-                                                    log_model=False,
-                                                    live_tree=False,
-                                                    scenario_file='test',
-                                                    output_dir='')
+        self.scenario_execution = ScenarioExecution(debug=False, log_model=False, live_tree=False, scenario_file='test', output_dir='')
         self.tree = py_trees.composites.Sequence(name="", memory=True)
 
     def execute(self, scenario_content):
@@ -102,8 +98,8 @@ scenario test_run_process:
         start = datetime.now()
         self.scenario_execution.run()
         end = datetime.now()
-        duration = (end-start).total_seconds()
-        self.assertLessEqual(duration, 3.)
+        duration = (end - start).total_seconds()
+        self.assertLessEqual(duration, 3.0)
         self.assertTrue(self.scenario_execution.process_results())
 
     def test_signal_parsing(self):

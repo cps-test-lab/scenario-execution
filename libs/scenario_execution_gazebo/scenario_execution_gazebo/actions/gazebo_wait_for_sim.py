@@ -24,6 +24,7 @@ class WaitForSimulationActionState(Enum):
     """
     States for waiting for the simulation
     """
+
     IDLE = 1
     WAITING_FOR_SIM = 2
     DONE = 3
@@ -40,8 +41,7 @@ class GazeboWaitForSim(RunProcess):
         self.current_state = WaitForSimulationActionState.IDLE
 
     def execute(self, world_name: str, timeout: int):  # pylint: disable=arguments-differ
-        self.set_command(["gz", "topic", "-t", "/world/" +
-                          world_name + "/clock", "-e", "--json-output", "-n", "1"])
+        self.set_command(["gz", "topic", "-t", "/world/" + world_name + "/clock", "-e", "--json-output", "-n", "1"])
         self.world_name = world_name
         self.timeout_sec = timeout
         self.start_time = time.time()

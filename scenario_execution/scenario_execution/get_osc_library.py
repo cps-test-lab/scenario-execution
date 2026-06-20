@@ -14,6 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
 def get_robotics_library():
     return 'scenario_execution', 'robotics.osc'
 

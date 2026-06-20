@@ -34,6 +34,7 @@ class ActionCallActionState(Enum):
     """
     States for executing a service call
     """
+
     IDLE = 1
     ACTION_SERVER_AVAILABLE = 2
     ACTION_CALLED = 3
@@ -73,8 +74,7 @@ class RosActionCall(BaseAction):
         try:
             self.node: Node = kwargs['node']
         except KeyError as e:
-            error_message = "didn't find 'node' in setup's kwargs [{}][{}]".format(
-                self.name, self.__class__.__name__)
+            error_message = "didn't find 'node' in setup's kwargs [{}][{}]".format(self.name, self.__class__.__name__)
             raise ActionError(error_message, action=self) from e
 
         self.action_type = get_ros_message_type(self.action_type_string)
@@ -175,11 +175,11 @@ class RosActionCall(BaseAction):
                 self.goal_handle = None
             elif status == GoalStatus.STATUS_CANCELED:
                 self.current_state = ActionCallActionState.ERROR
-                self.feedback_message = f"Goal canceled."   # pylint: disable= attribute-defined-outside-init
+                self.feedback_message = f"Goal canceled."  # pylint: disable= attribute-defined-outside-init
                 self.goal_handle = None
             elif status == GoalStatus.STATUS_ABORTED:
                 self.current_state = ActionCallActionState.ERROR
-                self.feedback_message = f"Goal aborted."   # pylint: disable= attribute-defined-outside-init
+                self.feedback_message = f"Goal aborted."  # pylint: disable= attribute-defined-outside-init
                 self.goal_handle = None
         else:
             if not self.success_on_acceptance:

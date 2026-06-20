@@ -30,8 +30,7 @@ class Increment(BaseAction):
 
     def execute(self, target_variable: object):
         if not isinstance(target_variable, VariableReference):
-            raise ActionError(
-                f"'target_variable' is expected to be a variable reference but is {type(target_variable).__name__}.", action=self)
+            raise ActionError(f"'target_variable' is expected to be a variable reference but is {type(target_variable).__name__}.", action=self)
         self.target_variable = target_variable
 
     def update(self) -> py_trees.common.Status:

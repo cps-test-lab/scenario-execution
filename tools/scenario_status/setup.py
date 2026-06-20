@@ -26,8 +26,7 @@ setup(
     version='1.5.0',
     packages=find_packages(),
     data_files=[
-        ('share/ament_index/resource_index/packages',
-            ['resource/' + PACKAGE_NAME]),
+        ('share/ament_index/resource_index/packages', ['resource/' + PACKAGE_NAME]),
         ('share/' + PACKAGE_NAME, ['package.xml']),
         (os.path.join('share', PACKAGE_NAME), glob('scenario_status/*.py')),
         (os.path.join('share', PACKAGE_NAME), glob('params/*.yaml')),
@@ -43,8 +42,6 @@ setup(
     license='Apache License 2.0',
     tests_require=['pytest'],
     entry_points={
-        'console_scripts': [
-            'scenario_status_node = scenario_status.scenario_status_node:main'
-        ],
+        'console_scripts': ['scenario_status_node = scenario_status.scenario_status_node:main'],
     },
 )

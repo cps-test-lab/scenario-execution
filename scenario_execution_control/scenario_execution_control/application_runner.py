@@ -29,6 +29,7 @@ class ApplicationStatus(Enum):
     """
     States of an application
     """
+
     STOPPED = 0
     STARTING = 1
     RUNNING = 2
@@ -37,7 +38,6 @@ class ApplicationStatus(Enum):
 
 
 class ApplicationRunner(object):
-
     """
     Execute application
     """
@@ -61,19 +61,23 @@ class ApplicationRunner(object):
             return False
 
         self._shutdown_requested_event.clear()
-        self._app_thread = Thread(target=self.start_and_run, args=(cmdline,
-                                                                   env,
-                                                                   cwd,
-                                                                   self._shutdown_requested_event,
-                                                                   self._ready_string,
-                                                                   self._status_updated_fct,
-                                                                   self._log_fct,))
+        self._app_thread = Thread(
+            target=self.start_and_run,
+            args=(
+                cmdline,
+                env,
+                cwd,
+                self._shutdown_requested_event,
+                self._ready_string,
+                self._status_updated_fct,
+                self._log_fct,
+            ),
+        )
         self._app_thread.start()
 
         return True
 
-    def start_and_run(self, cmdline, env, cwd, shutdown_requested_event, ready_string,  # pylint: disable=too-many-arguments
-                      status_updated_fct, log_fct):
+    def start_and_run(self, cmdline, env, cwd, shutdown_requested_event, ready_string, status_updated_fct, log_fct):  # pylint: disable=too-many-arguments
         """
         thread function
         """
@@ -140,8 +144,10 @@ class ApplicationRunner(object):
                     process.terminate(force=False)
                 else:
                     if (datetime.now() - shutting_down_trigger_time) > timedelta(seconds=8):
-                        log_fct("Waited 8s for application to exit. Forcing Shutdown. \
-                            Sending SIGKILL")
+                        log_fct(
+                            "Waited 8s for application to exit. Forcing Shutdown. \
+                            Sending SIGKILL"
+                        )
                         process.terminate(force=True)
             try:
                 process.expect(".*\n", timeout=0.1)

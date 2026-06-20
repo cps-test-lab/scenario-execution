@@ -35,7 +35,9 @@ class RosBagPlay(RunProcess):
             raise ActionError("input_dir not defined.", action=self)
         self.input_dir = kwargs['input_dir']
 
-    def execute(self, source: str, topics: list, publish_clock: bool, publish_clock_rate: float, start_offset: float):  # pylint: disable=arguments-differ,arguments-renamed
+    def execute(
+        self, source: str, topics: list, publish_clock: bool, publish_clock_rate: float, start_offset: float
+    ):  # pylint: disable=arguments-differ,arguments-renamed
         super().execute(wait_for_shutdown=True)
         self.source = source
         bag_dir = ''

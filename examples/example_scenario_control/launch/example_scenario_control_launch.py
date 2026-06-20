@@ -32,36 +32,27 @@ def generate_launch_description():
     scenario_dir = LaunchConfiguration('scenario_dir')
     rviz_config = LaunchConfiguration('rviz_config')
 
-    arg_scenario_dir = DeclareLaunchArgument('scenario_dir', default_value=os.path.join(
-        example_scenario_control_dir, 'scenarios'), description='default directory of the scenarios')
+    arg_scenario_dir = DeclareLaunchArgument(
+        'scenario_dir', default_value=os.path.join(example_scenario_control_dir, 'scenarios'), description='default directory of the scenarios'
+    )
 
-    arg_rviz_config = DeclareLaunchArgument('rviz_config', default_value=PathJoinSubstitution(
-        [tb4_sim_scenario_dir, 'config', 'tb4_sim_scenario.rviz']), description='rviz config to launch')
+    arg_rviz_config = DeclareLaunchArgument(
+        'rviz_config', default_value=PathJoinSubstitution([tb4_sim_scenario_dir, 'config', 'tb4_sim_scenario.rviz']), description='rviz config to launch'
+    )
 
     tb4_sim_scenario = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([PathJoinSubstitution([tb4_sim_scenario_dir, 'launch', 'sim_nav_scenario_launch.py'])]),
-        launch_arguments={'scenario_execution': 'False', 'scenario': []}.items()
+        launch_arguments={'scenario_execution': 'False', 'scenario': []}.items(),
     )
 
-    rviz = LaunchDescription([
-        Node(
-            package='rviz2',
-            namespace='',
-            executable='rviz2',
-            name='rviz2',
-            arguments=['-d', rviz_config]
-        )
-    ])
+    rviz = LaunchDescription([Node(package='rviz2', namespace='', executable='rviz2', name='rviz2', arguments=['-d', rviz_config])])
 
     scenario_execution_control = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(os.path.join(scenario_execution_control_dir, 'launch', 'scenario_execution_control_launch.py')),
-        launch_arguments=[('scenario_dir', scenario_dir)]
+        launch_arguments=[('scenario_dir', scenario_dir)],
     )
 
-    ld = LaunchDescription([
-        arg_scenario_dir,
-        arg_rviz_config
-    ])
+    ld = LaunchDescription([arg_scenario_dir, arg_rviz_config])
     ld.add_action(scenario_execution_control)
     ld.add_action(tb4_sim_scenario)
     ld.add_action(rviz)

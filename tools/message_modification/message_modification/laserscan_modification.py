@@ -60,8 +60,7 @@ class LaserscanModification(Node):
     def callback(self, msg):
         if self.random_drop_percentage != 0.0:
             ranges = np.asarray(msg.ranges)
-            indices = np.random.choice(np.arange(len(msg.ranges)), replace=False,
-                                       size=int(len(msg.ranges) * self.random_drop_percentage))
+            indices = np.random.choice(np.arange(len(msg.ranges)), replace=False, size=int(len(msg.ranges) * self.random_drop_percentage))
             ranges[indices] = np.inf
             msg.ranges = ranges.tolist()
         if self.gaussian_noise_std_deviation != 0.0:

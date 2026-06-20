@@ -21,20 +21,11 @@ from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node, PushRosNamespace
 
 ARGUMENTS = [
-    DeclareLaunchArgument('namespace', default_value='',
-                          description='Robot namespace (without leading /)'),
-
-    DeclareLaunchArgument('in_topic_scan', default_value='scan_sim',
-                          description='Whether to execute simulation gui'),
-
-    DeclareLaunchArgument('out_topic_scan', default_value='scan',
-                          description='Whether to execute simulation gui'),
-
-    DeclareLaunchArgument('drop_percentage', default_value='0.0',
-                          description='Amount of dropped scan points in %'),
-
-    DeclareLaunchArgument('std_dev_noise', default_value='0.0',
-                          description='Whether to execute simulation gui'),
+    DeclareLaunchArgument('namespace', default_value='', description='Robot namespace (without leading /)'),
+    DeclareLaunchArgument('in_topic_scan', default_value='scan_sim', description='Whether to execute simulation gui'),
+    DeclareLaunchArgument('out_topic_scan', default_value='scan', description='Whether to execute simulation gui'),
+    DeclareLaunchArgument('drop_percentage', default_value='0.0', description='Amount of dropped scan points in %'),
+    DeclareLaunchArgument('std_dev_noise', default_value='0.0', description='Whether to execute simulation gui'),
 ]
 
 

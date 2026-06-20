@@ -21,8 +21,7 @@ from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
 ARGUMENTS = [
-    DeclareLaunchArgument('robot_name', default_value='robot2',
-                          description='name of robot'),
+    DeclareLaunchArgument('robot_name', default_value='robot2', description='name of robot'),
 ]
 
 
@@ -35,19 +34,12 @@ def generate_launch_description():
         executable='parameter_bridge',
         name='cmd_vel_bridge',
         output='screen',
-        parameters=[{
-            'use_sim_time': True
-        }],
+        parameters=[{'use_sim_time': True}],
         arguments=[
-            [robot_name,
-             '/cmd_vel' + '@geometry_msgs/msg/Twist' + '[gz.msgs.Twist'],
-            ['/model/', robot_name, '/cmd_vel' +
-             '@geometry_msgs/msg/Twist' +
-             ']gz.msgs.Twist']
+            [robot_name, '/cmd_vel' + '@geometry_msgs/msg/Twist' + '[gz.msgs.Twist'],
+            ['/model/', robot_name, '/cmd_vel' + '@geometry_msgs/msg/Twist' + ']gz.msgs.Twist'],
         ],
-        remappings=[
-            (['/model/', robot_name, '/cmd_vel'], [robot_name, '/cmd_vel'])
-        ]
+        remappings=[(['/model/', robot_name, '/cmd_vel'], [robot_name, '/cmd_vel'])],
     )
 
     ld = LaunchDescription(ARGUMENTS)

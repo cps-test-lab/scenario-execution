@@ -14,8 +14,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
 def factorial(n: int):  # pylint: disable=invalid-name
     fact = 1
-    for i in range(1, n+1):
+    for i in range(1, n + 1):
         fact = fact * i
     return fact

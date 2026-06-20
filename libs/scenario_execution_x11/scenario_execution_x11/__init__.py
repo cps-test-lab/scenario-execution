@@ -16,6 +16,4 @@
 
 from . import actions
 
-__all__ = [
-    'actions'
-]
+__all__ = ['actions']

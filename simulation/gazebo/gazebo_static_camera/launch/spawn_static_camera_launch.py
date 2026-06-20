@@ -23,22 +23,14 @@ from launch.substitutions.path_join_substitution import PathJoinSubstitution
 from launch_ros.actions import Node
 
 ARGUMENTS = [
-    DeclareLaunchArgument('camera_name', default_value='static_camera',
-                          description='Camera name'),
-
-    DeclareLaunchArgument('update_rate', default_value='5',
-                          description='Update rate of the sensor'),
-
-    DeclareLaunchArgument('image_width', default_value='320',
-                          description='Width of camera image'),
-
-    DeclareLaunchArgument('image_height', default_value='240',
-                          description='Height of camera image'),
+    DeclareLaunchArgument('camera_name', default_value='static_camera', description='Camera name'),
+    DeclareLaunchArgument('update_rate', default_value='5', description='Update rate of the sensor'),
+    DeclareLaunchArgument('image_width', default_value='320', description='Width of camera image'),
+    DeclareLaunchArgument('image_height', default_value='240', description='Height of camera image'),
 ]
 
 for pose_element in ['x', 'y', 'z', 'roll', 'pitch', 'yaw']:
-    ARGUMENTS.append(DeclareLaunchArgument(pose_element, default_value='0.0',
-                     description=f'{pose_element} component of the camera pose.'))
+    ARGUMENTS.append(DeclareLaunchArgument(pose_element, default_value='0.0', description=f'{pose_element} component of the camera pose.'))
 
 
 def generate_launch_description():
@@ -66,34 +58,41 @@ def generate_launch_description():
         output='screen',
         parameters=[{'use_sim_time': True}],
         arguments=[
-            [camera_name, '/camera_info' +
-             '@sensor_msgs/msg/CameraInfo' +
-             '[gz.msgs.CameraInfo'],
-        ]
+            [camera_name, '/camera_info' + '@sensor_msgs/msg/CameraInfo' + '[gz.msgs.CameraInfo'],
+        ],
     )
 
     spawn_camera = Node(
         package='ros_gz_sim',
         executable='create',
-        arguments=['-name', camera_name,
-                   '-x', x,
-                   '-y', y,
-                   '-z', z,
-                   '-R', roll,
-                   '-P', pitch,
-                   '-Y', yaw,
-                   '-param', 'robot_description'],
-        parameters=[{
-            'robot_description': Command(['xacro ', 'update_rate:=', update_rate, ' image_width:=', image_width, ' image_height:=', image_height, ' camera_name:=', camera_name, ' ', PathJoinSubstitution([gazebo_static_camera_dir, "models", "camera.sdf.xacro"])])}],
-        output='screen'
+        arguments=['-name', camera_name, '-x', x, '-y', y, '-z', z, '-R', roll, '-P', pitch, '-Y', yaw, '-param', 'robot_description'],
+        parameters=[
+            {
+                'robot_description': Command(
+                    [
+                        'xacro ',
+                        'update_rate:=',
+                        update_rate,
+                        ' image_width:=',
+                        image_width,
+                        ' image_height:=',
+                        image_height,
+                        ' camera_name:=',
+                        camera_name,
+                        ' ',
+                        PathJoinSubstitution([gazebo_static_camera_dir, "models", "camera.sdf.xacro"]),
+                    ]
+                )
+            }
+        ],
+        output='screen',
     )
 
     static_transform = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
         name='static_camera_transform',
-        arguments=['--x', x, '--y', y, '--z', z, '--roll', roll, '--pitch', pitch,
-                   '--yaw', yaw, '--frame-id', '/map', '--child-frame-id', camera_name],
+        arguments=['--x', x, '--y', y, '--z', z, '--roll', roll, '--pitch', pitch, '--yaw', yaw, '--frame-id', '/map', '--child-frame-id', camera_name],
         remappings=[('/tf_static', 'tf_static')],
     )
 
@@ -101,8 +100,24 @@ def generate_launch_description():
         package='tf2_ros',
         executable='static_transform_publisher',
         name='static_camera_transform_2',
-        arguments=['--x', '0', '--y', '0', '--z', '0', '--roll', "-1.57", '--pitch', "0", '--yaw',
-                   "-1.57", '--frame-id', camera_name, '--child-frame-id', [camera_name, '_optical_frame']],
+        arguments=[
+            '--x',
+            '0',
+            '--y',
+            '0',
+            '--z',
+            '0',
+            '--roll',
+            "-1.57",
+            '--pitch',
+            "0",
+            '--yaw',
+            "-1.57",
+            '--frame-id',
+            camera_name,
+            '--child-frame-id',
+            [camera_name, '_optical_frame'],
+        ],
         remappings=[('/tf_static', 'tf_static')],
     )
 

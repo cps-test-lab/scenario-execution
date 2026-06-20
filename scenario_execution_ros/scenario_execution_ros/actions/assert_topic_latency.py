@@ -42,7 +42,7 @@ class AssertTopicLatency(BaseAction):
         self.subscription = None
         self.last_receive_time = 0
         self.msg_count = 0
-        self.average_latency = 0.
+        self.average_latency = 0.0
         self.timer = time.time()
         self.is_topic = False
         self.retrigger = None
@@ -51,8 +51,7 @@ class AssertTopicLatency(BaseAction):
         try:
             self.node: Node = kwargs['node']
         except KeyError as e:
-            error_message = "didn't find 'node' in setup's kwargs [{}][{}]".format(
-                self.name, self.__class__.__name__)
+            error_message = "didn't find 'node' in setup's kwargs [{}][{}]".format(self.name, self.__class__.__name__)
             raise ActionError(error_message, action=self) from e
 
         success = self.check_topic()
@@ -70,7 +69,7 @@ class AssertTopicLatency(BaseAction):
         self.timer = time.time()
         self.last_receive_time = 0
         self.msg_count = 0
-        self.average_latency = 0.
+        self.average_latency = 0.0
         self.is_topic = False
         self.retrigger = True
 
@@ -149,10 +148,7 @@ class AssertTopicLatency(BaseAction):
         if message_class is None:
             raise ValueError(f"Message type '{topic_type}' could not be found.")
         self.subscription = self.node.create_subscription(
-            msg_type=message_class,
-            topic=self.topic_name,
-            callback=self._callback,
-            qos_profile=get_qos_preset_profile(['sensor_data'])
+            msg_type=message_class, topic=self.topic_name, callback=self._callback, qos_profile=get_qos_preset_profile(['sensor_data'])
         )
 
     def _callback(self, msg):

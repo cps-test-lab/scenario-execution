@@ -23,29 +23,28 @@ from launch_ros.descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
 
 ARGUMENTS = [
-    DeclareLaunchArgument('ros2_control_hardware_type', default_value='mock_components',
-                          choices=['ignition', 'mock_components'],
-                          description='ROS2 control hardware interface type to use for the launch file'),
-    DeclareLaunchArgument('use_sim_time', default_value='true',
-                          choices=['true', 'false'],
-                          description='use_sim_time'),
-    DeclareLaunchArgument('virtual_joint_child_name', default_value='panda_link0',
-                          description='arm base_link name'),
-    DeclareLaunchArgument('virtual_joint_parent_frame', default_value='world',
-                          description='virtual_joint_parent_frame name to which arm is attached to'),
-    DeclareLaunchArgument('urdf_pkg', default_value='arm_sim_scenario',
-                          description='Package where URDF/Xacro file is located (file should be inside the config dir of pkg/config/robot_name.urdf.xacro)'),
-    DeclareLaunchArgument('urdf', default_value='panda.urdf.xacro',
-                          description='Name of URDF/Xacro file')
+    DeclareLaunchArgument(
+        'ros2_control_hardware_type',
+        default_value='mock_components',
+        choices=['ignition', 'mock_components'],
+        description='ROS2 control hardware interface type to use for the launch file',
+    ),
+    DeclareLaunchArgument('use_sim_time', default_value='true', choices=['true', 'false'], description='use_sim_time'),
+    DeclareLaunchArgument('virtual_joint_child_name', default_value='panda_link0', description='arm base_link name'),
+    DeclareLaunchArgument('virtual_joint_parent_frame', default_value='world', description='virtual_joint_parent_frame name to which arm is attached to'),
+    DeclareLaunchArgument(
+        'urdf_pkg',
+        default_value='arm_sim_scenario',
+        description='Package where URDF/Xacro file is located (file should be inside the config dir of pkg/config/robot_name.urdf.xacro)',
+    ),
+    DeclareLaunchArgument('urdf', default_value='panda.urdf.xacro', description='Name of URDF/Xacro file'),
 ]
 
 
 def generate_launch_description():
 
     pkg_urdf = FindPackageShare(LaunchConfiguration('urdf_pkg'))
-    xacro_file = PathJoinSubstitution([pkg_urdf,
-                                       'config',
-                                       LaunchConfiguration('urdf')])
+    xacro_file = PathJoinSubstitution([pkg_urdf, 'config', LaunchConfiguration('urdf')])
     ros2_control_hardware_type = LaunchConfiguration('ros2_control_hardware_type')
     virtual_joint_child_name = LaunchConfiguration('virtual_joint_child_name')
     virtual_joint_parent_frame = LaunchConfiguration('virtual_joint_parent_frame')
@@ -58,9 +57,11 @@ def generate_launch_description():
         output="both",
         parameters=[
             {'use_sim_time': use_sim_time},
-            {'robot_description': ParameterValue(Command([
-                'xacro', ' ', xacro_file, ' ',
-                'ros2_control_hardware_type:=', ros2_control_hardware_type]), value_type=str)},
+            {
+                'robot_description': ParameterValue(
+                    Command(['xacro', ' ', xacro_file, ' ', 'ros2_control_hardware_type:=', ros2_control_hardware_type]), value_type=str
+                )
+            },
         ],
     )
 

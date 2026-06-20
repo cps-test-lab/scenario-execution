@@ -16,21 +16,21 @@
 
 
 from scenario_execution_ros.actions.ros_service_call import RosServiceCall
+
 try:
     from simulation_interfaces.msg import Result
 except ImportError as e:
     raise ImportError("simulation_interfaces package not found. Please make sure ros-<ROS_DISTRO>-simulation-interfaces is installed and sourced.") from e
 
+
 class DeleteEntity(RosServiceCall):
 
     def __init__(self, entity: str):
         self.entity = entity
-        super().__init__(service_name='/delete_entity',
-                         service_type='simulation_interfaces.srv.DeleteEntity')
+        super().__init__(service_name='/delete_entity', service_type='simulation_interfaces.srv.DeleteEntity')
 
-    def execute(self):   # pylint: disable=arguments-differ,arguments-renamed
-        super().execute(data={ "entity": self.entity })
-
+    def execute(self):  # pylint: disable=arguments-differ,arguments-renamed
+        super().execute(data={"entity": self.entity})
 
     def check_response(self, msg):
         """

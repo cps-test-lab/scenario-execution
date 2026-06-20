@@ -30,12 +30,7 @@ class RosTopicCheckDataExternal(BaseAction):
     Class to check if the message on ROS topic equals to the target message
     """
 
-    def __init__(self,
-                 topic_name: str,
-                 topic_type: str,
-                 qos_profile: tuple,
-                 file_path: str,
-                 function_name: str):
+    def __init__(self, topic_name: str, topic_type: str, qos_profile: tuple, file_path: str, function_name: str):
         super().__init__()
         self.check_function = None
         self.topic_name = topic_name
@@ -56,8 +51,7 @@ class RosTopicCheckDataExternal(BaseAction):
         try:
             self.node: rclpy.Node = kwargs['node']
         except KeyError as e:
-            error_message = "didn't find 'node' in setup's kwargs [{}][{}]".format(
-                self.name, self.__class__.__name__)
+            error_message = "didn't find 'node' in setup's kwargs [{}][{}]".format(self.name, self.__class__.__name__)
             raise ActionError(error_message, action=self) from e
 
         # check if msg type exists
@@ -90,14 +84,11 @@ class RosTopicCheckDataExternal(BaseAction):
             topic=self.topic_name,
             callback=self._callback,
             qos_profile=get_qos_preset_profile(self.qos_profile),
-            callback_group=rclpy.callback_groups.ReentrantCallbackGroup()
+            callback_group=rclpy.callback_groups.ReentrantCallbackGroup(),
         )
         self.feedback_message = f"Waiting for data on {self.topic_name}"  # pylint: disable= attribute-defined-outside-init
 
-    def execute(self,
-                fail_if_no_data: bool,
-                fail_if_bad_comparison: bool,
-                wait_for_first_message: bool):
+    def execute(self, fail_if_no_data: bool, fail_if_bad_comparison: bool, wait_for_first_message: bool):
         self.fail_if_no_data = fail_if_no_data
         self.fail_if_bad_comparison = fail_if_bad_comparison
         self.wait_for_first_message = wait_for_first_message

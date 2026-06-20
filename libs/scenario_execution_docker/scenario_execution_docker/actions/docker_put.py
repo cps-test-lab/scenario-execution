@@ -68,19 +68,16 @@ class DockerPut(BaseAction):
             self.tar = tempfile.NamedTemporaryFile(suffix=".tar")
             try:
                 with tarfile.open(self.tar.name, 'w:') as tar:
-                    tar.add(
-                        self.source_path,
-                        arcname=os.path.basename(self.source_path))
+                    tar.add(self.source_path, arcname=os.path.basename(self.source_path))
                 self.current_state = CopyStatus.COPYING
             except tarfile.ReadError as e:
-                self.feedback_message = f"Compressing data to a tar file from path {self.source_path} failed: {e}"  # pylint: disable= attribute-defined-outside-init
+                self.feedback_message = (
+                    f"Compressing data to a tar file from path {self.source_path} failed: {e}"  # pylint: disable= attribute-defined-outside-init
+                )
                 return py_trees.common.Status.FAILURE
 
         if self.current_state == CopyStatus.COPYING:
-            success = self.container_object.put_archive(
-                path=self.target_path,
-                data=self.tar
-            )
+            success = self.container_object.put_archive(path=self.target_path, data=self.tar)
             if success:
                 self.current_state = CopyStatus.DONE
                 self.feedback_message = f"Copying data from path {self.source_path} to {self.target_path} inside container {self.container}"  # pylint: disable= attribute-defined-outside-init

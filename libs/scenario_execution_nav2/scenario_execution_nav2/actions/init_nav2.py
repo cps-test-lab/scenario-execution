@@ -38,6 +38,7 @@ class InitNav2State(Enum):
     """
     States for executing a initialization of nav2
     """
+
     IDLE = 1
     LOCALIZER_STATE_REQUESTED = 2
     LOCALIZER_STATE_RECEIVED = 3
@@ -90,34 +91,25 @@ class InitNav2(BaseAction):
         try:
             self.node: Node = kwargs['node']
         except KeyError as e:
-            error_message = "didn't find 'node' in setup's kwargs [{}][{}]".format(
-                self.name, self.__class__.__name__)
+            error_message = "didn't find 'node' in setup's kwargs [{}][{}]".format(self.name, self.__class__.__name__)
             raise ActionError(error_message, action=self) from e
 
         self.tf_buffer = Buffer()
         self.tf_listener = NamespacedTransformListener(
-            node=self.node, buffer=self.tf_buffer, tf_topic=self.namespace + "/tf", tf_static_topic=self.namespace + "/tf_static")
+            node=self.node, buffer=self.tf_buffer, tf_topic=self.namespace + "/tf", tf_static_topic=self.namespace + "/tf_static"
+        )
 
-        self.nav = NamespaceAwareBasicNavigator(
-            node_name="basic_nav_init_nav2", namespace=self.namespace)
-        self.bt_navigator_state_client = self.node.create_client(
-            GetState, self.namespace + '/bt_navigator/get_state',
-            callback_group=ReentrantCallbackGroup())
-        self.amcl_state_client = self.node.create_client(
-            GetState, self.namespace + '/amcl/get_state',
-            callback_group=ReentrantCallbackGroup())
+        self.nav = NamespaceAwareBasicNavigator(node_name="basic_nav_init_nav2", namespace=self.namespace)
+        self.bt_navigator_state_client = self.node.create_client(GetState, self.namespace + '/bt_navigator/get_state', callback_group=ReentrantCallbackGroup())
+        self.amcl_state_client = self.node.create_client(GetState, self.namespace + '/amcl/get_state', callback_group=ReentrantCallbackGroup())
 
         amcl_pose_qos = QoSProfile(
-            durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
-            reliability=QoSReliabilityPolicy.RELIABLE,
-            history=QoSHistoryPolicy.KEEP_LAST,
-            depth=1)
+            durability=QoSDurabilityPolicy.TRANSIENT_LOCAL, reliability=QoSReliabilityPolicy.RELIABLE, history=QoSHistoryPolicy.KEEP_LAST, depth=1
+        )
 
-        self.localization_pose_sub = self.node.create_subscription(PoseWithCovarianceStamped,
-                                                                   self.namespace + '/amcl_pose',
-                                                                   self._amcl_pose_callback,
-                                                                   amcl_pose_qos,
-                                                                   callback_group=ReentrantCallbackGroup())
+        self.localization_pose_sub = self.node.create_subscription(
+            PoseWithCovarianceStamped, self.namespace + '/amcl_pose', self._amcl_pose_callback, amcl_pose_qos, callback_group=ReentrantCallbackGroup()
+        )
 
     def execute(self, associated_actor, initial_pose: list, base_frame_id: str, wait_for_initial_pose: bool, use_initial_pose: bool, wait_for_amcl: bool):
         self.initial_pose = initial_pose
@@ -146,7 +138,9 @@ class InitNav2(BaseAction):
 
                 if self.retry_count > 0:
                     req = GetState.Request()
-                    self.feedback_message = f"Waiting for localizer to become active. Try {1001 - self.retry_count}"  # pylint: disable= attribute-defined-outside-init
+                    self.feedback_message = (
+                        f"Waiting for localizer to become active. Try {1001 - self.retry_count}"  # pylint: disable= attribute-defined-outside-init
+                    )
                     self.future = self.amcl_state_client.call_async(req)
                     self.service_called_timestamp = datetime.now()
                     self.future.add_done_callback(self._get_state_done_callback)
@@ -165,7 +159,9 @@ class InitNav2(BaseAction):
                 self.current_state = InitNav2State.LOCALIZER_STATE_ACTIVE
                 self.retry_count = None
             else:
-                self.feedback_message = f"Localizer expected to be active, but is '{self.localizer_state}'. Retrying..."  # pylint: disable= attribute-defined-outside-init
+                self.feedback_message = (
+                    f"Localizer expected to be active, but is '{self.localizer_state}'. Retrying..."  # pylint: disable= attribute-defined-outside-init
+                )
                 self.current_state = InitNav2State.IDLE
             result = py_trees.common.Status.RUNNING
         elif self.current_state == InitNav2State.LOCALIZER_STATE_ACTIVE:
@@ -174,8 +170,7 @@ class InitNav2(BaseAction):
                 self.feedback_message = f"Waiting for externally set initial pose."  # pylint: disable= attribute-defined-outside-init
                 self.current_state = InitNav2State.WAIT_FOR_INITIAL_POSE
             elif self.use_initial_pose:
-                initial_pose = get_pose_stamped(
-                    self.nav.get_clock().now().to_msg(), self.initial_pose)
+                initial_pose = get_pose_stamped(self.nav.get_clock().now().to_msg(), self.initial_pose)
                 self.feedback_message = f"Set initial pose."  # pylint: disable= attribute-defined-outside-init
                 self.nav.setInitialPose(initial_pose)
 
@@ -189,7 +184,9 @@ class InitNav2(BaseAction):
                 self.feedback_message = f"Transform map -> {self.base_frame_id} got available."  # pylint: disable= attribute-defined-outside-init
                 self.current_state = InitNav2State.MAP_BASELINK_TF_RECEIVED
             else:
-                self.feedback_message = f"Waiting for transform map -> {self.base_frame_id} to get available..."  # pylint: disable= attribute-defined-outside-init
+                self.feedback_message = (
+                    f"Waiting for transform map -> {self.base_frame_id} to get available..."  # pylint: disable= attribute-defined-outside-init
+                )
             result = py_trees.common.Status.RUNNING
         elif self.current_state == InitNav2State.MAP_BASELINK_TF_RECEIVED:
             self.current_state = InitNav2State.NAVIGATOR_STATE_REQUESTED
@@ -219,7 +216,9 @@ class InitNav2(BaseAction):
                 self.current_state = InitNav2State.NAVIGATOR_ACTIVE
                 self.retry_count = None
             else:
-                self.feedback_message = f"Navigator expected to be active, but is {self.navigator_state}. Retrying..."  # pylint: disable= attribute-defined-outside-init
+                self.feedback_message = (
+                    f"Navigator expected to be active, but is {self.navigator_state}. Retrying..."  # pylint: disable= attribute-defined-outside-init
+                )
                 self.current_state = InitNav2State.MAP_BASELINK_TF_RECEIVED
             result = py_trees.common.Status.RUNNING
         elif self.current_state == InitNav2State.NAVIGATOR_ACTIVE:

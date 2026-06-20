@@ -16,13 +16,14 @@
 
 import py_trees
 
+
 class BaseActionSubtree(py_trees.composites.Sequence):
     """
     Base class for actions that provide their own behavior tree implementation.
-    
+
     Instead of implementing update() directly, subclasses should override create_subtree()
     to return a complete behavior tree that will be used as the action's implementation.
-    
+
     This class acts as a wrapper that returns itself as the main behavior but delegates
     the actual work to the subtree it creates.
     """
@@ -32,8 +33,7 @@ class BaseActionSubtree(py_trees.composites.Sequence):
         self.logger = None
         execute_method = getattr(self, "execute", None)
         if execute_method is not None and callable(execute_method):
-            raise ValueError(
-                "BaseActionSubtree derived class should not implement execute(). ")
+            raise ValueError("BaseActionSubtree derived class should not implement execute(). ")
         super().__init__(self.__class__.__name__, memory=True)
 
     def get_execution_args(self, child):

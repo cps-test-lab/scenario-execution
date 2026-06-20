@@ -29,14 +29,15 @@ def generate_launch_description():
 
     scenario = LaunchConfiguration('scenario')
 
-    return LaunchDescription([
-        DeclareLaunchArgument('scenario', description='Scenario file to execute', default_value=PathJoinSubstitution([example_nav2_dir, 'scenarios', 'example_nav2.osc'])),
-
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource([PathJoinSubstitution([nav2_bringup_dir, 'launch', 'tb4_loopback_simulation.launch.py'])])
-        ),
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource([PathJoinSubstitution([scenario_execution_ros_dir, 'launch', 'scenario_launch.py'])]),
-            launch_arguments={'scenario': scenario}.items()
-        )
-    ])
+    return LaunchDescription(
+        [
+            DeclareLaunchArgument(
+                'scenario', description='Scenario file to execute', default_value=PathJoinSubstitution([example_nav2_dir, 'scenarios', 'example_nav2.osc'])
+            ),
+            IncludeLaunchDescription(PythonLaunchDescriptionSource([PathJoinSubstitution([nav2_bringup_dir, 'launch', 'tb4_loopback_simulation.launch.py'])])),
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource([PathJoinSubstitution([scenario_execution_ros_dir, 'launch', 'scenario_launch.py'])]),
+                launch_arguments={'scenario': scenario}.items(),
+            ),
+        ]
+    )

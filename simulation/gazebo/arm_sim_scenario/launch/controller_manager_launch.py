@@ -22,15 +22,19 @@ from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
 ARGUMENTS = [
-    DeclareLaunchArgument('arm_group_controller', default_value='panda_arm_controller',
-                          description='arm_group_controller name'),
-    DeclareLaunchArgument('gripper_group_controller', default_value='panda_hand_controller',
-                          description='gripper_group_controller name'),
-    DeclareLaunchArgument('ros2_control_hardware_type', default_value='mock_components',
-                          choices=['ignition', 'mock_components'],
-                          description='ROS2 control hardware interface type to use for the launch file'),
-    DeclareLaunchArgument('ros2_control_config_pkg', default_value='moveit_resources_panda_moveit_config',
-                          description='ROS2 control config pkg (file should be inside the config dir of pkg/config/ros2_controllers.yam)')
+    DeclareLaunchArgument('arm_group_controller', default_value='panda_arm_controller', description='arm_group_controller name'),
+    DeclareLaunchArgument('gripper_group_controller', default_value='panda_hand_controller', description='gripper_group_controller name'),
+    DeclareLaunchArgument(
+        'ros2_control_hardware_type',
+        default_value='mock_components',
+        choices=['ignition', 'mock_components'],
+        description='ROS2 control hardware interface type to use for the launch file',
+    ),
+    DeclareLaunchArgument(
+        'ros2_control_config_pkg',
+        default_value='moveit_resources_panda_moveit_config',
+        description='ROS2 control config pkg (file should be inside the config dir of pkg/config/ros2_controllers.yam)',
+    ),
 ]
 
 
@@ -40,11 +44,7 @@ def generate_launch_description():
     arm_group_controller = LaunchConfiguration('arm_group_controller')
     gripper_group_controller = LaunchConfiguration('gripper_group_controller')
     ros2_control_hardware_type = LaunchConfiguration('ros2_control_hardware_type')
-    ros2_controllers_path = PathJoinSubstitution([
-        pkg_controller_config,
-        "config",
-        "ros2_controllers.yaml"]
-    )
+    ros2_controllers_path = PathJoinSubstitution([pkg_controller_config, "config", "ros2_controllers.yaml"])
 
     ros2_control_node = Node(
         package="controller_manager",
@@ -54,7 +54,7 @@ def generate_launch_description():
             ("/controller_manager/robot_description", "/robot_description"),
         ],
         output="screen",
-        condition=IfCondition(EqualsSubstitution(ros2_control_hardware_type, "mock_components"))
+        condition=IfCondition(EqualsSubstitution(ros2_control_hardware_type, "mock_components")),
     )
 
     joint_state_broadcaster = ExecuteProcess(
@@ -82,14 +82,7 @@ def generate_launch_description():
     )
 
     gripper_controller_spawner = ExecuteProcess(
-        cmd=[
-            "ros2",
-            "control",
-            "load_controller",
-            "--set-state",
-            "active",
-            gripper_group_controller
-        ],
+        cmd=["ros2", "control", "load_controller", "--set-state", "active", gripper_group_controller],
         output="screen",
     )
 

@@ -15,7 +15,80 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-from .types import ModelElement, CompilationUnit, PhysicalTypeDeclaration, UnitDeclaration, SIBaseExponent, EnumDeclaration, EnumMemberDeclaration, EnumValueReference, InheritsCondition, StructDeclaration, StructInherits, ActionDeclaration, ActionInherits, ActorDeclaration, ActorInherits, FieldAccessExpression, FallExpression, FloatLiteral, FunctionApplicationExpression, Argument, BehaviorInvocation, BinaryExpression, BoolLiteral, CallDirective, CastExpression, CoverDeclaration, DoDirective, ElapsedExpression, ElementAccessExpression, DoMember, EmitDirective, EnumTypeExtension, EventCondition, EventDeclaration, EventFieldDecl, EventReference, EveryExpression, GlobalParameterDeclaration, Identifier, IdentifierReference, IntegerLiteral, KeepConstraintDeclaration, ListExpression, LogicalExpression, MethodBody, MethodDeclaration, ModifierDeclaration, ModifierInvocation, NamedArgument, OnDirective, ParameterDeclaration, PhysicalLiteral, ParameterReference, PositionalArgument, RangeExpression, RelationExpression, RecordDeclaration, RemoveDefaultDeclaration, RiseExpression, SampleExpression, ScenarioInherits, SIUnitSpecifier, StringLiteral, ScenarioDeclaration, StructuredTypeExtension, TernaryExpression, TypeTestExpression, UnaryExpression, Type, UntilDirective, VariableDeclaration, WaitDirective
+from .types import (
+    ModelElement,
+    CompilationUnit,
+    PhysicalTypeDeclaration,
+    UnitDeclaration,
+    SIBaseExponent,
+    EnumDeclaration,
+    EnumMemberDeclaration,
+    EnumValueReference,
+    InheritsCondition,
+    StructDeclaration,
+    StructInherits,
+    ActionDeclaration,
+    ActionInherits,
+    ActorDeclaration,
+    ActorInherits,
+    FieldAccessExpression,
+    FallExpression,
+    FloatLiteral,
+    FunctionApplicationExpression,
+    Argument,
+    BehaviorInvocation,
+    BinaryExpression,
+    BoolLiteral,
+    CallDirective,
+    CastExpression,
+    CoverDeclaration,
+    DoDirective,
+    ElapsedExpression,
+    ElementAccessExpression,
+    DoMember,
+    EmitDirective,
+    EnumTypeExtension,
+    EventCondition,
+    EventDeclaration,
+    EventFieldDecl,
+    EventReference,
+    EveryExpression,
+    GlobalParameterDeclaration,
+    Identifier,
+    IdentifierReference,
+    IntegerLiteral,
+    KeepConstraintDeclaration,
+    ListExpression,
+    LogicalExpression,
+    MethodBody,
+    MethodDeclaration,
+    ModifierDeclaration,
+    ModifierInvocation,
+    NamedArgument,
+    OnDirective,
+    ParameterDeclaration,
+    PhysicalLiteral,
+    ParameterReference,
+    PositionalArgument,
+    RangeExpression,
+    RelationExpression,
+    RecordDeclaration,
+    RemoveDefaultDeclaration,
+    RiseExpression,
+    SampleExpression,
+    ScenarioInherits,
+    SIUnitSpecifier,
+    StringLiteral,
+    ScenarioDeclaration,
+    StructuredTypeExtension,
+    TernaryExpression,
+    TypeTestExpression,
+    UnaryExpression,
+    Type,
+    UntilDirective,
+    VariableDeclaration,
+    WaitDirective,
+)
 
 
 class BaseVisitor(object):
@@ -107,9 +180,7 @@ class ModelBaseVisitor(BaseVisitor):  # pylint: disable=too-many-public-methods
     def visit_structured_type_extension(self, node: StructuredTypeExtension):
         return self.visit_children(node)
 
-    def visit_global_parameter_declaration(
-        self, node: GlobalParameterDeclaration
-    ):
+    def visit_global_parameter_declaration(self, node: GlobalParameterDeclaration):
         return self.visit_children(node)
 
     def visit_parameter_declaration(self, node: ParameterDeclaration):

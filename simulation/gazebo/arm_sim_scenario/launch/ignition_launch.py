@@ -22,13 +22,7 @@ from launch.substitutions import LaunchConfiguration, EnvironmentVariable
 from launch_ros.actions import Node
 
 # Define Launch Arguments
-ARGUMENTS = [
-    DeclareLaunchArgument(
-        'world',
-        default_value="empty.sdf",
-        description='Simulation World File'
-    )
-]
+ARGUMENTS = [DeclareLaunchArgument('world', default_value="empty.sdf", description='Simulation World File')]
 
 
 def generate_launch_description():
@@ -39,16 +33,12 @@ def generate_launch_description():
     ign_gazebo_resource_path = SetEnvironmentVariable(
         name='IGN_GAZEBO_RESOURCE_PATH',
         value=[
-            EnvironmentVariable('IGN_GAZEBO_RESOURCE_PATH', default_value=os.path.dirname(
-                get_package_share_directory('moveit_resources_panda_description')))
-        ]
+            EnvironmentVariable('IGN_GAZEBO_RESOURCE_PATH', default_value=os.path.dirname(get_package_share_directory('moveit_resources_panda_description')))
+        ],
     )
 
     env = {
-        'GZ_SIM_SYSTEM_PLUGIN_PATH': ':'.join([
-            os.environ.get('GZ_SIM_SYSTEM_PLUGIN_PATH', ''),
-            os.environ.get('LD_LIBRARY_PATH', '')
-        ]),
+        'GZ_SIM_SYSTEM_PLUGIN_PATH': ':'.join([os.environ.get('GZ_SIM_SYSTEM_PLUGIN_PATH', ''), os.environ.get('LD_LIBRARY_PATH', '')]),
     }
 
     # Ignition Gazebo Launch
@@ -60,7 +50,7 @@ def generate_launch_description():
         sigterm_timeout='5',
         sigkill_timeout='10',
         log_cmd=True,
-        emulate_tty=True
+        emulate_tty=True,
     )
 
     # Spawn Robot Node
@@ -69,9 +59,12 @@ def generate_launch_description():
         executable="create",
         output="screen",
         arguments=[
-            "-topic", "robot_description",
-            "-name", "arm",
-            "-allow-renaming", "true",
+            "-topic",
+            "robot_description",
+            "-name",
+            "arm",
+            "-allow-renaming",
+            "true",
         ],
     )
 

@@ -23,6 +23,7 @@ try:
 except ImportError as e:
     raise ImportError("simulation_interfaces package not found. Please make sure ros-<ROS_DISTRO>-simulation-interfaces is installed and sourced.") from e
 
+
 class SetEntityState(RosServiceCall):
 
     def __init__(self, entity: str, pose: dict, twist: dict, acceleration: dict):
@@ -30,29 +31,29 @@ class SetEntityState(RosServiceCall):
         self.pose = pose
         self.twist = twist
         self.acceleration = acceleration
-        super().__init__(service_name='/set_entity_state',
-                         service_type='simulation_interfaces.srv.SetEntityState')
+        super().__init__(service_name='/set_entity_state', service_type='simulation_interfaces.srv.SetEntityState')
 
     def convert_value(self, value: dict):
         try:
             result = {
-                'linear': {
-                    'x': value['translational']['x'],
-                    'y': value['translational']['y'],
-                    'z': value['translational']['z']
-                },
-                'angular': {
-                    'x': value['angular']['roll'],
-                    'y': value['angular']['pitch'],
-                    'z': value['angular']['yaw']
-                }
+                'linear': {'x': value['translational']['x'], 'y': value['translational']['y'], 'z': value['translational']['z']},
+                'angular': {'x': value['angular']['roll'], 'y': value['angular']['pitch'], 'z': value['angular']['yaw']},
             }
         except KeyError as err:
             raise ActionError(f"Invalid value format: {self.twist}", action=self) from err
         return result
 
-    def execute(self):   # pylint: disable=arguments-differ,arguments-renamed
-        super().execute(data={ "entity": self.entity, "state": { "pose": get_spawn_pose(self, self.pose), "twist": self.convert_value(self.twist), "acceleration": self.convert_value(self.acceleration) }})
+    def execute(self):  # pylint: disable=arguments-differ,arguments-renamed
+        super().execute(
+            data={
+                "entity": self.entity,
+                "state": {
+                    "pose": get_spawn_pose(self, self.pose),
+                    "twist": self.convert_value(self.twist),
+                    "acceleration": self.convert_value(self.acceleration),
+                },
+            }
+        )
 
     def check_response(self, msg):
         """

@@ -20,15 +20,9 @@ from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node, PushRosNamespace
 
 ARGUMENTS = [
-    DeclareLaunchArgument('namespace', default_value='',
-                          description='Robot namespace (including leading /)'),
-
-    DeclareLaunchArgument('base_frame_id', default_value='base_link',
-                          description='base frame id of the robot'),
-
-    DeclareLaunchArgument('ground_truth_frame_id', default_value='turtlebot4_base_link_gt',
-                          description='ground truth frame id of the robot'),
-
+    DeclareLaunchArgument('namespace', default_value='', description='Robot namespace (including leading /)'),
+    DeclareLaunchArgument('base_frame_id', default_value='base_link', description='base frame id of the robot'),
+    DeclareLaunchArgument('ground_truth_frame_id', default_value='turtlebot4_base_link_gt', description='ground truth frame id of the robot'),
 ]
 
 
@@ -39,40 +33,36 @@ def generate_launch_description():
 
     base_link_pose_pub = GroupAction(
         [
-            PushRosNamespace(
-                namespace=namespace
-            ),
+            PushRosNamespace(namespace=namespace),
             Node(
                 name='tf_to_pose_map_baselink',
                 package='tf_to_pose_publisher',
                 executable='tf_to_pose_publisher',
                 output='screen',
-                remappings=[('/tf', 'tf'),
-                            ('/tf_static', 'tf_static'),
-                            ('tf_as_pose', 'robot_pose_loc')],
-                parameters=[{
-                    'child_frame_id': base_frame_id,
-                }]
+                remappings=[('/tf', 'tf'), ('/tf_static', 'tf_static'), ('tf_as_pose', 'robot_pose_loc')],
+                parameters=[
+                    {
+                        'child_frame_id': base_frame_id,
+                    }
+                ],
             ),
         ]
     )
 
     base_link_ground_truth_pose_pub = GroupAction(
         [
-            PushRosNamespace(
-                namespace=namespace
-            ),
+            PushRosNamespace(namespace=namespace),
             Node(
                 name='tf_to_pose_map_baselink_gt',
                 package='tf_to_pose_publisher',
                 executable='tf_to_pose_publisher',
                 output='screen',
-                remappings=[('/tf', 'tf'),
-                            ('/tf_static', 'tf_static'),
-                            ('tf_as_pose', 'robot_pose_gt')],
-                parameters=[{
-                    'child_frame_id': ground_truth_frame_id,
-                }]
+                remappings=[('/tf', 'tf'), ('/tf_static', 'tf_static'), ('tf_as_pose', 'robot_pose_gt')],
+                parameters=[
+                    {
+                        'child_frame_id': ground_truth_frame_id,
+                    }
+                ],
             ),
         ]
     )

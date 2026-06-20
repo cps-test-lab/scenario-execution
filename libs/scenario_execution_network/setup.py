@@ -22,11 +22,7 @@ setup(
     name=PACKAGE_NAME,
     version='1.5.0',
     packages=find_namespace_packages(),
-    data_files=[
-        ('share/ament_index/resource_index/packages',
-            ['resource/' + PACKAGE_NAME]),
-        ('share/' + PACKAGE_NAME, ['package.xml'])
-    ],
+    data_files=[('share/ament_index/resource_index/packages', ['resource/' + PACKAGE_NAME]), ('share/' + PACKAGE_NAME, ['package.xml'])],
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='Frederik Pasch',
@@ -40,8 +36,7 @@ setup(
             'http_get = scenario_execution_network.actions.http_get:HttpGet',
         ],
         'scenario_execution.osc_libraries': [
-            'network = '
-            'scenario_execution_network.get_osc_library:get_osc_library',
-        ]
+            'network = scenario_execution_network.get_osc_library:get_osc_library',
+        ],
     },
 )

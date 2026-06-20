@@ -30,18 +30,20 @@ class SubscriberHandler(py_trees_ros.subscribers.Handler):
     overrides Handler
     """
 
-    def __init__(self,
-                 name: str,
-                 topic_name: str,
-                 topic_type: typing.Any,
-                 qos_profile: rclpy.qos.QoSProfile,
-                 clearing_policy: py_trees.common.ClearingPolicy = py_trees.common.ClearingPolicy.ON_INITIALISE
-                 ):
+    def __init__(
+        self,
+        name: str,
+        topic_name: str,
+        topic_type: typing.Any,
+        qos_profile: rclpy.qos.QoSProfile,
+        clearing_policy: py_trees.common.ClearingPolicy = py_trees.common.ClearingPolicy.ON_INITIALISE,
+    ):
         """
         override
         """
-        super(SubscriberHandler, self).__init__(name=name, topic_name=topic_name,
-                                                topic_type=topic_type, qos_profile=qos_profile, clearing_policy=clearing_policy)
+        super(SubscriberHandler, self).__init__(
+            name=name, topic_name=topic_name, topic_type=topic_type, qos_profile=qos_profile, clearing_policy=clearing_policy
+        )
 
     def setup(self, **kwargs):
         """
@@ -50,15 +52,14 @@ class SubscriberHandler(py_trees_ros.subscribers.Handler):
         try:
             self.node = kwargs['node']  # pylint: disable= attribute-defined-outside-init
         except KeyError as e:
-            error_message = "didn't find 'node' in setup's kwargs [{}][{}]".format(
-                self.name, self.__class__.__name__)
+            error_message = "didn't find 'node' in setup's kwargs [{}][{}]".format(self.name, self.__class__.__name__)
             raise KeyError(error_message) from e
         self.subscriber = self.node.create_subscription(  # pylint: disable= attribute-defined-outside-init
             msg_type=self.topic_type,
             topic=self.topic_name,
             callback=self._callback,
             qos_profile=self.qos_profile,
-            callback_group=rclpy.callback_groups.ReentrantCallbackGroup()
+            callback_group=rclpy.callback_groups.ReentrantCallbackGroup(),
         )
 
 
@@ -67,23 +68,11 @@ class SubscriberWaitForData(SubscriberHandler):
     overrides WaitForData
     """
 
-    def __init__(self,
-                 name: str,
-                 topic_name: str,
-                 topic_type: typing.Any,
-                 qos_profile: rclpy.qos.QoSProfile,
-                 clearing_policy: py_trees.common.ClearingPolicy
-                 ):
+    def __init__(self, name: str, topic_name: str, topic_type: typing.Any, qos_profile: rclpy.qos.QoSProfile, clearing_policy: py_trees.common.ClearingPolicy):
         """
         overrides WaitForData
         """
-        super().__init__(
-            name=name,
-            topic_name=topic_name,
-            topic_type=topic_type,
-            qos_profile=qos_profile,
-            clearing_policy=clearing_policy
-        )
+        super().__init__(name=name, topic_name=topic_name, topic_type=topic_type, qos_profile=qos_profile, clearing_policy=clearing_policy)
 
     def update(self):
         """

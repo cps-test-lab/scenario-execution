@@ -28,7 +28,6 @@ from rosgraph_msgs.msg import Clock
 
 
 class ScenarioStatus(Node):
-
     """Simple node subscribing to the py-trees-behaviour tree snapshot. The output is a
     string that describes any behavior state changes and timestamps."""
 
@@ -45,13 +44,7 @@ class ScenarioStatus(Node):
         # self.client_node = None
         self.logger = self.get_logger()
 
-        self.states_dict = {
-            0: 'NONE',
-            1: 'INVALID',
-            2: 'RUNNING',
-            3: 'SUCCESS',
-            4: 'FAILURE'
-        }
+        self.states_dict = {0: 'NONE', 1: 'INVALID', 2: 'RUNNING', 3: 'SUCCESS', 4: 'FAILURE'}
         self.types_dict = {
             # Possible types of behaviour
             0: 'UNKNOWN_TYPE',
@@ -60,23 +53,16 @@ class ScenarioStatus(Node):
             3: 'SELECTOR',
             4: 'PARALLEL',
             5: 'CHOOSER',
-            6: 'DECORATOR'
+            6: 'DECORATOR',
         }
         self.params()
 
         clock_qos = qos.QoSProfile(
-            durability=qos.QoSDurabilityPolicy.VOLATILE,
-            reliability=qos.QoSReliabilityPolicy.BEST_EFFORT,
-            history=qos.QoSHistoryPolicy.KEEP_LAST,
-            depth=5)
+            durability=qos.QoSDurabilityPolicy.VOLATILE, reliability=qos.QoSReliabilityPolicy.BEST_EFFORT, history=qos.QoSHistoryPolicy.KEEP_LAST, depth=5
+        )
         self.clock_sub = self.create_subscription(Clock, '/clock', self.clock_callback, clock_qos)
         self.status_pub = self.create_publisher(ScenarioStatusMsg, self.scenario_status_topic, 10)
-        self.snapshot_sub = self.create_subscription(
-            BehaviourTree,
-            self.bt_topic,
-            self.snapshot_callback,
-            10
-        )
+        self.snapshot_sub = self.create_subscription(BehaviourTree, self.bt_topic, self.snapshot_callback, 10)
 
     def clock_callback(self, msg):
         self.time = msg
@@ -86,15 +72,11 @@ class ScenarioStatus(Node):
         :returns: -
 
         """
-        self.declare_parameter('bt_snapshot_topic', '/scenario_execution/snapshots',
-                               descriptor=ParameterDescriptor(dynamic_typing=True))
-        self.declare_parameter('scenario_status_topic', '/scenario_status',
-                               descriptor=ParameterDescriptor(dynamic_typing=True))
+        self.declare_parameter('bt_snapshot_topic', '/scenario_execution/snapshots', descriptor=ParameterDescriptor(dynamic_typing=True))
+        self.declare_parameter('scenario_status_topic', '/scenario_status', descriptor=ParameterDescriptor(dynamic_typing=True))
 
-        self.bt_topic = self.get_parameter_or(
-            'bt_snapshot_topic').get_parameter_value().string_value
-        self.scenario_status_topic = self.get_parameter_or(
-            'scenario_status_topic').get_parameter_value().string_value
+        self.bt_topic = self.get_parameter_or('bt_snapshot_topic').get_parameter_value().string_value
+        self.scenario_status_topic = self.get_parameter_or('scenario_status_topic').get_parameter_value().string_value
 
     @staticmethod
     def get_behaviour_infos(behaviour_tree_msg):
@@ -109,7 +91,7 @@ class ScenarioStatus(Node):
                 'status': behaviour.status,
                 'is_active': behaviour.is_active,
                 'type': behaviour.type,
-                'message': behaviour.message
+                'message': behaviour.message,
             }
         return result
 
@@ -141,7 +123,12 @@ class ScenarioStatus(Node):
         current_status = self.states_dict[infos['status']]
         result_str = f'{behaviour}({beh_type}): {last_status} > {current_status}'
         debug_str = 'behaviour %s of type %s changed state from %s to %s, with message %s' % (
-            behaviour, beh_type, last_status, current_status, infos['message'])
+            behaviour,
+            beh_type,
+            last_status,
+            current_status,
+            infos['message'],
+        )
         msg = ScenarioStatusMsg()
         msg.data = result_str
         msg.system_time = self.get_clock().now().to_msg()
@@ -152,8 +139,7 @@ class ScenarioStatus(Node):
 
 
 def main(args=None):
-    """main function for the node to spin
-    """
+    """main function for the node to spin"""
     rclpy.init(args=args)
 
     scenario_status = ScenarioStatus()

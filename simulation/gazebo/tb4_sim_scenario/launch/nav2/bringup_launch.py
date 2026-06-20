@@ -78,13 +78,9 @@ def generate_launch_description():
         allow_substs=True,
     )
 
-    stdout_linebuf_envvar = SetEnvironmentVariable(
-        'RCUTILS_LOGGING_BUFFERED_STREAM', '1'
-    )
+    stdout_linebuf_envvar = SetEnvironmentVariable('RCUTILS_LOGGING_BUFFERED_STREAM', '1')
 
-    declare_namespace_cmd = DeclareLaunchArgument(
-        'namespace', default_value='', description='Top-level namespace'
-    )
+    declare_namespace_cmd = DeclareLaunchArgument('namespace', default_value='', description='Top-level namespace')
 
     declare_use_namespace_cmd = DeclareLaunchArgument(
         'use_namespace',
@@ -92,13 +88,9 @@ def generate_launch_description():
         description='Whether to apply a namespace to the navigation stack',
     )
 
-    declare_slam_cmd = DeclareLaunchArgument(
-        'slam', default_value='False', description='Whether run a SLAM'
-    )
+    declare_slam_cmd = DeclareLaunchArgument('slam', default_value='False', description='Whether run a SLAM')
 
-    declare_map_yaml_cmd = DeclareLaunchArgument(
-        'map', default_value='', description='Full path to map yaml file to load'
-    )
+    declare_map_yaml_cmd = DeclareLaunchArgument('map', default_value='', description='Full path to map yaml file to load')
 
     declare_use_sim_time_cmd = DeclareLaunchArgument(
         'use_sim_time',
@@ -130,9 +122,7 @@ def generate_launch_description():
         description='Whether to respawn if a node crashes. Applied when composition is disabled.',
     )
 
-    declare_log_level_cmd = DeclareLaunchArgument(
-        'log_level', default_value='info', description='log level'
-    )
+    declare_log_level_cmd = DeclareLaunchArgument('log_level', default_value='info', description='log level')
 
     # Specify the actions
     bringup_cmd_group = GroupAction(
@@ -149,9 +139,7 @@ def generate_launch_description():
                 output='screen',
             ),
             IncludeLaunchDescription(
-                PythonLaunchDescriptionSource(
-                    os.path.join(launch_dir, 'slam_launch.py')
-                ),
+                PythonLaunchDescriptionSource(os.path.join(launch_dir, 'slam_launch.py')),
                 condition=IfCondition(slam),
                 launch_arguments={
                     'namespace': namespace,
@@ -162,9 +150,7 @@ def generate_launch_description():
                 }.items(),
             ),
             IncludeLaunchDescription(
-                PythonLaunchDescriptionSource(
-                    os.path.join(launch_dir, 'localization_launch.py')
-                ),
+                PythonLaunchDescriptionSource(os.path.join(launch_dir, 'localization_launch.py')),
                 condition=IfCondition(PythonExpression(['not ', slam])),
                 launch_arguments={
                     'namespace': namespace,
@@ -178,9 +164,7 @@ def generate_launch_description():
                 }.items(),
             ),
             IncludeLaunchDescription(
-                PythonLaunchDescriptionSource(
-                    os.path.join(tb4_sim_scenario_dir, 'launch', 'nav2', 'navigation_launch.py')
-                ),
+                PythonLaunchDescriptionSource(os.path.join(tb4_sim_scenario_dir, 'launch', 'nav2', 'navigation_launch.py')),
                 launch_arguments={
                     'namespace': namespace,
                     'use_sim_time': use_sim_time,

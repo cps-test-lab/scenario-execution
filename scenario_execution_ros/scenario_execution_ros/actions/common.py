@@ -46,9 +46,7 @@ def get_pose_stamped(timestamp, in_pose):
 
     # euler2quat() requires "zyx" convention,
     # while in YAML, we define as pitch-roll-yaw (xyz), since it's more intuitive.
-    quaternion = euler2quat(float(in_pose['orientation']['yaw']),
-                            float(in_pose['orientation']['roll']),
-                            float(in_pose['orientation']['pitch']))
+    quaternion = euler2quat(float(in_pose['orientation']['yaw']), float(in_pose['orientation']['roll']), float(in_pose['orientation']['pitch']))
     pose.pose.orientation.w = quaternion[0]
     pose.pose.orientation.x = quaternion[1]
     pose.pose.orientation.y = quaternion[2]
@@ -100,10 +98,8 @@ class NamespacedTransformListener:
         # Default callback group is mutually exclusive, which would prevent waiting for transforms
         # from another callback in the same group.
         self.group = ReentrantCallbackGroup()
-        self.tf_sub = node.create_subscription(
-            TFMessage, tf_topic, self.callback, qos, callback_group=self.group)
-        self.tf_static_sub = node.create_subscription(
-            TFMessage, tf_static_topic, self.static_callback, static_qos, callback_group=self.group)
+        self.tf_sub = node.create_subscription(TFMessage, tf_topic, self.callback, qos, callback_group=self.group)
+        self.tf_static_sub = node.create_subscription(TFMessage, tf_static_topic, self.static_callback, static_qos, callback_group=self.group)
 
         if spin_thread:
             self.executor = SingleThreadedExecutor()

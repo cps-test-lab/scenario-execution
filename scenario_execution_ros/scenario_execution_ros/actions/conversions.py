@@ -22,6 +22,7 @@ import importlib
 from rclpy.qos import QoSPresetProfiles, ReliabilityPolicy, DurabilityPolicy
 from array import array
 
+
 def get_ros_message_type(message_type_string):
     if not message_type_string:
         raise ValueError("Empty message type.")
@@ -36,7 +37,7 @@ def get_ros_message_type(message_type_string):
         raise ValueError(f"Could not find message type {message_type_string}: {e}") from e
 
 
-def get_qos_preset_profile(qos_profile): # pylint: disable=too-many-return-statements
+def get_qos_preset_profile(qos_profile):  # pylint: disable=too-many-return-statements
     """
     Get qos preset for enum value
     """
@@ -80,6 +81,7 @@ def get_comparison_operator(operator_val):  # pylint: disable=too-many-return-st
         return operator.gt
     else:
         raise ValueError(f"Invalid comparison_operator: {operator_val}")
+
 
 def set_variable_if_available(msg, target_variable, member_name):
     if target_variable is not None:

@@ -22,11 +22,7 @@ setup(
     name=PACKAGE_NAME,
     version='1.5.0',
     packages=find_namespace_packages(),
-    data_files=[
-        ('share/ament_index/resource_index/packages',
-            ['resource/' + PACKAGE_NAME]),
-        ('share/' + PACKAGE_NAME, ['package.xml'])
-    ],
+    data_files=[('share/ament_index/resource_index/packages', ['resource/' + PACKAGE_NAME]), ('share/' + PACKAGE_NAME, ['package.xml'])],
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='Frederik Pasch',
@@ -43,8 +39,7 @@ setup(
             'differential_drive_robot.nav_through_poses = scenario_execution_nav2.actions.nav_through_poses:NavThroughPoses',
         ],
         'scenario_execution.osc_libraries': [
-            'nav2 = '
-            'scenario_execution_nav2.get_osc_library:get_osc_library',
-        ]
+            'nav2 = scenario_execution_nav2.get_osc_library:get_osc_library',
+        ],
     },
 )

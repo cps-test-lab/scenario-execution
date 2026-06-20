@@ -64,8 +64,9 @@ scenario test:
         model = self.parse(scenario_content)
         behavior = model._ModelElement__children[3]._ModelElement__children[1]._ModelElement__children[0]._ModelElement__children[0]._ModelElement__children[0]
         params = behavior.get_resolved_value()
-        self.assertEqual({'spawn_pose': {'x': 'x_val'}, 'world_name': 'default',
-                         'namespace': 'bll', 'entity_name': '', 'model_file': '', 'xacro_arguments': ''}, params)
+        self.assertEqual(
+            {'spawn_pose': {'x': 'x_val'}, 'world_name': 'default', 'namespace': 'bll', 'entity_name': '', 'model_file': '', 'xacro_arguments': ''}, params
+        )
 
     def test_behavior_named_arg(self):
         scenario_content = """
@@ -298,8 +299,7 @@ scenario test:
         model = self.parse(scenario_content)
         behavior = model._ModelElement__children[2]._ModelElement__children[0]._ModelElement__children[0]._ModelElement__children[0]
         params = behavior.get_resolved_value()
-        self.assertEqual(params, {'struct_param': {'param1': 'OVERRIDE1',
-                         'param2': 'val2', 'param3': 'OVERRIDE3'}})
+        self.assertEqual(params, {'struct_param': {'param1': 'OVERRIDE1', 'param2': 'val2', 'param3': 'OVERRIDE3'}})
 
     @unittest.skip(reason="requires porting")
     def test_behavior_struct_param_spec_incomplete(self):
@@ -362,10 +362,7 @@ scenario nav2_simulation_nav_to_pose:
 """
         model = self.parse(scenario_content)
         pose_struct = model._ModelElement__children[7].get_resolved_value()
-        self.assertEqual({'position': {'x': 0., 'y': 0., 'z': 0.}, 'orientation': {
-                         'roll': 0., 'pitch': 0., 'yaw': 0.}}, pose_struct)
+        self.assertEqual({'position': {'x': 0.0, 'y': 0.0, 'z': 0.0}, 'orientation': {'roll': 0.0, 'pitch': 0.0, 'yaw': 0.0}}, pose_struct)
 
-        behavior = model._ModelElement__children[10]._ModelElement__children[1]._ModelElement__children[0]._ModelElement__children[0].get_resolved_value(
-        )
-        self.assertEqual({'spawn_pose': {'position': {'x': 0., 'y': 0., 'z': 0.1},
-                         'orientation': {'roll': 1., 'pitch': 0., 'yaw': 0.}}}, behavior)
+        behavior = model._ModelElement__children[10]._ModelElement__children[1]._ModelElement__children[0]._ModelElement__children[0].get_resolved_value()
+        self.assertEqual({'spawn_pose': {'position': {'x': 0.0, 'y': 0.0, 'z': 0.1}, 'orientation': {'roll': 1.0, 'pitch': 0.0, 'yaw': 0.0}}}, behavior)

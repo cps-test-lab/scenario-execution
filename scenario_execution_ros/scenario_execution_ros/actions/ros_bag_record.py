@@ -30,6 +30,7 @@ class RosBagRecordActionState(Enum):
     """
     States for executing a ros bag recording
     """
+
     WAITING_FOR_TOPICS = 1
     RECORDING = 2
     FAILURE = 5
@@ -143,8 +144,7 @@ class RosBagRecord(RunProcess):
                 try:
                     self.process.wait(self.SHUTDOWN_TIMEOUT)
                 except subprocess.TimeoutExpired:
-                    self.logger.warning(
-                        f"ros2 bag did not exit within {self.SHUTDOWN_TIMEOUT}s of SIGINT; sending SIGKILL.")
+                    self.logger.warning(f"ros2 bag did not exit within {self.SHUTDOWN_TIMEOUT}s of SIGINT; sending SIGKILL.")
                     try:
                         os.killpg(os.getpgid(self.process.pid), signal.SIGKILL)
                     except ProcessLookupError:
@@ -152,8 +152,7 @@ class RosBagRecord(RunProcess):
                     self.process.wait()
             self.logger.info('Process finished.')
         if self.current_state == RosBagRecordActionState.WAITING_FOR_TOPICS and self.bag_dir and os.path.exists(self.bag_dir):
-            self.logger.info(
-                f'Shutdown while waiting for topics. Removing incomplete bag {self.bag_dir}...')
+            self.logger.info(f'Shutdown while waiting for topics. Removing incomplete bag {self.bag_dir}...')
             shutil.rmtree(self.bag_dir)
 
     def on_process_finished(self, ret):

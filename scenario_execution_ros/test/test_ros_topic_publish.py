@@ -55,8 +55,9 @@ class TestRosTopicPublish(unittest.TestCase):
         self.received_msgs.append(msg)
 
     def test_success(self):
-        self.scenario_execution_ros.scenarios_list = self.parser.process_file(os.path.join(
-            self.scenario_dir, 'scenarios', 'test', 'test_ros_topic_publish.osc'), False)
+        self.scenario_execution_ros.scenarios_list = self.parser.process_file(
+            os.path.join(self.scenario_dir, 'scenarios', 'test', 'test_ros_topic_publish.osc'), False
+        )
         self.scenario_execution_ros.run()
         self.assertTrue(self.scenario_execution_ros.process_results())
         self.assertEqual(len(self.received_msgs), 1)

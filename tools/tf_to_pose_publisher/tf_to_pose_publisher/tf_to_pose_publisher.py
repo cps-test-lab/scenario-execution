@@ -62,8 +62,7 @@ class TfToPose(Node):
         self.declare_parameter('child_frame_id', 'base_link', descriptor=ParameterDescriptor(dynamic_typing=True))
         self.child_frame_id = self.get_parameter_or('child_frame_id').get_parameter_value().string_value
 
-        self.declare_parameter('mode', 'continuous', descriptor=ParameterDescriptor(
-            dynamic_typing=True))  # choose between continuous and onchange
+        self.declare_parameter('mode', 'continuous', descriptor=ParameterDescriptor(dynamic_typing=True))  # choose between continuous and onchange
         self.mode = self.get_parameter_or('mode').get_parameter_value().string_value
 
     def timer_callback(self):
@@ -72,14 +71,9 @@ class TfToPose(Node):
 
         """
         try:
-            t = self.tf_buffer.lookup_transform(
-                self.parent_frame_id,
-                self.child_frame_id,
-                rclpy.time.Time()
-            )
+            t = self.tf_buffer.lookup_transform(self.parent_frame_id, self.child_frame_id, rclpy.time.Time())
         except TransformException as ex:
-            self.get_logger().debug(
-                f'Could not transform {self.parent_frame_id} to {self.child_frame_id}: {ex}')
+            self.get_logger().debug(f'Could not transform {self.parent_frame_id} to {self.child_frame_id}: {ex}')
             return
 
         pose = PoseStamped()

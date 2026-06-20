@@ -58,32 +58,30 @@ class TestAssertLifecycle(unittest.TestCase):
         self.node.destroy_node()
         rclpy.try_shutdown()
 
-
-# REQUIRED PARAMETERS
+    # REQUIRED PARAMETERS
     # node_name: Name of the topic to test.
     # state_sequence: list of state_sequence ['unconfigured', 'inactive', 'active', 'finalized'].
 
-# DEFAULT VALUES
+    # DEFAULT VALUES
     # allow_initial_skip: False
     # fail_on_unexpected: True
 
-# TESTS PERFORMED
+    # TESTS PERFORMED
 
-# 1. Minimal Test:
+    # 1. Minimal Test:
     # Description: All default values remain; only Node name and state are specified.
     # Case 1: Test fails if state of the node doesn't match the specified state at index 0.
     # Case 2: Test keeps running and ends with scenario or timeout if state maches the specified state.
     # Case 3: Test keeps running and ends with scenario or timeout if specified lifecycle node is not found.
     # Case 4: Test fails if the specified state are not in the default list.
 
-# 3. allow_initial_skip: False
+    # 3. allow_initial_skip: False
     # Case 5: Test succeeds if state of the node doesn't match the specified state.
 
-# 4. allow_initial_skip: True
+    # 4. allow_initial_skip: True
     # Case 6: Test keeps running and ends with scenario or timeout if start state maches any specified state in the list.
     # Case 7: Test fails if state of the node doesn't match any specified state in the list.
     # Case 8: Test keeps running and ends with scenario or timeout if the node transition through the specified states in the correct order.
-
 
     def test_case_1(self):
         scenario_content = """

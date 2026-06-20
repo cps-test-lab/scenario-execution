@@ -20,6 +20,7 @@ import py_trees
 from concurrent.futures import ThreadPoolExecutor
 import requests
 
+
 class RequestStatus(Enum):
     IDLE = 1
     REQUESTING = 2
@@ -45,7 +46,7 @@ class HttpGet(BaseAction):
         for param in parameters:
             self.parameters[param["key"]] = param["value"]
 
-    def update(self) -> py_trees.common.Status: # pylint: disable=too-many-return-statements
+    def update(self) -> py_trees.common.Status:  # pylint: disable=too-many-return-statements
         if self.current_state == RequestStatus.IDLE:
             # Start the async HTTP request in a separate thread
             self.future = self.executor.submit(self._make_request)

@@ -40,7 +40,7 @@ class TestRosSetNodeParameter(unittest.TestCase):
 
         self.node = rclpy.create_node('test_node')
         self.node.declare_parameter('testBoolParam', False)
-        self.node.declare_parameter('testFloatParam', 0.)
+        self.node.declare_parameter('testFloatParam', 0.0)
         self.bool_value = self.node.get_parameter('testBoolParam').value
         self.float_value = self.node.get_parameter('testFloatParam').value
         self.node.add_on_set_parameters_callback(self.callback)
@@ -66,8 +66,9 @@ class TestRosSetNodeParameter(unittest.TestCase):
         return SetParametersResult(successful=True)
 
     def test_success(self):
-        self.scenario_execution_ros.scenarios_list = self.parser.process_file(os.path.join(
-            self.scenario_dir, 'scenarios', 'test', 'test_ros_set_node_parameter.osc'), False)
+        self.scenario_execution_ros.scenarios_list = self.parser.process_file(
+            os.path.join(self.scenario_dir, 'scenarios', 'test', 'test_ros_set_node_parameter.osc'), False
+        )
         self.scenario_execution_ros.run()
         self.assertTrue(self.scenario_execution_ros.process_results())
         self.assertTrue(self.bool_value)

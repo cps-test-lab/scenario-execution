@@ -23,11 +23,7 @@ setup(
     name=PACKAGE_NAME,
     version='1.5.0',
     packages=find_namespace_packages(),
-    data_files=[
-        ('share/ament_index/resource_index/packages',
-            ['resource/' + PACKAGE_NAME]),
-        ('share/' + PACKAGE_NAME, ['package.xml'])
-    ],
+    data_files=[('share/ament_index/resource_index/packages', ['resource/' + PACKAGE_NAME]), ('share/' + PACKAGE_NAME, ['package.xml'])],
     install_requires=[
         'setuptools',
         'transforms3d==0.4.1',
@@ -53,8 +49,7 @@ setup(
             'unload_world = scenario_execution_sim.actions.unload_world:UnloadWorld',
         ],
         'scenario_execution.osc_libraries': [
-            'sim = '
-            'scenario_execution_sim.get_osc_library:get_sim_library',
-        ]
+            'sim = scenario_execution_sim.get_osc_library:get_sim_library',
+        ],
     },
 )

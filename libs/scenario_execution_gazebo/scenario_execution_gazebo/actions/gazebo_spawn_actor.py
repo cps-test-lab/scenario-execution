@@ -32,6 +32,7 @@ class SpawnActionState(Enum):
     """
     States for executing a spawn-entity in gazebo
     """
+
     WAITING_FOR_TOPIC = 1
     MODEL_AVAILABLE = 2
     WAITING_FOR_RESPONSE = 3
@@ -67,26 +68,21 @@ class GazeboSpawnActor(RunProcess):
         try:
             self.node: Node = kwargs['node']
         except KeyError as e:
-            error_message = "didn't find 'node' in setup's kwargs [{}][{}]".format(
-                self.name, self.__class__.__name__)
+            error_message = "didn't find 'node' in setup's kwargs [{}][{}]".format(self.name, self.__class__.__name__)
             raise ActionError(error_message, action=self) from e
 
         self.utils = SpawnUtils(logger=self.logger)
 
         if self.entity_model.startswith('topic://'):
             transient_local_qos = QoSProfile(
-                durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
-                reliability=QoSReliabilityPolicy.RELIABLE,
-                history=QoSHistoryPolicy.KEEP_LAST,
-                depth=1)
+                durability=QoSDurabilityPolicy.TRANSIENT_LOCAL, reliability=QoSReliabilityPolicy.RELIABLE, history=QoSHistoryPolicy.KEEP_LAST, depth=1
+            )
             topic = self.entity_model.replace('topic://', '', 1)
             self.current_state = SpawnActionState.WAITING_FOR_TOPIC
             self.feedback_message = f"Waiting for model on topic {topic}"  # pylint: disable= attribute-defined-outside-init
-            self.model_sub = self.node.create_subscription(
-                String, topic, self.topic_callback, transient_local_qos)
+            self.model_sub = self.node.create_subscription(String, topic, self.topic_callback, transient_local_qos)
         else:
-            self.sdf = self.utils.parse_model_file(
-                self.entity_model, self.entity_name, self.xacro_arguments)
+            self.sdf = self.utils.parse_model_file(self.entity_model, self.entity_name, self.xacro_arguments)
 
             if not self.sdf:
                 raise ActionError(f'Invalid model specified ({self.entity_model})', action=self)
@@ -128,10 +124,22 @@ class GazeboSpawnActor(RunProcess):
             return
 
         self.logger.info(f"Deleting entity '{self.entity_name}' from simulation.")
-        subprocess.run(["gz", "service", "-s", "/world/" + self.world_name + "/remove",  # pylint: disable=subprocess-run-check
-                        "--reqtype", "gz.msgs.Entity",
-                        "--reptype", "gz.msgs.Boolean",
-                        "--timeout", "1000", "--req", "name: \"" + self.entity_name + "\" type: MODEL"])
+        subprocess.run(
+            [
+                "gz",
+                "service",
+                "-s",
+                "/world/" + self.world_name + "/remove",  # pylint: disable=subprocess-run-check
+                "--reqtype",
+                "gz.msgs.Entity",
+                "--reptype",
+                "gz.msgs.Boolean",
+                "--timeout",
+                "1000",
+                "--req",
+                "name: \"" + self.entity_name + "\" type: MODEL",
+            ]
+        )
 
     def on_process_finished(self, ret):
         """
@@ -165,14 +173,14 @@ class GazeboSpawnActor(RunProcess):
         # euler2quat() requires "zyx" convention,
         # while in YAML, we define as pitch-roll-yaw (xyz), since it's more intuitive.
         try:
-            quaternion = euler2quat(self.spawn_pose["orientation"]["yaw"],
-                                    self.spawn_pose["orientation"]["roll"],
-                                    self.spawn_pose["orientation"]["pitch"])
-            pose = '{ position: {' \
-                f' x: {self.spawn_pose["position"]["x"]} y: {self.spawn_pose["position"]["y"]} z: {self.spawn_pose["position"]["z"]}' \
-                ' } orientation: {' \
-                f' w: {quaternion[0]} x: {quaternion[1]} y: {quaternion[2]} z: {quaternion[3]}' \
+            quaternion = euler2quat(self.spawn_pose["orientation"]["yaw"], self.spawn_pose["orientation"]["roll"], self.spawn_pose["orientation"]["pitch"])
+            pose = (
+                '{ position: {'
+                f' x: {self.spawn_pose["position"]["x"]} y: {self.spawn_pose["position"]["y"]} z: {self.spawn_pose["position"]["z"]}'
+                ' } orientation: {'
+                f' w: {quaternion[0]} x: {quaternion[1]} y: {quaternion[2]} z: {quaternion[3]}'
                 ' } }'
+            )
         except KeyError as e:
             raise ActionError("Could not get values", action=self) from e
         return pose
@@ -183,10 +191,22 @@ class GazeboSpawnActor(RunProcess):
         """
         pose = self.get_spawn_pose()
 
-        super().set_command(["gz", "service", "-s", "/world/" + self.world_name + "/create",
-                             "--reqtype", "gz.msgs.EntityFactory",
-                             "--reptype", "gz.msgs.Boolean",
-                             "--timeout", "30000", "--req", "pose: " + pose + " name: \"" + self.entity_name + "\" allow_renaming: false sdf: \"" + command + "\""])
+        super().set_command(
+            [
+                "gz",
+                "service",
+                "-s",
+                "/world/" + self.world_name + "/create",
+                "--reqtype",
+                "gz.msgs.EntityFactory",
+                "--reptype",
+                "gz.msgs.Boolean",
+                "--timeout",
+                "30000",
+                "--req",
+                "pose: " + pose + " name: \"" + self.entity_name + "\" allow_renaming: false sdf: \"" + command + "\"",
+            ]
+        )
 
     def topic_callback(self, msg):
         '''

@@ -49,9 +49,7 @@ def generate_launch_description():
             ),
             GroupAction(
                 [
-                    PushRosNamespace(
-                        condition=IfCondition(use_namespace), namespace=["/", namespace]
-                    ),
+                    PushRosNamespace(condition=IfCondition(use_namespace), namespace=["/", namespace]),
                     Node(
                         package="gazebo_tf_publisher",
                         name="gazebo_tf_publisher",

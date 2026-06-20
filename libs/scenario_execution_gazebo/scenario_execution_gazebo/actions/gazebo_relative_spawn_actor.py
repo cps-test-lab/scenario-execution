@@ -89,10 +89,12 @@ class GazeboRelativeSpawnActor(GazeboSpawnActor):
             # The orientation remains the same
             new_pose.pose.orientation = current_orientation
 
-            self._pose = '{ position: {' \
-                f' x: {new_pose.pose.position.x} y: {new_pose.pose.position.y} z: {new_pose.pose.position.z}' \
-                ' } orientation: {' \
-                f' w: {new_pose.pose.orientation.w} x: {new_pose.pose.orientation.x} y: {new_pose.pose.orientation.y} z: {new_pose.pose.orientation.z}' \
+            self._pose = (
+                '{ position: {'
+                f' x: {new_pose.pose.position.x} y: {new_pose.pose.position.y} z: {new_pose.pose.position.z}'
+                ' } orientation: {'
+                f' w: {new_pose.pose.orientation.w} x: {new_pose.pose.orientation.x} y: {new_pose.pose.orientation.y} z: {new_pose.pose.orientation.z}'
                 ' } }'
+            )
         except TransformException as e:
             raise ActionError(f"No transform available ({self.parent_frame_id}->{self.frame_id})", action=self) from e

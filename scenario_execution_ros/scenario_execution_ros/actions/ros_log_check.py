@@ -43,21 +43,13 @@ class RosLogCheck(BaseAction):
         try:
             self.node: rclpy.Node = kwargs['node']
         except KeyError as e:
-            error_message = "didn't find 'node' in setup's kwargs [{}][{}]".format(
-                self.name, self.__class__.__name__)
+            error_message = "didn't find 'node' in setup's kwargs [{}][{}]".format(self.name, self.__class__.__name__)
             raise ActionError(error_message, action=self) from e
 
-        topic_qos = QoSProfile(
-            depth=100,
-            durability=DurabilityPolicy.TRANSIENT_LOCAL,
-            history=HistoryPolicy.KEEP_LAST)
+        topic_qos = QoSProfile(depth=100, durability=DurabilityPolicy.TRANSIENT_LOCAL, history=HistoryPolicy.KEEP_LAST)
 
         self.subscriber = self.node.create_subscription(  # pylint: disable= attribute-defined-outside-init
-            msg_type=Log,
-            topic='/rosout',
-            callback=self._callback,
-            qos_profile=topic_qos,
-            callback_group=rclpy.callback_groups.ReentrantCallbackGroup()
+            msg_type=Log, topic='/rosout', callback=self._callback, qos_profile=topic_qos, callback_group=rclpy.callback_groups.ReentrantCallbackGroup()
         )
         self.feedback_message = f"Waiting for log"  # pylint: disable= attribute-defined-outside-init
 

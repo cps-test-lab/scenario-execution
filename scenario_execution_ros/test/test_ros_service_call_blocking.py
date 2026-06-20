@@ -45,10 +45,8 @@ class TestRosServiceCallBlocking(unittest.TestCase):
         self.executor_thread.start()
 
         self.callback_group = rclpy.callback_groups.ReentrantCallbackGroup()
-        self.srv = self.node.create_service(
-            SetBool, "/bla_service", self.service_callback, callback_group=self.callback_group)
-        self.sub = self.node.create_subscription(
-            Int32, "/bla", self.topic_callback, 10, callback_group=self.callback_group)
+        self.srv = self.node.create_service(SetBool, "/bla_service", self.service_callback, callback_group=self.callback_group)
+        self.sub = self.node.create_subscription(Int32, "/bla", self.topic_callback, 10, callback_group=self.callback_group)
 
         self.scenario_dir = get_package_share_directory('scenario_execution_ros')
         self.parser = OpenScenario2Parser(Logger('test', False))
@@ -75,8 +73,9 @@ class TestRosServiceCallBlocking(unittest.TestCase):
         self.received_msgs.append((current_time, msg))
 
     def test_success(self):
-        self.scenario_execution_ros.scenarios_list = self.parser.process_file(os.path.join(
-            self.scenario_dir, 'scenarios', 'test', 'test_ros_service_call_blocking.osc'), False)
+        self.scenario_execution_ros.scenarios_list = self.parser.process_file(
+            os.path.join(self.scenario_dir, 'scenarios', 'test', 'test_ros_service_call_blocking.osc'), False
+        )
         self.scenario_execution_ros.run()
         self.assertTrue(self.scenario_execution_ros.process_results())
 
@@ -84,7 +83,7 @@ class TestRosServiceCallBlocking(unittest.TestCase):
         prev_elem = self.received_msgs[0]
         for elem in self.received_msgs[1:]:
             self.assertGreater(elem[1].data, prev_elem[1].data)
-            time_since_last = elem[0]-prev_elem[0]
+            time_since_last = elem[0] - prev_elem[0]
             self.assertGreaterEqual(time_since_last, rclpy.duration.Duration(seconds=1.0))
             self.assertLessEqual(time_since_last, rclpy.duration.Duration(seconds=3.0))
             prev_elem = elem
