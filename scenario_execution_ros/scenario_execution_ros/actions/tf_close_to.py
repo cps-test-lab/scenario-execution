@@ -172,4 +172,3 @@ class TfCloseTo(BaseAction):
         self.marker_handler.remove_markers([self.marker_id])
         if self.tf_listener:
             del self.tf_listener
-
