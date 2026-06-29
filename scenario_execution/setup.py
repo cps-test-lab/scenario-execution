@@ -88,6 +88,7 @@ setup(
             'decrement = scenario_execution.actions.decrement:Decrement',
             'log = scenario_execution.actions.log:Log',
             'run_process = scenario_execution.actions.run_process:RunProcess',
+            'process_log_check = scenario_execution.actions.process_log_check:ProcessLogCheck',
         ],
         'scenario_execution.osc_libraries': [
             'helpers = scenario_execution.get_osc_library:get_helpers_library',

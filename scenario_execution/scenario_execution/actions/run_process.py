@@ -16,7 +16,7 @@
 
 import py_trees  # pylint: disable=import-error
 import subprocess  # nosec B404
-from threading import Thread
+from threading import Thread, Lock
 from collections import deque
 import signal
 from scenario_execution.actions.base_action import BaseAction
@@ -39,6 +39,14 @@ class RunProcess(BaseAction):
         self.log_stdout_thread = None
         self.log_stderr_thread = None
         self.output = deque()
+        self.output_lock = Lock()
+        self.process_registry = None
+
+    def setup(self, **kwargs):
+        self.process_registry = kwargs.get('process_registry')
+        has_label = self._model is not None and self._model.name
+        if self.process_registry is not None and has_label:
+            self.process_registry.register(self.name, self)
 
     def execute(self, command=None, wait_for_shutdown=True, shutdown_timeout=10, shutdown_signal=("", signal.SIGTERM)):
         self.command = command.split(" ") if isinstance(command, str) else command
@@ -77,7 +85,8 @@ class RunProcess(BaseAction):
                         msg = line.decode().strip()
                         if log_fct:
                             log_fct(msg)
-                        buffer.append(msg)
+                        with self.output_lock:
+                            buffer.append(msg)
                     out.close()
                 except ValueError:
                     pass
@@ -147,6 +156,23 @@ class RunProcess(BaseAction):
         hook for subclassed
         """
         pass
+
+    def get_output_snapshot(self):
+        """
+        Return a non-mutating snapshot of the captured process output.
+        """
+        with self.output_lock:
+            return list(self.output)
+
+    def is_output_complete(self):
+        """
+        Return whether the process has finished and both output readers are done.
+        """
+        if self.process is None or self.process.poll() is None:
+            return False
+        stdout_done = self.log_stdout_thread is None or not self.log_stdout_thread.is_alive()
+        stderr_done = self.log_stderr_thread is None or not self.log_stderr_thread.is_alive()
+        return stdout_done and stderr_done
 
     def set_command(self, command):
         self.command = command

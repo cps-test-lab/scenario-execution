@@ -28,6 +28,7 @@ from scenario_execution.model.osc2_parser import OpenScenario2Parser
 from scenario_execution.utils.logging import Logger
 from scenario_execution.model.model_file_loader import ModelFileLoader
 from scenario_execution.simulation import SimulationClock
+from scenario_execution.actions.process_registry import ProcessRegistry
 from dataclasses import dataclass
 from xml.sax.saxutils import escape  # nosec B406 # escape is only used on an internally generated error string
 from timeit import default_timer as timer
@@ -218,6 +219,7 @@ class ScenarioExecution(object):
         self.scenarios_list = []
         self.output_result_per_scenario = output_result_per_scenario
         self.current_scenario_output_dir = None
+        self.process_registry = None
 
     def setup(self, scenario: py_trees.behaviour.Behaviour, current_output_dir=None, **kwargs) -> bool:
         """
@@ -238,6 +240,7 @@ class ScenarioExecution(object):
         self.current_scenario = scenario
         self.current_scenario_start = datetime.now()
         self.blackboard = scenario.attach_blackboard_client(name="MainBlackboardClient", namespace=scenario.name)
+        self.process_registry = ProcessRegistry()
 
         # Initialize end and fail events
         self.blackboard.register_key("end", access=py_trees.common.Access.WRITE)
@@ -259,12 +262,14 @@ class ScenarioExecution(object):
         input_dir = None
         if self.scenario_file:
             input_dir = os.path.dirname(self.scenario_file)
+        setup_kwargs = dict(kwargs)
+        setup_kwargs['process_registry'] = self.process_registry
         self.behaviour_tree.setup(timeout=self.setup_timeout,
                                   logger=self.logger,
                                   input_dir=input_dir,
                                   output_dir=effective_output_dir,
                                   tick_period=self.tick_period,
-                                  **kwargs)
+                                  **setup_kwargs)
         self.post_setup()
 
     def setup_behaviour_tree(self, tree):

@@ -662,6 +662,33 @@ If ``wait_for_shutdown`` is ``false`` and the process is still running on scenar
      - ``10s``
      - (Only used if ``wait_for_shutdown`` is ``false``) time to wait between ``shutdown_signal`` and SIGKILL getting sent, if process is still running on scenario shutdown
 
+``process_log_check()``
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Wait for specific output captured from a process started by ``run_process``. The ``process_name`` parameter must match the label of a ``run_process`` invocation, e.g. ``app: run_process(...)`` can be checked with ``process_log_check('app', ['Ready'])``. If any entry within ``values`` is found, the action succeeds. If the process finishes and no matching output is found, the action fails.
+
+.. list-table::
+   :widths: 15 15 5 65
+   :header-rows: 1
+   :class: tight-table
+
+   * - Parameter
+     - Type
+     - Default
+     - Description
+   * - ``process_name``
+     - ``string``
+     -
+     - Label of the ``run_process`` action to inspect
+   * - ``values``
+     - ``list of string``
+     -
+     - List of strings to check for
+   * - ``from_start``
+     - ``bool``
+     - ``true``
+     - If false, only output emitted after this action starts is checked
+
 
 Kubernetes
 ----------
