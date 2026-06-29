@@ -1732,6 +1732,10 @@ Wait until a TF frame is close to a defined reference point.
      - ``position_3d``
      -
      - Reference point to measure to distance to (z is not considered)
+   * - ``parent_frame_id``
+     - ``string``
+     - ``map``
+     - Defines the TF parent/reference frame id
    * - ``robot_frame_id``
      - ``string``
      - ``base_link``
@@ -1739,7 +1743,7 @@ Wait until a TF frame is close to a defined reference point.
    * - ``sim``
      - ``bool``
      - ``false``
-     - In simulation, we need to look up the transform map --> base_link at a different time as the scenario execution node is not allowed to use the sim time
+     - In simulation, we need to look up the transform parent_frame_id --> robot_frame_id at a different time as the scenario execution node is not allowed to use the sim time
    * - ``namespace_override``
      - ``string``
      - ``''``
