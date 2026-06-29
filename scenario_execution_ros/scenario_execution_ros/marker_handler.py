@@ -33,7 +33,8 @@ class MarkerHandler(object):
         self.marker_publisher = self.node.create_publisher(Marker, '/scenario_marker', 5)
 
     def add_marker(self, marker: Marker):
-        marker.header.frame_id = 'map'
+        if not marker.header.frame_id:
+            marker.header.frame_id = 'map'
         marker.action = marker.ADD
         self.markers.append(marker)
 
@@ -54,7 +55,8 @@ class MarkerHandler(object):
     def update_marker(self, marker_id, marker):
         self.markers[marker_id] = marker
         self.markers[marker_id].id = marker_id
-        self.markers[marker_id].header.frame_id = 'map'
+        if not self.markers[marker_id].header.frame_id:
+            self.markers[marker_id].header.frame_id = 'map'
         self.markers[marker_id].action = marker.MODIFY
 
         self.marker_publisher.publish(self.markers[marker_id])
