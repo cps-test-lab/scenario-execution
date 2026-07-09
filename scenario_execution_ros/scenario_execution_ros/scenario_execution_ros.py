@@ -21,6 +21,7 @@ import rclpy  # pylint: disable=import-error
 import py_trees_ros
 from py_trees_ros_interfaces.srv import OpenSnapshotStream
 from scenario_execution import ScenarioExecution, ShutdownHandler
+from scenario_execution.scenario_execution_base import _load_simulation, _build_reset_kwargs
 from .logging_ros import RosLogger
 from .marker_handler import MarkerHandler
 
@@ -91,6 +92,10 @@ class ROSScenarioExecution(ScenarioExecution):
         if self.node.get_parameter('snapshot_period').value:
             self.snapshot_period = self.node.get_parameter('snapshot_period').value
         self.logger = RosLogger('scenario_execution_ros', debug)
+        # Optional step-based SimulationInterface (--simulation module:Class). The base ROS runner
+        # historically ignored it; _run_single_scenario() below now drives its
+        # setup/reset/step/shutdown inside the ROS spin loop (see run() docstring).
+        simulation = _load_simulation(args.simulation) if getattr(args, 'simulation', None) else None
         super().__init__(debug=debug,
                          log_model=log_model,
                          live_tree=live_tree,
@@ -102,6 +107,7 @@ class ROSScenarioExecution(ScenarioExecution):
                          create_scenario_parameter_file_template=self.create_scenario_parameter_file_template,
                          post_run=self.post_run,
                          output_result_per_scenario=self.output_result_per_scenario,
+                         simulation=simulation,
                          logger=self.logger)
 
     def setup_behaviour_tree(self, tree):
@@ -135,6 +141,14 @@ class ROSScenarioExecution(ScenarioExecution):
         down once, after the last scenario. With multiple scenarios (e.g. one per
         document of a multi-document ``--scenario-parameter-file``) each result is
         written into its own ``_output_dir`` by :meth:`process_results`.
+
+        When a step-based ``--simulation`` (SimulationInterface) is given, each
+        scenario additionally sets it up, resets it with the scenario parameters,
+        ticks ``simulation.step()`` inside the ROS spin loop, and shuts it down.
+        Unlike the non-ROS ``run_with_simulation`` (which the simulation drives
+        exclusively), here ROS behaviours run the scenario while the simulation
+        advances time (a simulation that publishes ``/clock`` becomes the time
+        source; other nodes run ``use_sim_time``).
         """
         self._aborted = False
         # The node created in __init__ is only needed to read ROS parameters; each
@@ -146,24 +160,29 @@ class ROSScenarioExecution(ScenarioExecution):
 
         try:
             multiple_scenarios = len(self.scenarios_list) > 1
-            for tree, _params, scenario_output_dir_override in self.scenarios_list:
+            for tree, params, scenario_output_dir_override in self.scenarios_list:
                 effective_output_dir = self._resolve_scenario_output_dir(
                     tree.name, scenario_output_dir_override, multiple_scenarios)
                 if effective_output_dir is None and multiple_scenarios and self.output_dir:
                     # Directory creation failed; failure already recorded.
                     continue
-                self._run_single_scenario(tree, effective_output_dir)
+                self._run_single_scenario(tree, effective_output_dir, params)
                 if self._aborted:
                     break
         finally:
             rclpy.shutdown()
 
-    def _run_single_scenario(self, tree, effective_output_dir):
+    def _run_single_scenario(self, tree, effective_output_dir, scenario_params=None):
         """Set up, tick and tear down one scenario's behaviour tree.
 
         Each scenario runs on its OWN ROS node and executor: py_trees_ros adopts
         the node it is given and destroys it on ``shutdown()``, so the node cannot
         be shared across scenarios.
+
+        If a step-based ``--simulation`` is configured it is set up and reset for
+        this scenario, stepped once per spin-loop iteration (paced to realtime),
+        and shut down afterwards -- so the simulation advances alongside the ROS
+        behaviours that drive it.
         """
         # Reset per-scenario async-shutdown state so the previous scenario's
         # tasks/futures do not leak into this one.
@@ -174,6 +193,24 @@ class ROSScenarioExecution(ScenarioExecution):
         self.marker_handler = MarkerHandler(self.node)
         executor = rclpy.executors.MultiThreadedExecutor()
         executor.add_node(self.node)
+
+        # Optional step-based SimulationInterface: build + reset it for this scenario. A simulation
+        # that publishes /clock on step() becomes the time source; other nodes run use_sim_time.
+        sim_dt = None
+        if self.simulation is not None:
+            try:
+                self.simulation.setup(logger=self.logger, output_dir=effective_output_dir,
+                                      tick_period=self.tick_period)
+                self.simulation.reset(**_build_reset_kwargs(self.simulation, scenario_params or {}))
+                sim_dt = self.simulation.dt
+            except Exception as e:  # pylint: disable=broad-except
+                self.on_scenario_shutdown(False, "Simulation setup failed", f"{e}")
+                self._shutdown_simulation()
+                try:
+                    self.node.destroy_node()
+                except Exception:  # pylint: disable=broad-except
+                    pass
+                return
 
         try:
             try:
@@ -186,9 +223,21 @@ class ROSScenarioExecution(ScenarioExecution):
             try:
                 self.behaviour_tree.tick_tock(period_ms=1000. * self.tick_period)
                 shutdown_done_time = None
+                next_step = time.perf_counter()
                 while rclpy.ok():
                     try:
-                        executor.spin_once(timeout_sec=self.tick_period)
+                        if self.simulation is not None:
+                            # Pace stepping to realtime (v1): step only once wall time has caught up,
+                            # and spin ROS in the gap so behaviour action feedback keeps flowing.
+                            # For faster-than-realtime, drop the `now >= next_step` gate.
+                            now = time.perf_counter()
+                            if now >= next_step:
+                                self.simulation.step()
+                                next_step += sim_dt
+                            executor.spin_once(
+                                timeout_sec=max(min(next_step - time.perf_counter(), sim_dt), 0.0))
+                        else:
+                            executor.spin_once(timeout_sec=self.tick_period)
                     except KeyboardInterrupt:
                         self._aborted = True
                         self.on_scenario_shutdown(False, "Aborted")
@@ -209,6 +258,7 @@ class ROSScenarioExecution(ScenarioExecution):
             finally:
                 # ensure behaviour tree threads are stopped before the next scenario
                 self._robust_tree_shutdown()
+                self._shutdown_simulation()
         finally:
             # py_trees_ros may already have destroyed the node during shutdown;
             # destroy_node() is idempotent-safe here (errors are ignored).
@@ -216,6 +266,15 @@ class ROSScenarioExecution(ScenarioExecution):
                 self.node.destroy_node()
             except Exception as e:  # pylint: disable=broad-except
                 self.logger.debug(f"Exception destroying scenario node: {e}")
+
+    def _shutdown_simulation(self):
+        """Shut down the step-based simulation for the current scenario, if any."""
+        if self.simulation is None:
+            return
+        try:
+            self.simulation.shutdown()
+        except Exception as e:  # pylint: disable=broad-except
+            self.logger.error(f"Simulation shutdown error: {e}")
 
     def shutdown(self):
         self.logger.info("Shutting down...")

@@ -556,3 +556,20 @@ simulation is active. No changes to the OSC scenario file are needed:
 Without a simulation interface the clock falls back to system wall-clock time,
 so existing scenarios continue to work unchanged.
 
+**Step-based simulation with the ROS runner**
+
+``--simulation`` works with both runners:
+
+* ``scenario_execution`` (non-ROS): the simulation drives the loop exclusively
+  (``run_with_simulation``); there is no rclpy, so ROS behaviours are unavailable.
+* ``scenario_execution_ros`` (ROS): the ROS spin loop additionally ticks
+  ``simulation.step()``, so a step-based simulation runs **alongside** the ROS
+  behaviours that drive it. This lets a scenario bring up and drive a ROS stack
+  while the simulation advances time. A simulation that publishes ``/clock``
+  becomes the time source (other nodes run ``use_sim_time``), and stepping is
+  paced to realtime (the pace can be removed for faster-than-realtime runs).
+
+  With the ROS runner, ``setup()``/``reset()``/``step()``/``shutdown()`` are
+  called **per scenario** (each scenario runs on its own ROS node), rather than
+  ``setup``/``shutdown`` once for the whole file as with the non-ROS runner.
+
