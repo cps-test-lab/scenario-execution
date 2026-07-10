@@ -41,7 +41,8 @@ RUN --mount=type=bind,target=/tmp_setup export DEBIAN_FRONTEND=noninteractive &&
     xargs -a /tmp_setup/deb_requirements.txt apt-get install -y --no-install-recommends && \
     xargs -a /tmp_setup/libs/scenario_execution_kubernetes/deb_requirements.txt apt-get install -y --no-install-recommends && \
     rosdep update --rosdistro="${ROS_DISTRO}" && \
-    rosdep install --rosdistro="${ROS_DISTRO}" --from-paths /tmp_setup --ignore-src -r -y && \
+    rosdep install --rosdistro="${ROS_DISTRO}" --from-paths /tmp_setup --ignore-src -r -y \
+        --skip-keys "nav2_simple_commander nav2_msgs nav2_bringup nav2_route nav2_loopback_sim gripper_controllers moveit moveit_resources moveit_planners_chomp ompl" && \
     rm -rf /var/lib/apt/lists/*
 
 ##############################################################################

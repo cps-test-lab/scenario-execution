@@ -38,6 +38,6 @@ setup(
     maintainer_email='fred-labs@mailbox.org',
     description='Spawn a static camera within a gazebo world',
     license='Apache License 2.0',
-    tests_require=['pytest'],
+    extras_require={'test': ['pytest']},
     entry_points={},
 )

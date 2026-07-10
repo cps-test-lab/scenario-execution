@@ -38,7 +38,7 @@ setup(
     maintainer_email='fred-labs@mailbox.org',
     description='Scenario Execution Example for Navigation2',
     license='Apache License 2.0',
-    tests_require=['pytest'],
+    extras_require={'test': ['pytest']},
     entry_points={
     },
 )

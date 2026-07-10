@@ -37,7 +37,7 @@ setup(
     maintainer_email='fred-labs@mailbox.org',
     description='Tests for Scenario Execution library',
     license='Apache License 2.0',
-    tests_require=['pytest'],
+    extras_require={'test': ['pytest']},
     entry_points={
         'scenario_execution.actions': [
             'test_actor.set_value = scenario_execution_test.actions.actor_set_value:ActorSetValue',

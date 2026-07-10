@@ -1,4 +1,4 @@
-# Copyright (C) 2025 Frederik Pasch
+# Copyright (C) 2025-2026 Frederik Pasch
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -29,7 +29,9 @@ class LoadWorld(RosServiceCall):
                          service_type='simulation_interfaces.srv.LoadWorld')
 
     def execute(self):   # pylint: disable=arguments-differ,arguments-renamed
-        super().execute(data={ "uri": self.uri })
+        # simulation_interfaces 2.x moved the flat 'uri' field into the
+        # 'world_resource' (Resource) sub-message.
+        super().execute(data={ "world_resource": {"uri": self.uri} })
 
     def check_response(self, msg):
         """

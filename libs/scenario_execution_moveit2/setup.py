@@ -33,7 +33,7 @@ setup(
     maintainer_email='fred-labs@mailbox.org',
     description='Scenario Execution library for moveit2',
     license='Apache License 2.0',
-    tests_require=['pytest'],
+    extras_require={'test': ['pytest']},
     include_package_data=True,
     entry_points={
         'scenario_execution.actions': [
