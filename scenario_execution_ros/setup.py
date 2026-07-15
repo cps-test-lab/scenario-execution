@@ -36,7 +36,7 @@ setup(
     ],
     install_requires=[
         'setuptools',
-        'transforms3d==0.4.1',
+        'transforms3d==0.4.2',  # 0.4.1 calls np.maximum_sctype, removed in NumPy 2.0
         'py-trees-ros==2.4.0',
     ],
     zip_safe=True,

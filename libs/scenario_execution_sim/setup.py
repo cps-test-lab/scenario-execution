@@ -30,7 +30,7 @@ setup(
     ],
     install_requires=[
         'setuptools',
-        'transforms3d==0.4.1',
+        'transforms3d==0.4.2',  # 0.4.1 calls np.maximum_sctype, removed in NumPy 2.0
         'defusedxml==0.7.1',
     ],
     zip_safe=True,
