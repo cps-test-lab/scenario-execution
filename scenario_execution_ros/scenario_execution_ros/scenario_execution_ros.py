@@ -43,6 +43,31 @@ class RosClock(Clock):
         return self._node.get_clock().now().nanoseconds / 1e9 - self._start
 
 
+class InterruptibleBehaviourTree(py_trees_ros.trees.BehaviourTree):
+    """A py_trees_ros tree whose ``interrupt()`` actually stops the ticking.
+
+    py_trees' ``interrupt()`` sets ``interrupt_tick_tocking``, which its own blocking ``tick_tock``
+    loop checks every iteration. py_trees_ros re-implements ``tick_tock`` on an rclpy timer whose
+    callback never reads that flag, so ``interrupt()`` is a no-op here and the timer is stopped only
+    by ``shutdown()``.
+
+    That gap loses run artifacts. ``on_scenario_shutdown`` calls ``interrupt()`` and then schedules
+    ``shutdown()`` as an executor task, so between the two the timer keeps firing; py_trees
+    re-initialises every child that is not RUNNING, and an action parked in SUCCESS
+    (``wait_for_shutdown: false``) is re-``execute()``d. For ``ros_launch`` that used to spawn a
+    second ``ros2 launch``, which ``shutdown()`` then killed instead of the real one -- leaving the
+    simulator orphaned and its recording and run capture never written.
+
+    ``shutdown()`` cancels and destroys the same timer afterwards; cancelling twice is harmless, and
+    ``timer`` is ``None`` until ``tick_tock()`` runs, so interrupting before then is a no-op.
+    """
+
+    def interrupt(self):
+        if self.timer is not None:
+            self.timer.cancel()
+        super().interrupt()
+
+
 class ROSScenarioExecution(ScenarioExecution):
     """
     Class for scenario execution using ROS2 as middleware
@@ -141,9 +166,9 @@ class ROSScenarioExecution(ScenarioExecution):
             tree [py_trees.behaviour.Behaviour]: root of the behaviour tree
 
         return:
-            py_trees_ros.trees.BehaviourTree
+            InterruptibleBehaviourTree
         """
-        return py_trees_ros.trees.BehaviourTree(tree)
+        return InterruptibleBehaviourTree(tree)
 
     def post_setup(self):
         request = OpenSnapshotStream.Request()
