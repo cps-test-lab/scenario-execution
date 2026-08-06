@@ -22,8 +22,25 @@ import py_trees_ros
 from py_trees_ros_interfaces.srv import OpenSnapshotStream
 from scenario_execution import ScenarioExecution, ShutdownHandler
 from scenario_execution.scenario_execution_base import _load_simulation, _build_reset_kwargs
+from scenario_execution.simulation import Clock
 from .logging_ros import RosLogger
 from .marker_handler import MarkerHandler
+
+
+class RosClock(Clock):
+    """The ROS time source, as a scenario_execution Clock.
+
+    Implements the interface the framework already defines rather than adding a
+    ROS-specific path: with ``use_sim_time`` this is the /clock timeline, so a
+    behaviour-tree log recorded through it lines up with everything else in the run.
+    """
+
+    def __init__(self, node):
+        self._node = node
+        self._start = node.get_clock().now().nanoseconds / 1e9
+
+    def now(self) -> float:
+        return self._node.get_clock().now().nanoseconds / 1e9 - self._start
 
 
 class ROSScenarioExecution(ScenarioExecution):
@@ -54,6 +71,7 @@ class ROSScenarioExecution(ScenarioExecution):
         self.post_run = args.post_run
         self.snapshot_period = args.snapshot_period
         self.output_result_per_scenario = args.output_result_per_scenario
+        bt_log = args.bt_log
 
         # override commandline by ros parameters
         self.node.declare_parameter('debug', False)
@@ -67,6 +85,7 @@ class ROSScenarioExecution(ScenarioExecution):
         self.node.declare_parameter('create_scenario_parameter_file_template', False)
         self.node.declare_parameter('post_run', [""])
         self.node.declare_parameter('snapshot_period', 1.0)
+        self.node.declare_parameter('bt_log', False)
 
         if self.node.get_parameter('debug').value:
             debug = self.node.get_parameter('debug').value
@@ -91,6 +110,8 @@ class ROSScenarioExecution(ScenarioExecution):
             self.post_run = post_run_param
         if self.node.get_parameter('snapshot_period').value:
             self.snapshot_period = self.node.get_parameter('snapshot_period').value
+        if self.node.get_parameter('bt_log').value:
+            bt_log = self.node.get_parameter('bt_log').value
         self.logger = RosLogger('scenario_execution_ros', debug)
         # Optional step-based SimulationInterface (--simulation module:Class). The base ROS runner
         # historically ignored it; _run_single_scenario() below now drives its
@@ -108,6 +129,7 @@ class ROSScenarioExecution(ScenarioExecution):
                          post_run=self.post_run,
                          output_result_per_scenario=self.output_result_per_scenario,
                          simulation=simulation,
+                         bt_log=bt_log,
                          logger=self.logger)
 
     def setup_behaviour_tree(self, tree):
@@ -214,8 +236,12 @@ class ROSScenarioExecution(ScenarioExecution):
 
         try:
             try:
+                # sim_clock (not clock) so the behaviour-tree log gets ROS time without
+                # also retargeting ClockTimer/ClockTimeout, which would change when
+                # timeouts fire in every existing scenario.
                 self.setup(tree, current_output_dir=effective_output_dir,
-                           node=self.node, marker_handler=self.marker_handler)
+                           node=self.node, marker_handler=self.marker_handler,
+                           sim_clock=RosClock(self.node))
             except Exception as e:  # pylint: disable=broad-except
                 self.on_scenario_shutdown(False, "Setup failed", f"{e}")
                 return
