@@ -23,6 +23,18 @@ from scenario_execution.actions.base_action import BaseAction
 import os
 
 
+def _command_text(command):
+    """A command rendered the way a human reads it, for a log line.
+
+    ``command`` is normally a list of argv tokens, but a subclass may not have set it yet, so this
+    falls back to ``str()`` rather than assuming ``join()`` applies. Matches how ``ros_launch``
+    already reports its command.
+    """
+    if isinstance(command, (list, tuple)):
+        return " ".join(str(part) for part in command)
+    return str(command)
+
+
 class RunProcess(BaseAction):
     """
     Class to execute an process.
@@ -36,6 +48,9 @@ class RunProcess(BaseAction):
         self.shutdown_signal = None
         self.executed = False
         self.process = None
+        #: The command the currently running process was actually started with. Kept separately from
+        #: ``command``, which a re-initialise overwrites before ``update()`` gets to compare them.
+        self.started_command = None
         self.log_stdout_thread = None
         self.log_stderr_thread = None
         self.output = deque()
@@ -64,43 +79,66 @@ class RunProcess(BaseAction):
         """
         if not self.executed:
             self.executed = True
-            try:
-                self.process = subprocess.Popen(
-                    self.command,
-                    start_new_session=True,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                )
-            except Exception as e:  # pylint: disable=broad-except
-                self.logger.error(str(e))
-                return py_trees.common.Status.FAILURE
-
-            self.feedback_message = f"Executing '{self.command}'"  # pylint: disable= attribute-defined-outside-init
-            self.logger.debug(f"Executing '{self.command}'")
-            self.on_executed()
-
-            def log_output(out, log_fct, buffer):
+            # py_trees re-initialises every child that is not RUNNING, and initialise() calls
+            # execute(), which re-arms this branch. For an action parked in SUCCESS
+            # (wait_for_shutdown: false) that happens on the tick after the root succeeds -- so
+            # spawning again here would rebind self.process to the newborn and lose the handle on the
+            # real child. shutdown() would then signal the newborn's process group and report success
+            # while the real one keeps running, and a simulator that writes its results only on a
+            # clean stop is later killed with nothing written. Keep the process we already own.
+            if self.process is not None and self.process.poll() is None:
+                if self.command != self.started_command:
+                    # Not the benign re-initialise: a *different* process was asked for while the
+                    # previous one runs. Say so; silently running the old one hides the divergence.
+                    self.logger.warning(
+                        f"Re-initialised with a different command while still running "
+                        f"'{_command_text(self.started_command)}'; keeping it and ignoring "
+                        f"'{_command_text(self.command)}'.")
+                else:
+                    self.logger.debug('Re-initialised while still running; keeping the process.')
+                # Deliberately no early return: the checks below are the one place that turns a
+                # process state into a status, and on_executed()/the reader threads must not run
+                # again for a process that is already going (the on_executed() overrides reset
+                # current_state to a *waiting* state, which this process is long past).
+            else:
                 try:
-                    for line in iter(out.readline, b''):
-                        msg = line.decode().strip()
-                        if log_fct:
-                            log_fct(msg)
-                        with self.output_lock:
-                            buffer.append(msg)
-                    out.close()
-                except ValueError:
-                    pass
+                    self.process = subprocess.Popen(
+                        self.command,
+                        start_new_session=True,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                    )
                 except Exception as e:  # pylint: disable=broad-except
-                    self.logger.error(f"Error while logging output: {e}")
-            self.log_stdout_thread = Thread(target=log_output, args=(
-                self.process.stdout, self.get_logger_stdout(), self.output))
-            self.log_stdout_thread.daemon = True  # die with the program
-            self.log_stdout_thread.start()
+                    self.logger.error(str(e))
+                    return py_trees.common.Status.FAILURE
+                self.started_command = self.command
 
-            self.log_stderr_thread = Thread(target=log_output, args=(
-                self.process.stderr, self.get_logger_stderr(), self.output))
-            self.log_stderr_thread.daemon = True  # die with the program
-            self.log_stderr_thread.start()
+                self.feedback_message = f"Executing '{self.command}'"  # pylint: disable= attribute-defined-outside-init
+                self.logger.debug(f"Executing '{self.command}'")
+                self.on_executed()
+
+                def log_output(out, log_fct, buffer):
+                    try:
+                        for line in iter(out.readline, b''):
+                            msg = line.decode().strip()
+                            if log_fct:
+                                log_fct(msg)
+                            with self.output_lock:
+                                buffer.append(msg)
+                        out.close()
+                    except ValueError:
+                        pass
+                    except Exception as e:  # pylint: disable=broad-except
+                        self.logger.error(f"Error while logging output: {e}")
+                self.log_stdout_thread = Thread(target=log_output, args=(
+                    self.process.stdout, self.get_logger_stdout(), self.output))
+                self.log_stdout_thread.daemon = True  # die with the program
+                self.log_stdout_thread.start()
+
+                self.log_stderr_thread = Thread(target=log_output, args=(
+                    self.process.stderr, self.get_logger_stderr(), self.output))
+                self.log_stderr_thread.daemon = True  # die with the program
+                self.log_stderr_thread.start()
 
         if self.process is None:
             self.process = None
