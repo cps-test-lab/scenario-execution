@@ -26,6 +26,7 @@ from datetime import datetime, timedelta
 import py_trees
 from scenario_execution.model.osc2_parser import OpenScenario2Parser
 from scenario_execution.utils.logging import Logger
+from scenario_execution.utils import bt_logger
 from scenario_execution.model.model_file_loader import ModelFileLoader
 from scenario_execution.simulation import SimulationClock
 from scenario_execution.actions.process_registry import ProcessRegistry
@@ -156,7 +157,8 @@ class ScenarioExecution(object):
                  logger=None,
                  register_signal=True,
                  simulation=None,
-                 output_result_per_scenario: bool = False) -> None:
+                 output_result_per_scenario: bool = False,
+                 bt_log: bool = False) -> None:
 
         def signal_handler(sig, frame):
             self.on_scenario_shutdown(False, "Aborted")
@@ -210,6 +212,8 @@ class ScenarioExecution(object):
         self.blackboard = None
         self.behaviour_tree = None
         self.last_snapshot_visitor = None
+        self.bt_log = bt_log
+        self.bt_logger = None
         self.shutdown_requested = False
         self.results = []
         self.create_scenario_parameter_file_template = create_scenario_parameter_file_template
@@ -249,6 +253,7 @@ class ScenarioExecution(object):
         self.blackboard.fail = False
         self.behaviour_tree = self.setup_behaviour_tree(scenario)  # Get the behaviour_tree
         self.behaviour_tree.add_pre_tick_handler(self.pre_tick_handler)
+        self._setup_bt_logger(effective_output_dir, kwargs)
         self.behaviour_tree.add_post_tick_handler(self.post_tick_handler)
         self.last_snapshot_visitor = LastSnapshotVisitor()
         self.behaviour_tree.add_visitor(self.last_snapshot_visitor)
@@ -271,6 +276,38 @@ class ScenarioExecution(object):
                                   tick_period=self.tick_period,
                                   **setup_kwargs)
         self.post_setup()
+
+    def _setup_bt_logger(self, output_dir, setup_kwargs):
+        """Attach the behaviour-tree status log for this scenario, if --bt-log is set.
+
+        Middleware-independent: the ROS runner inherits this untouched and contributes
+        only the clock. ``sim_clock`` is preferred over ``clock`` so a runner can supply
+        a time source for the log alone -- passing ``clock`` would also retarget
+        ClockTimer/ClockTimeout, changing when timeouts fire.
+        """
+        self.close_bt_logger()
+        if not self.bt_log:
+            return
+        if not output_dir:
+            raise ValueError("--bt-log requires --output-dir.")
+        clock = setup_kwargs.get('sim_clock') or setup_kwargs.get('clock')
+        path = os.path.join(output_dir, bt_logger.DEFAULT_FILENAME)
+        meta = bt_logger.build_meta(
+            scenario_name=self.current_scenario.name,
+            scenario_file=self.scenario_file,
+            tick_period=self.tick_period,
+            clock=clock)
+        self.bt_logger = bt_logger.BehaviourTreeJsonlLogger(path, meta, clock)
+        self.behaviour_tree.add_visitor(self.bt_logger.snapshot_visitor)
+        # Before the first tick, so nodes that never run are still in the file.
+        self.bt_logger.write_initial_snapshot(self.behaviour_tree)
+        self.behaviour_tree.add_post_tick_handler(self.bt_logger)
+        self.logger.info(f"Recording behaviour tree status to {path}")
+
+    def close_bt_logger(self):
+        if self.bt_logger is not None:
+            self.bt_logger.close()
+            self.bt_logger = None
 
     def setup_behaviour_tree(self, tree):
         """
@@ -451,6 +488,7 @@ class ScenarioExecution(object):
                     self.on_scenario_shutdown(False, "Aborted")
                     return
         finally:
+            self.close_bt_logger()
             try:
                 simulation.shutdown()
             except Exception as e:  # pylint: disable=broad-except
@@ -608,6 +646,7 @@ class ScenarioExecution(object):
         self.shutdown_requested = True
         if self.behaviour_tree:
             self.behaviour_tree.interrupt()
+        self.close_bt_logger()
         if self.current_scenario:
             if result:
                 self.logger.info(f"Scenario '{self.current_scenario.name}' succeeded.")
@@ -642,6 +681,8 @@ class ScenarioExecution(object):
                             help='Produce tree output of parsed openscenario2 content')
         parser.add_argument('-t', '--live-tree', action='store_true',
                             help='For debugging: Show current state of py tree')
+        parser.add_argument('--bt-log', action='store_true',
+                            help=f'Record behaviour status over time to <output-dir>/{bt_logger.DEFAULT_FILENAME}')
         parser.add_argument('-o', '--output-dir', type=str, help='Directory for output (e.g. test results)')
         parser.add_argument('-n', '--dry-run', action='store_true', help='Parse and resolve scenario, but do not execute')
         parser.add_argument('--dot', action='store_true', help='Render dot trees of resulting py-tree')
@@ -751,7 +792,8 @@ def main():
                                                create_scenario_parameter_file_template=args.create_scenario_parameter_file_template,
                                                post_run=args.post_run,
                                                simulation=simulation,
-                                               output_result_per_scenario=args.output_result_per_scenario)
+                                               output_result_per_scenario=args.output_result_per_scenario,
+                                               bt_log=args.bt_log)
     except ValueError as e:
         print(f"Error while initializing: {e}")
         sys.exit(1)

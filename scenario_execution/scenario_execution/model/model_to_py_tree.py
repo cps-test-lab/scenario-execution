@@ -143,10 +143,28 @@ class ModelToPyTree(object):
             self.tree = tree
             self.__cur_behavior = tree
 
+        @staticmethod
+        def stamp_source(behavior, node):
+            """Record which .osc element a behaviour came from, as (file, line, column).
+
+            Only plugin actions can be traced back today, and only indirectly, via the
+            model they keep in BaseAction._model. Composites, decorators and the built-in
+            behaviours below are plain py_trees objects with no model reference at all, so
+            anything reading a tree at runtime -- a status log, a debugger -- cannot say
+            which line of the scenario a node came from. Stamping every behaviour here
+            keeps that uniform. Line is 1-based, column 0-based, straight from ANTLR.
+
+            The file comes from the model element rather than the entry scenario because
+            an imported .osc carries its own name (model_builder passes current_file).
+            """
+            line, column, _, filename = node.get_ctx()
+            behavior.osc_source = (filename, line, column)
+
         def visit_scenario_declaration(self, node: ScenarioDeclaration):
             scenario_name = node.qualified_behavior_name
 
             self.__cur_behavior.name = scenario_name
+            self.stamp_source(self.__cur_behavior, node)
 
             self.blackboard = self.__cur_behavior.attach_blackboard_client(
                 name="ModelToPyTree")
@@ -167,6 +185,7 @@ class ModelToPyTree(object):
             else:
                 raise NotImplementedError(f"scenario operator {composition_operator} not yet supported.")
 
+            self.stamp_source(behavior, node)
             parent = self.__cur_behavior
             self.__cur_behavior.add_child(behavior)
             self.__cur_behavior = behavior
@@ -179,6 +198,7 @@ class ModelToPyTree(object):
             if isinstance(child, (EventCondition, EventReference)):
                 behavior = self.visit(child)
 
+                self.stamp_source(behavior, node)
                 self.__cur_behavior.add_child(behavior)
             else:
                 raise OSC2ParsingError(msg="Invalid wait directive.", context=node.get_ctx())
@@ -188,12 +208,14 @@ class ModelToPyTree(object):
                 scenario_elem = node
                 while scenario_elem is not None and not isinstance(scenario_elem, ScenarioDeclaration):
                     scenario_elem = scenario_elem.get_parent()
-                self.__cur_behavior.add_child(TopicPublish(
-                    name=f"emit {node.event_name}", key=f"/{scenario_elem.name}/{node.event_name}", msg=True))
+                behavior = TopicPublish(
+                    name=f"emit {node.event_name}", key=f"/{scenario_elem.name}/{node.event_name}", msg=True)
             else:
                 qualified_name = node.event.get_qualified_name()
-                self.__cur_behavior.add_child(TopicPublish(
-                    name=f"emit {node.event_name}", key=qualified_name, msg=True))
+                behavior = TopicPublish(
+                    name=f"emit {node.event_name}", key=qualified_name, msg=True)
+            self.stamp_source(behavior, node)
+            self.__cur_behavior.add_child(behavior)
 
         def compare_method_arguments(self, method, expected_args, behavior_name, node):
             method_args = inspect.getfullargspec(method).args
@@ -211,7 +233,11 @@ class ModelToPyTree(object):
                     missing_args.remove(element)
             return method_args, unexpected_args, missing_args
 
-        def create_decorator(self, node: ModifierDeclaration, resolved_values):
+        def create_decorator(self, node: ModifierDeclaration, resolved_values, invocation=None):
+            # *node* is the modifier's declaration, which for a built-in modifier lives in
+            # an imported library -- useless as a source anchor. *invocation* is the call
+            # site in the scenario, which is what a reader wants to be pointed at.
+            source_node = invocation if invocation is not None else node
             available_modifiers = ["repeat", "inverter", "timeout", "retry", "failure_is_running", "failure_is_success",
                                    "running_is_failure", "running_is_success", "success_is_failure", "success_is_running"]
             if node.name not in available_modifiers:
@@ -221,6 +247,7 @@ class ModelToPyTree(object):
                     if ep.name == node.name:
                         factory = ep.load()
                         instance = factory(self.__cur_behavior, resolved_values)
+                        self.stamp_source(instance, source_node)
                         parent = self.__cur_behavior.parent
                         if parent:
                             parent.children.remove(self.__cur_behavior)
@@ -265,6 +292,7 @@ class ModelToPyTree(object):
             else:
                 raise ValueError('unknown modifier (should not reach here).')
 
+            self.stamp_source(instance, source_node)
             if isinstance(parent, py_trees.composites.Composite):
                 parent.add_child(instance)
             elif isinstance(parent, py_trees.decorators.Decorator):
@@ -282,7 +310,7 @@ class ModelToPyTree(object):
             if isinstance(node.behavior, ModifierDeclaration):
                 resolved_values = node.get_resolved_value(self.blackboard)
                 try:
-                    self.create_decorator(node.behavior, resolved_values)
+                    self.create_decorator(node.behavior, resolved_values, invocation=node)
                 except ValueError as e:
                     raise OSC2ParsingError(msg=f'Modifier "{node.behavior.name}" {e}.', context=node.get_ctx()) from e
             elif isinstance(node.behavior, ActionDeclaration):
@@ -385,6 +413,7 @@ class ModelToPyTree(object):
                     instance._external_init_args = remote_init_args  # pylint: disable=protected-access
                 except Exception as e:
                     raise OSC2ParsingError(msg=f'Error while initializing plugin {behavior_name}: {e}', context=node.get_ctx()) from e
+                self.stamp_source(instance, node)
                 self.__cur_behavior.add_child(instance)
                 previous = self.__cur_behavior
                 self.__cur_behavior = instance
@@ -448,7 +477,7 @@ class ModelToPyTree(object):
         def visit_modifier_invocation(self, node: ModifierInvocation):
             resolved_values = node.get_resolved_value()
             try:
-                self.create_decorator(node.modifier, resolved_values)
+                self.create_decorator(node.modifier, resolved_values, invocation=node)
             except ValueError as e:
                 raise OSC2ParsingError(msg=f'ModifierDeclaration {e}.', context=node.get_ctx()) from e
 
