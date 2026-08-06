@@ -72,7 +72,7 @@ Element Tag             Support              Notes
 ``float``               :raw-html:`&#9989;`    
 ``global``              :raw-html:`&#9989;`       
 ``hard``                :raw-html:`&#10060;`         
-``if``                  :raw-html:`&#10060;`       
+``if``                  :raw-html:`&#9989;`       
 ``import``              :raw-html:`&#9989;`    
 ``inherits``            :raw-html:`&#9989;`    
 ``int``                 :raw-html:`&#9989;`    
