@@ -43,7 +43,7 @@ class RosClock(Clock):
         return self._node.get_clock().now().nanoseconds / 1e9 - self._start
 
 
-class InterruptibleBehaviourTree(py_trees_ros.trees.BehaviourTree):
+class InterruptibleBehaviorTree(py_trees_ros.trees.BehaviourTree):
     """A py_trees_ros tree whose ``interrupt()`` actually stops the ticking.
 
     py_trees' ``interrupt()`` sets ``interrupt_tick_tocking``, which its own blocking ``tick_tock``
@@ -166,9 +166,9 @@ class ROSScenarioExecution(ScenarioExecution):
             tree [py_trees.behaviour.Behaviour]: root of the behaviour tree
 
         return:
-            InterruptibleBehaviourTree
+            InterruptibleBehaviorTree
         """
-        return InterruptibleBehaviourTree(tree)
+        return InterruptibleBehaviorTree(tree)
 
     def post_setup(self):
         request = OpenSnapshotStream.Request()

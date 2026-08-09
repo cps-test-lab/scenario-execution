@@ -19,7 +19,7 @@ import unittest
 import py_trees
 import rclpy
 
-from scenario_execution_ros.scenario_execution_ros import InterruptibleBehaviourTree
+from scenario_execution_ros.scenario_execution_ros import InterruptibleBehaviorTree
 
 
 class Counter(py_trees.behaviour.Behaviour):
@@ -34,7 +34,7 @@ class Counter(py_trees.behaviour.Behaviour):
         return py_trees.common.Status.SUCCESS
 
 
-class TestInterruptibleBehaviourTree(unittest.TestCase):
+class TestInterruptibleBehaviorTree(unittest.TestCase):
     """``interrupt()`` must actually stop the rclpy-timer ticking.
 
     py_trees' ``interrupt()`` only sets ``interrupt_tick_tocking``, and py_trees_ros' timer callback
@@ -59,9 +59,9 @@ class TestInterruptibleBehaviourTree(unittest.TestCase):
             rclpy.shutdown()
 
     def setUp(self):
-        self.node = rclpy.create_node("test_interruptible_behaviour_tree")
+        self.node = rclpy.create_node("test_interruptible_behavior_tree")
         self.counter = Counter()
-        self.tree = InterruptibleBehaviourTree(self.counter)
+        self.tree = InterruptibleBehaviorTree(self.counter)
         self.tree.setup(node=self.node, timeout=10.0)
         self.addCleanup(self._teardown)
 
