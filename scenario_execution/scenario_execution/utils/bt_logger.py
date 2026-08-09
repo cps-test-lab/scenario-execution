@@ -47,7 +47,7 @@ from datetime import datetime, timezone
 
 import py_trees
 
-FORMAT_NAME = "behaviour_tree_log"
+FORMAT_NAME = "behavior_tree_log"
 FORMAT_VERSION = 1
 
 DEFAULT_FILENAME = "behaviors.jsonl"

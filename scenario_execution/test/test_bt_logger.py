@@ -91,7 +91,7 @@ class TestBtLogger(unittest.TestCase):
         tree = self.simple_tree()
         self.build_logger(tree, self.clock).close()
         meta, _ = self.read()
-        self.assertEqual(meta["format"], "behaviour_tree_log")
+        self.assertEqual(meta["format"], "behavior_tree_log")
         self.assertEqual(meta["scenario"], "test")
         self.assertEqual(meta["clock"], "FakeClock")
         self.assertIsNotNone(meta["py_trees"])
@@ -263,7 +263,7 @@ class TestBtLogger(unittest.TestCase):
         self.build_logger(tree, self.clock)
         tree.tick()
         meta, events = self.read()  # no close()
-        self.assertEqual(meta["format"], "behaviour_tree_log")
+        self.assertEqual(meta["format"], "behavior_tree_log")
         self.assertTrue(events)
 
 

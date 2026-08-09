@@ -381,7 +381,7 @@ in itself, so reading it is one ``json.loads`` per line with no state to carry a
 
 .. code-block:: json
 
-   {"format":"behaviour_tree_log","version":1,"scenario":"demo","scenario_file":"/scenarios/demo.osc","scenario_sha256":"e175a753…","tick_period":0.1,"clock":"SimulationClock","py_trees":"2.4.0","started_at":"2026-08-06T09:14:22Z"}
+   {"format":"behavior_tree_log","version":1,"scenario":"demo","scenario_file":"/scenarios/demo.osc","scenario_sha256":"e175a753…","tick_period":0.1,"clock":"SimulationClock","py_trees":"2.4.0","started_at":"2026-08-06T09:14:22Z"}
    {"timestamp":0.0,"behavior_id":"0f2b1d8c-…","parent_id":null,"child_index":null,"behavior_name":"demo","class_name":"py_trees.composites.Sequence","type":"SEQUENCE","additional_detail":"","status":"INVALID","feedback_message":"","is_active":false,"tip_id":null,"osc_file":"/scenarios/demo.osc","osc_line":3,"osc_column":0}
    {"timestamp":0.1,"behavior_id":"0f2b1d8c-…","parent_id":null,"child_index":null,"behavior_name":"demo","class_name":"py_trees.composites.Sequence","type":"SEQUENCE","additional_detail":"","status":"RUNNING","feedback_message":"","is_active":true,"tip_id":"e5182a6f-…","osc_file":"/scenarios/demo.osc","osc_line":3,"osc_column":0}
 
