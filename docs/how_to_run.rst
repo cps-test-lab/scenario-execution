@@ -14,6 +14,8 @@ Runtime Parameters
      - Description
    * - ``-h`` ``--help``
      - show help message
+   * - ``--bt-log``
+     - Record behavior status over time to ``<output-dir>/behaviors.jsonl``. Requires ``--output-dir``. See `Behavior tree status log`_ for the file format.
    * - ``-d`` ``--debug``
      - (For debugging) print internal debugging output
    * - ``--dot``
@@ -32,8 +34,12 @@ Runtime Parameters
      - (For debugging) Show current state of py tree
    * - ``--post-run POST_RUN_COMMAND``
      - Command or script to run after scenario execution. The command will be called as ``<command> <output_dir>``. Can be specified multiple times; commands are executed in order with a timeout of 10 minutes each. Failures are logged but do not stop subsequent commands. Example: ``--post-run ./post.sh --post-run ./cleanup.sh``
+   * - ``-s STEP_DURATION`` ``--step-duration STEP_DURATION``
+     - Duration in seconds between behavior tree ticks (default: ``0.1``); ticks are paced to it, and a tick that runs longer is reported. With a step-based ``--simulation`` the simulation's ``dt`` governs the tick period instead.
    * - ``--simulation MODULE:CLASS``
      - Step-based simulation interface to use. The value must be in ``module.path:ClassName`` format, where the class implements :class:`SimulationInterface <scenario_execution.SimulationInterface>` and is instantiated with no arguments. See `Step-based simulation`_ for details.
+   * - ``--snapshot-period SECONDS``
+     - Only with ``scenario_execution_ros``. How often to publish the behavior tree state on ``/scenario_execution/snapshots``. By default a snapshot is published only when a behavior's status changes. To record tree progress to a file instead, see `Behavior tree status log`_.
    * - ``--output-result-per-scenario``
      - When more than one scenario is executed (multiple ``scenario`` declarations in the ``.osc`` file, or multiple YAML documents in ``--scenario-parameter-file``), write a separate ``test.xml`` inside each scenario's output subdirectory instead of a single combined ``<output-dir>/test.xml``. Has no effect when only one scenario is executed. See `Per-scenario output directories`_ for details.
 
@@ -360,6 +366,71 @@ The ``-<index>`` suffix is appended automatically when more than one document
 is present; with a single document names stay as defined in the ``.osc`` file.
 All results are written as separate ``<testcase>`` entries in ``test.xml``.
 
+.. _behavior_tree_status_log:
+
+Behavior tree status log
+------------------------
+
+``--bt-log`` records how the behavior tree progressed over time to
+``<output-dir>/behaviors.jsonl``. It works the same with and without ROS 2 and needs no
+middleware. ``--output-dir`` is required. How it is implemented is described under
+:ref:`behavior_tree_status_log_internals`.
+
+The file is `JSON Lines <https://jsonlines.org>`__ — one JSON object per line, each complete
+in itself, so reading it is one ``json.loads`` per line with no state to carry and no join:
+
+.. code-block:: json
+
+   {"format":"behavior_tree_log","version":1,"scenario":"demo","scenario_file":"/scenarios/demo.osc","scenario_sha256":"e175a753…","tick_period":0.1,"clock":"SimulationClock","py_trees":"2.4.0","started_at":"2026-08-06T09:14:22Z"}
+   {"timestamp":0.0,"behavior_id":"0f2b1d8c-…","parent_id":null,"child_index":null,"behavior_name":"demo","class_name":"py_trees.composites.Sequence","type":"SEQUENCE","additional_detail":"","status":"INVALID","feedback_message":"","is_active":false,"tip_id":null,"osc_file":"/scenarios/demo.osc","osc_line":3,"osc_column":0}
+   {"timestamp":0.1,"behavior_id":"0f2b1d8c-…","parent_id":null,"child_index":null,"behavior_name":"demo","class_name":"py_trees.composites.Sequence","type":"SEQUENCE","additional_detail":"","status":"RUNNING","feedback_message":"","is_active":true,"tip_id":"e5182a6f-…","osc_file":"/scenarios/demo.osc","osc_line":3,"osc_column":0}
+
+**Line 1** is the metadata record, recognizable by its ``format`` key: which scenario file was
+run and its SHA-256, the tick period, which clock ``timestamp`` came from, and the py_trees
+version.
+
+**The following lines** describe one behavior each. Before the first tick, every node in the
+tree is written once at ``timestamp`` 0 with status ``INVALID``; afterwards a line is added
+whenever a behavior's **status** changes. ``feedback_message`` is captured at that moment but
+does not itself trigger a line.
+
+Because the initial snapshot covers the whole tree, the structure and the state at any point
+in time can be reconstructed from the file alone, including branches that never executed.
+
+.. list-table::
+   :header-rows: 1
+   :class: tight-table
+
+   * - Field
+     - Description
+   * - ``timestamp``
+     - Seconds since the scenario started. Simulated time when a clock is available (``--simulation``, or ROS with ``use_sim_time``), otherwise monotonic time. The metadata record's ``clock`` field says which.
+   * - ``behavior_id``, ``parent_id``
+     - py_trees' own UUIDs. ``parent_id`` is ``null`` for the root.
+   * - ``child_index``
+     - Position among the parent's children, ``null`` for the root. Needed to restore the order of a sequence's children, which ``parent_id`` alone does not give.
+   * - ``behavior_name``, ``class_name``
+     - Name given on construction, and the fully qualified class.
+   * - ``type``
+     - ``SEQUENCE``, ``SELECTOR``, ``PARALLEL``, ``DECORATOR`` or ``BEHAVIOUR``.
+   * - ``additional_detail``
+     - Extra information about the node, e.g. a parallel's policy.
+   * - ``status``
+     - ``INVALID``, ``RUNNING``, ``SUCCESS`` or ``FAILURE``.
+   * - ``feedback_message``
+     - The behavior's feedback message at that moment.
+   * - ``is_active``
+     - Whether the behavior was traversed by the tick that produced this record.
+   * - ``tip_id``
+     - The behavior that determined this subtree's status (py_trees' ``tip()``), so a failing root points straight at the action responsible. ``null`` on a leaf.
+   * - ``osc_file``, ``osc_line``, ``osc_column``
+     - Where the behavior came from in the scenario source. The file is per record because an imported ``.osc`` keeps its own name. Line is 1-based, column 0-based. ``null`` for a behavior with no source element, e.g. a subtree an action builds internally.
+   * - ``removed``
+     - Present and ``true`` only when a subtree was pruned at runtime; the record then carries just ``timestamp`` and ``behavior_id``.
+
+Records are flushed as they are written, so a scenario that is aborted or times out still
+leaves a readable file up to that point.
+
 .. _per_scenario_output_directories:
 
 Per-scenario output directories
@@ -555,4 +626,21 @@ simulation is active. No changes to the OSC scenario file are needed:
 
 Without a simulation interface the clock falls back to system wall-clock time,
 so existing scenarios continue to work unchanged.
+
+**Step-based simulation with the ROS runner**
+
+``--simulation`` works with both runners:
+
+* ``scenario_execution`` (non-ROS): the simulation drives the loop exclusively
+  (``run_with_simulation``); there is no ``rclpy``, so ROS behaviors are unavailable.
+* ``scenario_execution_ros`` (ROS): the ROS spin loop additionally ticks
+  ``simulation.step()``, so a step-based simulation runs **alongside** the ROS
+  behaviors that drive it. This lets a scenario bring up and drive a ROS stack
+  while the simulation advances time. A simulation that publishes ``/clock``
+  becomes the time source (other nodes run ``use_sim_time``), and stepping is
+  paced to real time (the pace can be removed for faster-than-real-time runs).
+
+  With the ROS runner, ``setup()``/``reset()``/``step()``/``shutdown()`` are
+  called **per scenario** (each scenario runs on its own ROS node), rather than
+  ``setup``/``shutdown`` once for the whole file as with the non-ROS runner.
 
