@@ -108,16 +108,16 @@ The :class:`SimulationInterface <scenario_execution.SimulationInterface>` is con
 
 See :ref:`step_based_simulation` for usage instructions and a complete example.
 
-.. _behaviour_tree_status_log_internals:
+.. _behavior_tree_status_log_internals:
 
-Behaviour Tree Status Log
--------------------------
+Behavior Tree Status Log
+------------------------
 
-``--bt-log`` writes ``behaviors.jsonl``, described for users under :ref:`behaviour_tree_status_log`. This section covers why it is built the way it is; ``scenario_execution/utils/bt_logger.py`` holds the implementation.
+``--bt-log`` writes ``behaviors.jsonl``, described for users under :ref:`behavior_tree_status_log`. This section covers why it is built the way it is; ``scenario_execution/utils/bt_logger.py`` holds the implementation.
 
 **One writer for both runners**
 
-The writer lives in ``ScenarioExecution``, so ``ROSScenarioExecution`` inherits it rather than reimplementing it, and ``bt_logger.py`` imports nothing but the standard library and py_trees. Before this existed, behaviour-tree state could only be captured through ``py_trees_ros``' snapshot stream, which meant recording a ROS topic — so ``mode: base`` scenarios had no way to record it at all, and everyone else paid for a rosbag to get it.
+The writer lives in ``ScenarioExecution``, so ``ROSScenarioExecution`` inherits it rather than reimplementing it, and ``bt_logger.py`` imports nothing but the standard library and py_trees. Before this existed, behavior-tree state could only be captured through ``py_trees_ros``' snapshot stream, which meant recording a ROS topic — so ``mode: base`` scenarios had no way to record it at all, and everyone else paid for a rosbag to get it.
 
 **A post-tick handler, not a visitor**
 
@@ -127,7 +127,7 @@ A ``SnapshotVisitor`` is still attached, but only to fill ``is_active``: a node 
 
 **Content follows py_trees_ros, cadence does not**
 
-The per-record fields mirror ``py_trees_ros_interfaces/Behaviour`` so a reader familiar with the ROS snapshots finds the same information. ``py_trees_ros`` republishes the *entire* tree on every snapshot, which is right for a transport whose subscribers may attach at any moment but would make a file grow by the tree size per tick. Instead the whole tree is written once at ``timestamp`` 0 and only status changes after that; the initial snapshot is what keeps never-executed branches in the file, so the tree is still fully reconstructable.
+The per-record fields mirror ``py_trees_ros_interfaces/Behaviour`` so a reader familiar with the ROS snapshots finds the same information. ``py_trees_ros`` republishes the *entire* tree on every snapshot, which is right for a transport whose subscribers may attach at any moment but would make a file grow by the tree size per tick. Instead the whole tree is written once at ``timestamp`` 0 and only status changes after that; the initial snapshot is what keeps never-executed branches in the file, so the tree can still be fully reconstructed.
 
 Two of their fields are dropped and one is kept for a specific reason:
 
@@ -143,6 +143,6 @@ The writer takes a :class:`Clock <scenario_execution.Clock>` and calls ``now()``
 
 **Source locations**
 
-Records carry ``osc_file``/``osc_line``/``osc_column`` so a behaviour can be traced back to the scenario that declared it. Model elements have always known this (``ModelElement.set_ctx`` stores it from the ANTLR context, and ``ActionError`` reports it), but only plugin actions kept a reference to their model — composites, decorators and the built-in behaviours are plain py_trees objects. ``ModelToPyTree.BehaviorInit.stamp_source`` therefore stamps every behaviour it creates with ``osc_source``.
+Records carry ``osc_file``/``osc_line``/``osc_column`` so a behavior can be traced back to the scenario that declared it. Model elements have always known this (``ModelElement.set_ctx`` stores it from the ANTLR context, and ``ActionError`` reports it), but only plugin actions kept a reference to their model — composites, decorators and the built-in behaviors are plain py_trees objects. ``ModelToPyTree.BehaviorInit.stamp_source`` therefore stamps every behavior it creates with ``osc_source``.
 
-For a modifier the stamp deliberately uses the *invocation* rather than the ``ModifierDeclaration``: built-in modifiers are declared in an imported library, so the declaration would point every ``timeout()`` in every scenario at the same line of ``helpers.osc``. The file is stored per behaviour rather than once per run for the same reason — ``set_ctx`` records the file being parsed, so an imported ``.osc`` keeps its own name.
+For a modifier the stamp deliberately uses the *invocation* rather than the ``ModifierDeclaration``: built-in modifiers are declared in an imported library, so the declaration would point every ``timeout()`` in every scenario at the same line of ``helpers.osc``. The file is stored per behavior rather than once per run for the same reason — ``set_ctx`` records the file being parsed, so an imported ``.osc`` keeps its own name.

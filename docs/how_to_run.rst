@@ -15,7 +15,7 @@ Runtime Parameters
    * - ``-h`` ``--help``
      - show help message
    * - ``--bt-log``
-     - Record behaviour status over time to ``<output-dir>/behaviors.jsonl``. Requires ``--output-dir``. See `Behaviour tree status log`_ for the file format.
+     - Record behavior status over time to ``<output-dir>/behaviors.jsonl``. Requires ``--output-dir``. See `Behavior tree status log`_ for the file format.
    * - ``-d`` ``--debug``
      - (For debugging) print internal debugging output
    * - ``--dot``
@@ -362,15 +362,15 @@ The ``-<index>`` suffix is appended automatically when more than one document
 is present; with a single document names stay as defined in the ``.osc`` file.
 All results are written as separate ``<testcase>`` entries in ``test.xml``.
 
-.. _behaviour_tree_status_log:
+.. _behavior_tree_status_log:
 
-Behaviour tree status log
--------------------------
+Behavior tree status log
+------------------------
 
-``--bt-log`` records how the behaviour tree progressed over time to
+``--bt-log`` records how the behavior tree progressed over time to
 ``<output-dir>/behaviors.jsonl``. It works the same with and without ROS 2 and needs no
 middleware. ``--output-dir`` is required. How it is implemented is described under
-:ref:`behaviour_tree_status_log_internals`.
+:ref:`behavior_tree_status_log_internals`.
 
 The file is `JSON Lines <https://jsonlines.org>`__ — one JSON object per line, each complete
 in itself, so reading it is one ``json.loads`` per line with no state to carry and no join:
@@ -381,13 +381,13 @@ in itself, so reading it is one ``json.loads`` per line with no state to carry a
    {"timestamp":0.0,"behavior_id":"0f2b1d8c-…","parent_id":null,"child_index":null,"behavior_name":"demo","class_name":"py_trees.composites.Sequence","type":"SEQUENCE","additional_detail":"","status":"INVALID","feedback_message":"","is_active":false,"tip_id":null,"osc_file":"/scenarios/demo.osc","osc_line":3,"osc_column":0}
    {"timestamp":0.1,"behavior_id":"0f2b1d8c-…","parent_id":null,"child_index":null,"behavior_name":"demo","class_name":"py_trees.composites.Sequence","type":"SEQUENCE","additional_detail":"","status":"RUNNING","feedback_message":"","is_active":true,"tip_id":"e5182a6f-…","osc_file":"/scenarios/demo.osc","osc_line":3,"osc_column":0}
 
-**Line 1** is the metadata record, recognisable by its ``format`` key: which scenario file was
+**Line 1** is the metadata record, recognizable by its ``format`` key: which scenario file was
 run and its SHA-256, the tick period, which clock ``timestamp`` came from, and the py_trees
 version.
 
-**The following lines** describe one behaviour each. Before the first tick, every node in the
+**The following lines** describe one behavior each. Before the first tick, every node in the
 tree is written once at ``timestamp`` 0 with status ``INVALID``; afterwards a line is added
-whenever a behaviour's **status** changes. ``feedback_message`` is captured at that moment but
+whenever a behavior's **status** changes. ``feedback_message`` is captured at that moment but
 does not itself trigger a line.
 
 Because the initial snapshot covers the whole tree, the structure and the state at any point
@@ -414,13 +414,13 @@ in time can be reconstructed from the file alone, including branches that never 
    * - ``status``
      - ``INVALID``, ``RUNNING``, ``SUCCESS`` or ``FAILURE``.
    * - ``feedback_message``
-     - The behaviour's feedback message at that moment.
+     - The behavior's feedback message at that moment.
    * - ``is_active``
-     - Whether the behaviour was traversed by the tick that produced this record.
+     - Whether the behavior was traversed by the tick that produced this record.
    * - ``tip_id``
-     - The behaviour that determined this subtree's status (py_trees' ``tip()``), so a failing root points straight at the action responsible. ``null`` on a leaf.
+     - The behavior that determined this subtree's status (py_trees' ``tip()``), so a failing root points straight at the action responsible. ``null`` on a leaf.
    * - ``osc_file``, ``osc_line``, ``osc_column``
-     - Where the behaviour came from in the scenario source. The file is per record because an imported ``.osc`` keeps its own name. Line is 1-based, column 0-based. ``null`` for a behaviour with no source element, e.g. a subtree an action builds internally.
+     - Where the behavior came from in the scenario source. The file is per record because an imported ``.osc`` keeps its own name. Line is 1-based, column 0-based. ``null`` for a behavior with no source element, e.g. a subtree an action builds internally.
    * - ``removed``
      - Present and ``true`` only when a subtree was pruned at runtime; the record then carries just ``timestamp`` and ``behavior_id``.
 
@@ -628,13 +628,13 @@ so existing scenarios continue to work unchanged.
 ``--simulation`` works with both runners:
 
 * ``scenario_execution`` (non-ROS): the simulation drives the loop exclusively
-  (``run_with_simulation``); there is no rclpy, so ROS behaviours are unavailable.
+  (``run_with_simulation``); there is no ``rclpy``, so ROS behaviors are unavailable.
 * ``scenario_execution_ros`` (ROS): the ROS spin loop additionally ticks
   ``simulation.step()``, so a step-based simulation runs **alongside** the ROS
-  behaviours that drive it. This lets a scenario bring up and drive a ROS stack
+  behaviors that drive it. This lets a scenario bring up and drive a ROS stack
   while the simulation advances time. A simulation that publishes ``/clock``
   becomes the time source (other nodes run ``use_sim_time``), and stepping is
-  paced to realtime (the pace can be removed for faster-than-realtime runs).
+  paced to real time (the pace can be removed for faster-than-real-time runs).
 
   With the ROS runner, ``setup()``/``reset()``/``step()``/``shutdown()`` are
   called **per scenario** (each scenario runs on its own ROS node), rather than
