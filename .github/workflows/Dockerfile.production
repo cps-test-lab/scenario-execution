@@ -4,9 +4,12 @@ FROM osrf/ros:${ROS_DISTRO}-desktop-full
 SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
 
 # Install system dependencies
-# hadolint ignore=DL3008
+# Upgrade before installing, for the same reason as in Dockerfile.testing: the base image is a
+# snapshot and rosdep installs from the current repository.
+# hadolint ignore=DL3005,DL3008
 RUN --mount=type=bind,source=.,target=/scenario_execution \
     apt-get update && \
+    apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
         python3-pip && \
     xargs -a /scenario_execution/deb_requirements.txt apt-get install -y --no-install-recommends && \

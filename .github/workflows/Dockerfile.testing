@@ -4,9 +4,13 @@ FROM osrf/ros:${ROS_DISTRO}-desktop-full
 SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
 
 # Install system dependencies
-# hadolint ignore=DL3008
+# The base image is a snapshot, while rosdep installs from the current repository. Upgrading first
+# keeps both from the same sync -- without it, a freshly pulled package can be linked against a
+# newer library than the one the base image froze, which fails at load time, not at build time.
+# hadolint ignore=DL3005,DL3008
 RUN --mount=type=bind,source=.,target=/scenario_execution \
     apt-get update && \
+    apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
         python3-pip \
         python3-setuptools \
