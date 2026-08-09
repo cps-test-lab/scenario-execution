@@ -1,0 +1,27 @@
+import osc.helpers
+import osc.rosbridge
+
+# Publish a std_msgs/String over rosbridge and verify it round-trips.
+# Requires a rosbridge_server reachable at host:port (default localhost:9090).
+scenario example_rosbridge:
+    timeout(30s)
+    do serial:
+        rosbridge_wait_for_topics(
+            topics: ['/chatter'],
+            host: '127.0.0.1',
+            port: 9090)
+        parallel:
+            rosbridge_check_data(
+                topic_name: '/chatter',
+                topic_type: 'std_msgs.msg.String',
+                member_name: 'data',
+                expected_value: 'hello rosbridge',
+                eval_expected_value: false,
+                host: '127.0.0.1',
+                port: 9090)
+            rosbridge_topic_publish(
+                topic_name: '/chatter',
+                topic_type: 'std_msgs.msg.String',
+                value: '{\"data\": \"hello rosbridge\"}',
+                host: '127.0.0.1',
+                port: 9090)

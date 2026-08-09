@@ -32,6 +32,8 @@ Beside ``osc.standard`` and ``osc.types`` provided by OpenSCENARIO DSL, multiple
      - Robotics Library (provided with :repo_link:`scenario_execution`)
    * - ``osc.ros``
      - ROS Library (provided with :repo_link:`scenario_execution_ros`)
+   * - ``osc.rosbridge``
+     - Library to interact with a ROS system over the rosbridge websocket protocol, without a local ROS installation (provided with :repo_link:`libs/scenario_execution_websocket`)
    * - ``osc.sim``
      - Simulation Library (provided with :repo_link:`scenario_execution_sim`)
    * - ``osc.x11``
@@ -2145,6 +2147,429 @@ Wait for topics to get available (i.e. publisher gets available).
      - ``list of string``
      - 
      - List of topics to wait for
+
+
+Rosbridge
+---------
+
+The library contains actions to interact with a ROS system over the `rosbridge <https://github.com/RobotWebTools/rosbridge_suite>`__ websocket protocol. Import it with ``import osc.rosbridge``. It is provided by the package :repo_link:`libs/scenario_execution_websocket`.
+
+Unlike ``osc.ros``, these actions need no local ROS installation: they speak rosbridge v2 over a websocket using `roslibpy <https://github.com/RobotWebTools/roslibpy>`__, so a scenario can drive and observe a robot from a machine that has no ROS on it at all — a laptop, a CI runner, or a mission-control host. What it does require is a reachable ``rosbridge_server`` on the robot side, started there with:
+
+.. code-block:: bash
+
+   ros2 launch rosbridge_server rosbridge_websocket_launch.xml
+
+Every action takes ``host`` and ``port`` pointing at that server, defaulting to ``localhost`` and ``9090``. Connections are pooled per ``(host, port)``, so actions addressing the same server share one websocket rather than opening one each.
+
+Message, service and action types are given as strings in dotted notation (e.g. ``std_msgs.msg.String``), because without ROS there is no local type registry to resolve them against; the rosbridge server resolves them instead. For the same reason a type that the robot does not have will fail at the server, not while parsing the scenario.
+
+Message content is given as a string. Double quotes inside it must be escaped, since the surrounding literal is itself quoted:
+
+.. code-block::
+
+   import osc.helpers
+   import osc.rosbridge
+
+   scenario example:
+       timeout(30s)
+       do serial:
+           rosbridge_wait_for_topics(topics: ['/chatter'], host: '127.0.0.1')
+           parallel:
+               rosbridge_check_data(
+                   topic_name: '/chatter',
+                   topic_type: 'std_msgs.msg.String',
+                   member_name: 'data',
+                   expected_value: 'hello',
+                   eval_expected_value: false)
+               rosbridge_topic_publish(
+                   topic_name: '/chatter',
+                   topic_type: 'std_msgs.msg.String',
+                   value: '{\"data\": \"hello\"}')
+
+The check runs in ``parallel`` with the publish so that the subscription exists before the message is sent. A fuller version is shipped with the package as :repo_link:`libs/scenario_execution_websocket/example/example_rosbridge.osc`.
+
+``rosbridge_topic_publish()``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Publish a message to a topic.
+
+.. list-table::
+   :widths: 15 15 5 65
+   :header-rows: 1
+   :class: tight-table
+
+   * - Parameter
+     - Type
+     - Default
+     - Description
+   * - ``topic_name``
+     - ``string``
+     -
+     - Name of the topic to publish to
+   * - ``topic_type``
+     - ``string``
+     -
+     - Message type, e.g. ``std_msgs.msg.String``
+   * - ``value``
+     - ``string``
+     -
+     - Value to publish: a parsed string, a struct, or a message object stored in a variable
+   * - ``host``
+     - ``string``
+     - ``localhost``
+     - rosbridge server host
+   * - ``port``
+     - ``int``
+     - ``9090``
+     - rosbridge server port
+   * - ``latch``
+     - ``bool``
+     - ``false``
+     - Latch the message for late subscribers
+   * - ``queue_size``
+     - ``int``
+     - ``10``
+     - Advertise queue size
+
+``rosbridge_topic_monitor()``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Subscribe to a topic and store the last message within a variable. The action succeeds immediately without waiting for a message; the subscription then keeps the variable up to date in the background until the scenario ends. Use ``rosbridge_wait_for_data()`` to block until a message actually arrives.
+
+.. list-table::
+   :widths: 15 15 5 65
+   :header-rows: 1
+   :class: tight-table
+
+   * - Parameter
+     - Type
+     - Default
+     - Description
+   * - ``topic_name``
+     - ``string``
+     -
+     - Name of the topic to connect to
+   * - ``topic_type``
+     - ``string``
+     -
+     - Message type, e.g. ``std_msgs.msg.String``
+   * - ``target_variable``
+     - ``string``
+     -
+     - Variable (e.g. a ``var`` within an actor instance) to store the message in
+   * - ``host``
+     - ``string``
+     - ``localhost``
+     - rosbridge server host
+   * - ``port``
+     - ``int``
+     - ``9090``
+     - rosbridge server port
+   * - ``member_name``
+     - ``string``
+     - ``""``
+     - If set, only this member's value is stored instead of the whole message
+
+``rosbridge_wait_for_data()``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Wait until any message is received on a topic.
+
+.. list-table::
+   :widths: 15 15 5 65
+   :header-rows: 1
+   :class: tight-table
+
+   * - Parameter
+     - Type
+     - Default
+     - Description
+   * - ``topic_name``
+     - ``string``
+     -
+     - Name of the topic to connect to
+   * - ``topic_type``
+     - ``string``
+     -
+     - Message type, e.g. ``std_msgs.msg.String``
+   * - ``host``
+     - ``string``
+     - ``localhost``
+     - rosbridge server host
+   * - ``port``
+     - ``int``
+     - ``9090``
+     - rosbridge server port
+
+``rosbridge_check_data()``
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Compare messages received on a topic against an expected value.
+
+.. list-table::
+   :widths: 15 15 5 65
+   :header-rows: 1
+   :class: tight-table
+
+   * - Parameter
+     - Type
+     - Default
+     - Description
+   * - ``topic_name``
+     - ``string``
+     -
+     - Name of the topic to connect to
+   * - ``topic_type``
+     - ``string``
+     -
+     - Message type, e.g. ``std_msgs.msg.String``
+   * - ``expected_value``
+     - ``string``
+     -
+     - Expected value
+   * - ``host``
+     - ``string``
+     - ``localhost``
+     - rosbridge server host
+   * - ``port``
+     - ``int``
+     - ``9090``
+     - rosbridge server port
+   * - ``eval_expected_value``
+     - ``bool``
+     - ``true``
+     - Evaluate ``expected_value`` with ``ast.literal_eval``. Set to ``false`` to compare against it as a plain string
+   * - ``member_name``
+     - ``string``
+     - ``""``
+     - Member to check. If empty, the whole message is checked
+   * - ``comparison_operator``
+     - ``comparison_operator``
+     - ``eq``
+     - Comparison to apply, from the python ``operator`` module
+   * - ``fail_if_no_data``
+     - ``bool``
+     - ``false``
+     - Return ``FAILURE`` instead of ``RUNNING`` if no data was received
+   * - ``fail_if_bad_comparison``
+     - ``bool``
+     - ``false``
+     - Return ``FAILURE`` instead of ``RUNNING`` if the comparison failed
+   * - ``wait_for_first_message``
+     - ``bool``
+     - ``true``
+     - Start checking with the first message received after this action starts executing. Set to ``false`` to also consider a message received earlier
+
+``rosbridge_service_call()``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Call a service and optionally store its response.
+
+.. list-table::
+   :widths: 15 15 5 65
+   :header-rows: 1
+   :class: tight-table
+
+   * - Parameter
+     - Type
+     - Default
+     - Description
+   * - ``service_name``
+     - ``string``
+     -
+     - Name of the service to connect to
+   * - ``service_type``
+     - ``string``
+     -
+     - Service type, e.g. ``std_srvs.srv.Empty``
+   * - ``data``
+     - ``string``
+     -
+     - Call content
+   * - ``host``
+     - ``string``
+     - ``localhost``
+     - rosbridge server host
+   * - ``port``
+     - ``int``
+     - ``9090``
+     - rosbridge server port
+   * - ``response_variable``
+     - ``string``
+     - ``""``
+     - Variable to store the response in
+   * - ``response_member_name``
+     - ``string``
+     - ``""``
+     - If set, only this member's value is stored instead of the whole response
+
+``rosbridge_action_call()``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Send an action goal, using the rosbridge v2 ``send_action_goal`` operation.
+
+.. list-table::
+   :widths: 15 15 5 65
+   :header-rows: 1
+   :class: tight-table
+
+   * - Parameter
+     - Type
+     - Default
+     - Description
+   * - ``action_name``
+     - ``string``
+     -
+     - Name of the action to connect to
+   * - ``action_type``
+     - ``string``
+     -
+     - Action type, e.g. ``example_interfaces.action.Fibonacci``
+   * - ``data``
+     - ``string``
+     -
+     - Goal content
+   * - ``host``
+     - ``string``
+     - ``localhost``
+     - rosbridge server host
+   * - ``port``
+     - ``int``
+     - ``9090``
+     - rosbridge server port
+   * - ``success_on_acceptance``
+     - ``bool``
+     - ``false``
+     - Succeed as soon as the goal is sent. rosbridge accepts a goal implicitly, so there is no separate acceptance to wait for
+   * - ``result_variable``
+     - ``string``
+     - ``""``
+     - Variable to store the result in
+   * - ``result_member_name``
+     - ``string``
+     - ``""``
+     - If set, only this member's value is stored instead of the whole result
+   * - ``timeout``
+     - ``time``
+     - ``0s``
+     - If greater than zero, fail when no result is received within this time
+
+``rosbridge_wait_for_topics()``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Wait until all given topics are advertised, queried through ``/rosapi/topics``.
+
+.. list-table::
+   :widths: 15 15 5 65
+   :header-rows: 1
+   :class: tight-table
+
+   * - Parameter
+     - Type
+     - Default
+     - Description
+   * - ``topics``
+     - ``list of string``
+     -
+     - List of topics to wait for
+   * - ``host``
+     - ``string``
+     - ``localhost``
+     - rosbridge server host
+   * - ``port``
+     - ``int``
+     - ``9090``
+     - rosbridge server port
+
+``rosbridge_wait_for_services()``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Wait until all given services are available, queried through ``/rosapi/services``.
+
+.. list-table::
+   :widths: 15 15 5 65
+   :header-rows: 1
+   :class: tight-table
+
+   * - Parameter
+     - Type
+     - Default
+     - Description
+   * - ``services``
+     - ``list of string``
+     -
+     - List of services to wait for
+   * - ``host``
+     - ``string``
+     - ``localhost``
+     - rosbridge server host
+   * - ``port``
+     - ``int``
+     - ``9090``
+     - rosbridge server port
+
+``rosbridge_get_parameter()``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Read a parameter through ``/rosapi`` and store it in a variable.
+
+.. list-table::
+   :widths: 15 15 5 65
+   :header-rows: 1
+   :class: tight-table
+
+   * - Parameter
+     - Type
+     - Default
+     - Description
+   * - ``parameter_name``
+     - ``string``
+     -
+     - Parameter name. In ROS 2 this is ``node_name:parameter_name``
+   * - ``target_variable``
+     - ``string``
+     -
+     - Variable to store the parameter value in
+   * - ``host``
+     - ``string``
+     - ``localhost``
+     - rosbridge server host
+   * - ``port``
+     - ``int``
+     - ``9090``
+     - rosbridge server port
+
+``rosbridge_set_parameter()``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Set a parameter through ``/rosapi``.
+
+.. list-table::
+   :widths: 15 15 5 65
+   :header-rows: 1
+   :class: tight-table
+
+   * - Parameter
+     - Type
+     - Default
+     - Description
+   * - ``parameter_name``
+     - ``string``
+     -
+     - Parameter name. In ROS 2 this is ``node_name:parameter_name``
+   * - ``parameter_value``
+     - ``string``
+     -
+     - New value, parsed with ``ast.literal_eval`` and falling back to a plain string
+   * - ``host``
+     - ``string``
+     - ``localhost``
+     - rosbridge server host
+   * - ``port``
+     - ``int``
+     - ``9090``
+     - rosbridge server port
 
 
 Simulation

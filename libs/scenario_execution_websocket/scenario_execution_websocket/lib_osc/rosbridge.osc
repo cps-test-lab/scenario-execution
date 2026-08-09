@@ -1,0 +1,106 @@
+import osc.types
+
+###########
+# Enums
+###########
+
+enum comparison_operator: [
+    lt,
+    le,
+    eq,
+    ne,
+    ge,
+    gt
+]
+
+###########
+# Actions
+###########
+
+action rosbridge_topic_publish:
+    # Publish a message to a ROS topic over the rosbridge websocket protocol
+    topic_name: string                   # name of the topic to publish to
+    topic_type: string                   # message type (e.g. std_msgs.msg.String)
+    value: string                        # value to publish (parsed string, struct, or message object stored in a variable)
+    host: string = 'localhost'           # rosbridge server host
+    port: int = 9090                     # rosbridge server port
+    latch: bool = false                  # latch the message for late subscribers
+    queue_size: int = 10                 # advertise queue size
+
+action rosbridge_topic_monitor:
+    # Subscribe to a topic and store the latest received message into a variable
+    topic_name: string                   # name of the topic to connect to
+    topic_type: string                   # message type (e.g. std_msgs.msg.String)
+    target_variable: string              # variable (e.g. a 'var' within an actor instance) to store the message in
+    host: string = 'localhost'           # rosbridge server host
+    port: int = 9090                     # rosbridge server port
+    member_name: string = ""             # if not empty, only the value of this member is stored
+
+action rosbridge_wait_for_data:
+    # Wait until any message is received on a topic
+    topic_name: string                   # name of the topic to connect to
+    topic_type: string                   # message type (e.g. std_msgs.msg.String)
+    host: string = 'localhost'           # rosbridge server host
+    port: int = 9090                     # rosbridge server port
+
+action rosbridge_check_data:
+    # Compare received topic messages using comparison_operator against expected_value
+    topic_name: string                   # name of the topic to connect to
+    topic_type: string                   # message type (e.g. std_msgs.msg.String)
+    expected_value: string               # expected value
+    host: string = 'localhost'           # rosbridge server host
+    port: int = 9090                     # rosbridge server port
+    eval_expected_value: bool = true     # evaluate the expected value (ast.literal_eval); set false for plain string
+    member_name: string = ""             # member to check, if empty the whole message is checked
+    comparison_operator: comparison_operator = comparison_operator!eq # comparison from the python operator module
+    fail_if_no_data: bool = false        # FAILURE instead of RUNNING if no data was received
+    fail_if_bad_comparison: bool = false # FAILURE instead of RUNNING if the comparison failed
+    wait_for_first_message: bool = true  # start checking with the first message received after execution
+
+action rosbridge_service_call:
+    # Call a ROS service over rosbridge
+    service_name: string                 # name of the service to connect to
+    service_type: string                 # service type (e.g. std_srvs.srv.Empty)
+    data: string                         # call content
+    host: string = 'localhost'           # rosbridge server host
+    port: int = 9090                     # rosbridge server port
+    response_variable: string = ""       # variable to store the response in
+    response_member_name: string = ""    # if not empty, only the value of this member is stored
+
+action rosbridge_action_call:
+    # Send a ROS2 action goal over the rosbridge v2 protocol
+    action_name: string                  # name of the action to connect to
+    action_type: string                  # action type (e.g. example_interfaces.action.Fibonacci)
+    data: string                         # goal content
+    host: string = 'localhost'           # rosbridge server host
+    port: int = 9090                     # rosbridge server port
+    success_on_acceptance: bool = false  # succeed as soon as the goal is sent (rosbridge accepts implicitly)
+    result_variable: string = ""         # variable to store the result in
+    result_member_name: string = ""      # if not empty, only the value of this member is stored
+    timeout: time = 0s                   # if > 0, fail if no result is received within this time
+
+action rosbridge_wait_for_topics:
+    # Wait until all given topics are advertised (queried via /rosapi/topics)
+    topics: list of string               # list of topics to wait for
+    host: string = 'localhost'           # rosbridge server host
+    port: int = 9090                     # rosbridge server port
+
+action rosbridge_wait_for_services:
+    # Wait until all given services are available (queried via /rosapi/services)
+    services: list of string             # list of services to wait for
+    host: string = 'localhost'           # rosbridge server host
+    port: int = 9090                     # rosbridge server port
+
+action rosbridge_get_parameter:
+    # Get a parameter value via /rosapi and store it into a variable
+    parameter_name: string               # parameter name (ROS2: 'node_name:parameter_name')
+    target_variable: string              # variable to store the parameter value in
+    host: string = 'localhost'           # rosbridge server host
+    port: int = 9090                     # rosbridge server port
+
+action rosbridge_set_parameter:
+    # Set a parameter value via /rosapi
+    parameter_name: string               # parameter name (ROS2: 'node_name:parameter_name')
+    parameter_value: string              # new value (parsed with ast.literal_eval, falling back to string)
+    host: string = 'localhost'           # rosbridge server host
+    port: int = 9090                     # rosbridge server port
