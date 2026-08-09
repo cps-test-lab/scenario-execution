@@ -34,8 +34,12 @@ Runtime Parameters
      - (For debugging) Show current state of py tree
    * - ``--post-run POST_RUN_COMMAND``
      - Command or script to run after scenario execution. The command will be called as ``<command> <output_dir>``. Can be specified multiple times; commands are executed in order with a timeout of 10 minutes each. Failures are logged but do not stop subsequent commands. Example: ``--post-run ./post.sh --post-run ./cleanup.sh``
+   * - ``-s STEP_DURATION`` ``--step-duration STEP_DURATION``
+     - Duration in seconds between behavior tree ticks (default: ``0.1``); ticks are paced to it, and a tick that runs longer is reported. With a step-based ``--simulation`` the simulation's ``dt`` governs the tick period instead.
    * - ``--simulation MODULE:CLASS``
      - Step-based simulation interface to use. The value must be in ``module.path:ClassName`` format, where the class implements :class:`SimulationInterface <scenario_execution.SimulationInterface>` and is instantiated with no arguments. See `Step-based simulation`_ for details.
+   * - ``--snapshot-period SECONDS``
+     - Only with ``scenario_execution_ros``. How often to publish the behavior tree state on ``/scenario_execution/snapshots``. By default a snapshot is published only when a behavior's status changes. To record tree progress to a file instead, see `Behavior tree status log`_.
    * - ``--output-result-per-scenario``
      - When more than one scenario is executed (multiple ``scenario`` declarations in the ``.osc`` file, or multiple YAML documents in ``--scenario-parameter-file``), write a separate ``test.xml`` inside each scenario's output subdirectory instead of a single combined ``<output-dir>/test.xml``. Has no effect when only one scenario is executed. See `Per-scenario output directories`_ for details.
 
