@@ -102,6 +102,22 @@ The :class:`WallClock <scenario_execution.WallClock>` is used as fallback when n
    │    sim.shutdown()                                   │
    └─────────────────────────────────────────────────────┘
 
+**Who owns the loop: base runner vs. ROS runner**
+
+The loop above belongs to the base runner, where the simulation drives everything and there is no
+``rclpy`` — which also means no ROS behavior can run in it. The ROS runner cannot adopt that shape,
+because the executor owns its loop. ``ROSScenarioExecution`` therefore steps the simulation *from
+inside* the spin loop instead, so the simulation advances alongside the ROS behaviors that drive it
+and a scenario can bring up a ROS stack against a step-based simulator. Stepping is paced to real
+time; a simulation that publishes ``/clock`` on ``step()`` becomes the time source and other nodes
+run ``use_sim_time``.
+
+The lifecycle differs accordingly. The base runner sets the simulation up and shuts it down once per
+run, whereas the ROS runner does it **per scenario** — each scenario already runs on its own node and
+executor, because ``py_trees_ros`` adopts the node it is given and destroys it on ``shutdown()``. A
+simulation whose ``setup()`` or ``reset()`` raises fails that one scenario and lets the remaining
+scenarios run, rather than aborting the file.
+
 **API alignment with ros-simulation/simulation_interfaces**
 
 The :class:`SimulationInterface <scenario_execution.SimulationInterface>` is conceptually aligned with the `ros-simulation/simulation_interfaces <https://github.com/ros-simulation/simulation_interfaces>`_ standard, making it straightforward to implement adapters for compliant simulators.
@@ -146,3 +162,24 @@ The writer takes a :class:`Clock <scenario_execution.Clock>` and calls ``now()``
 Records carry ``osc_file``/``osc_line``/``osc_column`` so a behavior can be traced back to the scenario that declared it. Model elements have always known this (``ModelElement.set_ctx`` stores it from the ANTLR context, and ``ActionError`` reports it), but only plugin actions kept a reference to their model — composites, decorators and the built-in behaviors are plain py_trees objects. ``ModelToPyTree.BehaviorInit.stamp_source`` therefore stamps every behavior it creates with ``osc_source``.
 
 For a modifier the stamp deliberately uses the *invocation* rather than the ``ModifierDeclaration``: built-in modifiers are declared in an imported library, so the declaration would point every ``timeout()`` in every scenario at the same line of ``helpers.osc``. The file is stored per behavior rather than once per run for the same reason — ``set_ctx`` records the file being parsed, so an imported ``.osc`` keeps its own name.
+
+Log Line Format
+---------------
+
+Both loggers available through ``kwargs['logger']`` emit the same line shape::
+
+   [LEVEL] [epoch] [name]: message
+
+``Logger`` (used by the base runner) and ``RosLogger`` (which delegates to ``rclpy``) are two
+implementations of one base class, so a scenario's own output used to be formatted differently
+depending on which middleware happened to be in use — the base logger printed ``[name] [LEVEL] msg``,
+with no timestamp at all. Placing a scenario's output in time therefore depended on the backend, and
+a log aggregator needed one grammar per runner instead of one.
+
+The ANSI color for warnings and errors wraps the *message* rather than the whole line, so the level
+marker stays at the start of the line where a parser anchored there can still find it.
+
+.. note::
+
+   This changes the output of the base runner. Anything parsing ``scenario_execution``'s ``stdout``
+   (as opposed to ``scenario_execution_ros``', which already had this shape) needs updating.
