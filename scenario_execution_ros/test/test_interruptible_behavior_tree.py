@@ -67,10 +67,11 @@ class TestInterruptibleBehaviorTree(unittest.TestCase):
 
     def _teardown(self):
         # The tree adopts the node and destroys it in shutdown(); guard against a test that already
-        # shut it down.
+        # shut it down. The catch is deliberately broad: cleanup must not mask the failure of the
+        # test that is on its way out.
         try:
             self.tree.shutdown()
-        except Exception:  # noqa: BLE001 - cleanup must not mask a test failure
+        except Exception:  # pylint: disable=broad-except
             pass
 
     def _spin(self, seconds):
