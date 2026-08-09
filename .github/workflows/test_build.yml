@@ -281,6 +281,7 @@ jobs:
           scenario_execution_dataops \
           scenario_execution_coverage \
           scenario_execution_test \
+          scenario_execution_websocket \
           --event-handlers console_direct+ \
           --return-code-on-test-failure \
           --pytest-args \
