@@ -1577,7 +1577,9 @@ If ``timestamp_suffix`` is set to ``true``, the ROS bag directory ``rosbag2`` wi
 
 If ``topics`` is specified, this action waits for all topics to be subscribed until it returns with success otherwise it immediately returns. The recording is active until the end of the scenario.
 
-A common topic to record is ``/scenario_execution/snapshots`` which publishes changes within the behavior tree. When replaying the bag-file, this allows to visualize the current state of the scenario in RViz, using the ``scenario_execution_rviz`` plugin.
+The ROS runner always publishes ``/scenario_execution/snapshots``, which reports changes within the behavior tree. Recording that topic allows to visualize the state of the scenario in RViz while replaying the bag-file, using the ``scenario_execution_rviz`` plugin.
+
+To capture only what the behavior tree did, use ``--bt-log`` instead (see :ref:`behavior_tree_status_log`). It records status changes rather than republishing the whole tree per snapshot, needs no bag, and works without ROS. The bundled examples therefore no longer record the snapshots topic.
 
 .. list-table:: 
    :widths: 15 15 5 65
