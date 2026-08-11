@@ -21,8 +21,11 @@ import tempfile
 import unittest
 
 from scenario_execution.introspection import (_parse_osc_library,
-                                               _syntax_diagnostics, list_actions,
-                                               validate)
+                                              _scan_actions_used,
+                                              _syntax_diagnostics,
+                                              _tree_to_json, describe_scenario,
+                                              get_action_details, list_actions,
+                                              validate)
 
 
 class TestParseOscLibrary(unittest.TestCase):
@@ -52,6 +55,24 @@ class TestParseOscLibrary(unittest.TestCase):
         self.assertEqual(msg["doc"], "the message to log")
         # A parameter with no default / no comment reports None, not "".
         self.assertIsNone(decl["parameters"][1]["default"])
+
+    def test_dotted_action_name_kept_whole(self):
+        # A regression guard: [A-Za-z_]\w* alone truncates "actor.method" at the
+        # dot, collapsing every action on one actor type into the same (kind,
+        # name) key and silently dropping all but the first from the catalog.
+        text = (
+            "action differential_drive_robot.follow_waypoints:\n"
+            "    goal_poses: list of pose_3d\n"
+            "\n"
+            "action differential_drive_robot.nav_to_pose:\n"
+            "    goal: pose_3d\n"
+        )
+        decls = _parse_osc_library(text, "nav2")
+        names = {d["name"] for d in decls}
+        self.assertEqual(
+            names,
+            {"differential_drive_robot.follow_waypoints",
+             "differential_drive_robot.nav_to_pose"})
 
     def test_multiple_kinds_separated(self):
         text = "actor base\n\nstruct point:\n    x: float\n"
@@ -141,6 +162,111 @@ class TestListActions(unittest.TestCase):
         for bucket in list_actions().values():
             names = [d["name"] for d in bucket]
             self.assertEqual(names, sorted(names))
+
+
+class TestGetActionDetails(unittest.TestCase):
+
+    def test_known_name_matches_list_actions_entry(self):
+        catalog = list_actions()
+        some_action = catalog["actions"][0]
+        self.assertEqual(get_action_details(some_action["name"]), some_action)
+
+    def test_unknown_name_is_error(self):
+        result = get_action_details("totally_made_up_name_xyz")
+        self.assertIn("error", result)
+
+
+class TestScanActionsUsed(unittest.TestCase):
+    """Pure, environment-independent: uses a hand-built catalog, not list_actions()."""
+
+    CATALOG = {
+        "actions": [{"name": "differential_drive_robot.nav_to_pose", "kind": "action",
+                     "doc": "Nav to a pose.", "resolvable": True}],
+        "modifiers": [{"name": "timeout", "kind": "modifier",
+                      "doc": None, "resolvable": True}],
+        "actors": [{"name": "differential_drive_robot", "kind": "actor",
+                   "doc": None}],
+        "structs": [{"name": "pose_3d", "kind": "struct", "doc": None}],
+    }
+
+    def _write(self, content):
+        handle = tempfile.NamedTemporaryFile(
+            "w", suffix=".osc", delete=False, encoding="utf-8")
+        handle.write(content)
+        handle.close()
+        self.addCleanup(os.unlink, handle.name)
+        return handle.name
+
+    def test_instance_qualified_call_resolves_via_declared_type(self):
+        path = self._write(
+            "scenario test:\n"
+            "    timeout(10s)\n"
+            "    robot: differential_drive_robot\n"
+            "    do serial:\n"
+            "        robot.nav_to_pose(pose_3d(x: 1.0))\n"
+        )
+        found = {item["name"]: item for item in _scan_actions_used(path, self.CATALOG)}
+        self.assertIn("differential_drive_robot.nav_to_pose", found)
+        self.assertTrue(found["differential_drive_robot.nav_to_pose"]["resolvable"])
+        self.assertEqual(found["differential_drive_robot.nav_to_pose"]["kind"], "action")
+        self.assertIn("timeout", found)
+        self.assertIn("pose_3d", found)
+        self.assertEqual(found["pose_3d"]["kind"], "struct")
+
+    def test_unknown_reference_reported_unresolvable(self):
+        path = self._write("scenario test:\n    do grasp_object()\n")
+        found = {item["name"]: item for item in _scan_actions_used(path, self.CATALOG)}
+        self.assertIn("grasp_object", found)
+        self.assertFalse(found["grasp_object"]["resolvable"])
+
+
+class TestTreeToJson(unittest.TestCase):
+    """Pure, environment-independent: builds a py_trees tree by hand."""
+
+    def test_sequence_with_modifier_wrapping_leaf(self):
+        import py_trees  # pylint: disable=import-outside-toplevel
+
+        leaf = py_trees.behaviours.Success(name="gripper.grasp")
+        modifier = py_trees.decorators.Inverter(name="timeout", child=leaf)
+        root = py_trees.composites.Sequence(name="pick_and_place", memory=True)
+        root.add_child(py_trees.behaviours.Success(name="differential_drive_robot.nav_to_pose"))
+        root.add_child(modifier)
+
+        result = _tree_to_json(root)
+        self.assertEqual(result["name"], "pick_and_place")
+        self.assertEqual(result["type"], "sequence")
+        self.assertEqual(len(result["children"]), 2)
+        self.assertEqual(result["children"][0]["type"], "action")
+        self.assertNotIn("children", result["children"][0])
+        modifier_json = result["children"][1]
+        self.assertEqual(modifier_json["type"], "modifier")
+        self.assertEqual(len(modifier_json["children"]), 1)
+        self.assertEqual(modifier_json["children"][0]["name"], "gripper.grasp")
+
+
+class TestDescribeScenario(unittest.TestCase):
+
+    def _write(self, content):
+        handle = tempfile.NamedTemporaryFile(
+            "w", suffix=".osc", delete=False, encoding="utf-8")
+        handle.write(content)
+        handle.close()
+        self.addCleanup(os.unlink, handle.name)
+        return handle.name
+
+    def test_unresolvable_reference_yields_null_tree_but_full_actions_used(self):
+        path = self._write(
+            "import osc.helpers\n\nscenario test:\n    do totally_unknown_action()\n")
+        report = describe_scenario(path)
+        self.assertFalse(report["valid"])
+        self.assertIsNone(report["tree"])
+        names = {item["name"] for item in report["actions_used"]}
+        self.assertIn("totally_unknown_action", names)
+
+    def test_shape_has_all_four_keys(self):
+        path = self._write("import osc.helpers\n\nscenario test:\n    log(msg: \"hi\")\n")
+        report = describe_scenario(path)
+        self.assertEqual(set(report), {"valid", "diagnostics", "actions_used", "tree"})
 
 
 if __name__ == "__main__":

@@ -1,14 +1,17 @@
 import osc.types
 
 actor floorplan_generator:
+    # Compiles a floorplan sketch into mesh/map assets and a runnable Gazebo world.
     result: string
     var generated_floorplan_mesh_path: string
     var generated_floorplan_map_path: string
     var generated_gazebo_world_path: string
 
 action floorplan_generator.generate_floorplan:
+    # Compile a .floorplan sketch into a mesh + map, exposed as generated_floorplan_mesh_path/generated_floorplan_map_path.
     file_path: string
 
 action floorplan_generator.generate_gazebo_world:
+    # Render an SDF Xacro template (with key_value substitutions) into a Gazebo world, exposed as generated_gazebo_world_path.
     sdf_template: string
     arguments: list of key_value

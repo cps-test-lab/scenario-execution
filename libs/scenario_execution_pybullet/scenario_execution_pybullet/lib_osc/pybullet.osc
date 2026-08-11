@@ -4,6 +4,7 @@ import osc.robotics
 actor simulation_pybullet
 
 action simulation_pybullet.initialize:
+    # Connect to PyBullet, set gravity, and load the world from a URDF file.
     world: string
 
 action simulation_pybullet.run
@@ -11,10 +12,12 @@ action simulation_pybullet.run
 actor actor_pybullet
 
 action actor_pybullet.spawn:
+    # Spawn this actor's body into the running PyBullet simulation at a pose.
     model: string
     pose: pose_3d
 
 action actor_pybullet.set_joint_motor_control:
+    # Drive every joint of this actor to a target velocity, bounded by a maximum force.
     target_velocity: speed
     force: float
 
