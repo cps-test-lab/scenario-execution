@@ -47,7 +47,28 @@ GazeboTFPublisher::GazeboTFPublisher() : Node("gazebo_tf_publisher") {
 
 void GazeboTFPublisher::simulationCallback(const gz::msgs::Pose_V &poses) {
   auto tf_msg = std::make_shared<tf2_msgs::msg::TFMessage>();
-  auto ros2_clock = get_clock()->now();
+  // Stamp with the simulator's own time for this pose batch, not with our
+  // clock.
+  //
+  // get_clock()->now() under use_sim_time is the last /clock message this node
+  // happened to have received, so it is quantised to the /clock publish grid
+  // and carries the subscriber-callback delay on top. Downstream that stamp IS
+  // the measurement time: anything differentiating these poses -- a speed, a
+  // rate -- divides by an interval that came from the transport rather than
+  // from the motion, which turns a constant speed into an alternating one
+  // whenever the grid does not divide the publish period.
+  //
+  // SceneBroadcaster fills Pose_V's header with the sim time of the batch
+  // (verified against gz-sim 8 on /world/<name>/dynamic_pose/info), so the
+  // exact value is already here and was simply being dropped. The fallback
+  // keeps a publisher that leaves the header empty working exactly as before
+  // rather than stamping everything zero.
+  rclcpp::Time ros2_clock = (poses.has_header() && poses.header().has_stamp())
+                                // gz spells it `nsec`, unlike ROS's `nanosec`.
+                                ? rclcpp::Time(poses.header().stamp().sec(),
+                                               poses.header().stamp().nsec(),
+                                               get_clock()->get_clock_type())
+                                : get_clock()->now();
   for (int i = 0; i < poses.pose_size(); i++) {
     if (poses.pose(i).name() == base_frame_id) {
       // each robot_frame_id is expected to have corresponding
