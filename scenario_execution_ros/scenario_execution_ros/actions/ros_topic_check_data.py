@@ -47,6 +47,10 @@ class RosTopicCheckData(BaseAction):
         self.last_msg = None
         self.found = None
         self.comparison_text = ""
+        # The subscription is created in setup(), but the values to compare against only
+        # arrive with execute(). Until then the callback exists solely to retain last_msg
+        # for the wait_for_first_message: false case -- see _callback().
+        self.started = False
 
     def setup(self, **kwargs):
         """
@@ -93,6 +97,7 @@ class RosTopicCheckData(BaseAction):
             self.check_data(self.last_msg)
             if self.found is True:
                 self.feedback_message = f"Found expected value in previously received message."  # pylint: disable= attribute-defined-outside-init
+        self.started = True
 
     def update(self) -> py_trees.common.Status:
         if self.found is True:
@@ -105,6 +110,12 @@ class RosTopicCheckData(BaseAction):
 
     def _callback(self, msg):
         self.last_msg = msg
+        # wait_for_first_message documents the check as starting with the first message
+        # received AFTER action execution, so a message arriving before execute() is only
+        # retained (for the wait_for_first_message: false case), never compared -- at that
+        # point expected_value and comparison_operator are still unset.
+        if not self.started:
+            return
         self.check_data(msg)
         if self.found is True:
             self.feedback_message = f"Found expected value in received message."
@@ -123,6 +134,7 @@ class RosTopicCheckData(BaseAction):
                 value = check_attr(msg)
             except AttributeError:
                 self.feedback_message = f"Member name not found {self.member_name}"
+                return
         self.comparison_text = f"{value} {self.comparison_operator.__name__} {self.expected_value}"
         self.found = self.comparison_operator(value, self.expected_value)
 
