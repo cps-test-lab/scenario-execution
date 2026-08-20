@@ -40,12 +40,19 @@ def _meta(**over):
 
 
 def _node(node_id, name, status, *, tip=None, parent=None, kind="BEHAVIOUR",
-          timestamp=0.0, feedback=""):
+          timestamp=0.0, feedback="", line=12):
+    """One record, shaped as a real run writes it.
+
+    ``tip_id`` defaults to **None**, which is what a leaf actually records -- the tip points
+    *downwards*, so only composites carry one. An earlier version of this helper defaulted it to
+    the node's own id, and that fiction hid a bug that reported the root as the running action on
+    every real run.
+    """
     return {"timestamp": timestamp, "behavior_id": node_id, "behavior_name": name,
-            "type": kind, "status": status, "tip_id": tip if tip is not None else node_id,
+            "type": kind, "status": status, "tip_id": tip,
             "parent_id": parent, "is_active": status == "RUNNING",
             "feedback_message": feedback, "child_index": 0,
-            "osc_file": "drive.osc", "osc_line": 12}
+            "osc_file": "drive.osc", "osc_line": line}
 
 
 class TestTreeState(unittest.TestCase):
@@ -81,37 +88,79 @@ class TestTreeState(unittest.TestCase):
 
     def test_the_running_action_is_the_tip_not_the_branch(self):
         """A Sequence is RUNNING for as long as any child is, so scanning for RUNNING nodes
-        returns a branch when the caller asked what is *executing*. The tip is py_trees' own
-        answer, and a node that is its own tip is the one doing the work."""
+        returns a branch when the caller asked what is *executing*.
+
+        The tip is py_trees' own answer and it points DOWNWARDS: the root names the deepest node
+        being ticked, and a leaf names nothing. So it is followed from the root -- which is the bug
+        this pins. Looking for a node that was its own tip matched no real leaf, fell through to
+        "the last RUNNING record", and reported the root on every live run."""
         _write(self.dir.name, [
             _meta(),
             _node("seq", "sequence", "RUNNING", tip="leaf", kind="SEQUENCE"),
-            _node("leaf", "drive_to", "RUNNING", tip="leaf", parent="seq",
-                  timestamp=31.4, feedback="driving"),
+            _node("leaf", "drive_to", "RUNNING", parent="seq", timestamp=31.4,
+                  feedback="driving", line=24),
         ])
         state = tree_state.tree_state(self.dir.name)
         self.assertEqual(state["running"]["name"], "drive_to")
         self.assertEqual(state["running"]["since"], 31.4)
         self.assertEqual(state["running"]["feedback"], "driving")
-        # Where it is written, so a reader goes to the line instead of grepping a name.
-        self.assertEqual(state["running"]["osc"], "drive.osc:12")
+        # Where it is written, so a reader goes to the line instead of grepping a name -- which
+        # matters because two actions of the same kind share a name and only differ by line.
+        self.assertEqual(state["running"]["osc"], "drive.osc:24")
+
+    def test_the_deepest_running_node_is_used_when_no_tip_was_recorded(self):
+        """An older log, or a tip naming a node the log does not hold. The deepest RUNNING node --
+        the one that is not another's parent -- is still a better answer than a branch."""
+        _write(self.dir.name, [
+            _meta(),
+            _node("seq", "sequence", "RUNNING", kind="SEQUENCE"),
+            _node("leaf", "drive_to", "RUNNING", parent="seq", timestamp=31.4),
+        ])
+        self.assertEqual(tree_state.tree_state(self.dir.name)["running"]["name"], "drive_to")
+
+    def test_an_elapsed_time_log_gets_its_duration_derived(self):
+        """A ``monotonic`` log's stamps are elapsed from the run's start, and ``started_at`` says
+        when that was -- so the duration comes from wall time and needs nothing from the caller."""
+        from datetime import datetime, timedelta, timezone
+        started = datetime.now(timezone.utc) - timedelta(seconds=30)
+        _write(self.dir.name, [
+            _meta(clock="monotonic", started_at=started.isoformat(timespec="seconds")),
+            _node("a", "wait", "RUNNING", timestamp=2.0),
+        ])
+        state = tree_state.tree_state(self.dir.name)
+        self.assertAlmostEqual(state["now"], 30.0, delta=2.0)
+        self.assertAlmostEqual(state["running"]["for_s"], 28.0, delta=2.0)
+
+    def test_a_callers_monotonic_reading_is_refused_rather_than_subtracted(self):
+        """That clock counts from an arbitrary per-process origin, so a reader's value and the
+        log's are unrelated numbers. Subtracting them reported 254472 s on a run three seconds
+        old -- a number that looked like a duration and was not one."""
+        _write(self.dir.name, [
+            _meta(clock="monotonic", started_at="2026-08-20T12:00:00+00:00"),
+            _node("a", "wait", "RUNNING", timestamp=2.0),
+        ])
+        state = tree_state.tree_state(self.dir.name, now=254474.0)
+        # Derived from started_at instead, which is large but *true*; never the caller's number.
+        self.assertNotEqual(state["now"], 254474.0)
 
     def test_a_finished_scenario_has_no_running_action(self):
         """``None`` rather than a guess: a scenario that ended is not still in its last action."""
         _write(self.dir.name, [_meta(), _node("a", "drive_to", "SUCCESS", timestamp=9.0)])
         self.assertIsNone(tree_state.tree_state(self.dir.name)["running"])
 
-    def test_no_duration_is_invented_when_the_caller_gives_no_clock(self):
-        """The log records when things changed; it cannot know how long ago that was. Deriving a
-        duration from its own newest stamp reported every running action as having just started,
-        because the running node *is* the newest record."""
+    def test_no_duration_is_invented_for_a_sim_time_log_without_a_clock(self):
+        """Sim time cannot be derived from wall time -- a simulator runs at whatever rate it runs
+        at -- so with no caller clock there is no duration, and none is offered. Deriving one from
+        the log's own newest stamp reported every running action as having just started, because
+        the running node *is* the newest record."""
         _write(self.dir.name, [
-            _meta(),
+            _meta(clock="Clock"),
             _node("a", "drive_to", "RUNNING", timestamp=31.4),
             _node("b", "log", "SUCCESS", timestamp=0.2),
         ])
         state = tree_state.tree_state(self.dir.name)
         self.assertEqual(state["last_change"], 31.4)
+        self.assertIsNone(state["now"])
         self.assertNotIn("for_s", state["running"])
 
     def test_a_duration_is_reported_only_while_a_node_is_running(self):
@@ -119,7 +168,7 @@ class TestTreeState(unittest.TestCase):
         means "how long since it ended", a different quantity wearing the same name -- and it is
         not a verdict either way: a scenario waits on purpose."""
         _write(self.dir.name, [
-            _meta(),
+            _meta(clock="Clock"),
             _node("a", "drive_to", "RUNNING", timestamp=31.4),
             _node("b", "log", "SUCCESS", timestamp=0.2),
         ])

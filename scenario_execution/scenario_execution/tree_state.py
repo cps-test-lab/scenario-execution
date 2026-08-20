@@ -111,25 +111,57 @@ def _fold(records):
     return meta, nodes
 
 
-def _running_leaf(nodes):
-    """The deepest node that is currently RUNNING, or ``None``.
+def _elapsed_since(started_at):
+    """Seconds from an ISO ``started_at`` to now, or ``None`` if it cannot be read.
 
-    Taken from ``tip_id`` rather than by scanning for RUNNING nodes, because scanning finds
-    the wrong thing: a Sequence is RUNNING for as long as any child is, so a scan returns a
-    branch when what a caller asked was "what is actually executing". The tip is py_trees'
-    own answer to that, recorded per node, so the root's tip is the tree's.
+    How a ``monotonic`` log gets durations at all: its stamps are elapsed seconds from the run's
+    start, so wall time since that start is the same quantity. Accurate to the stamp's resolution
+    (whole seconds), which is ample for a duration reported in seconds.
+
+    **Assumes the run is still going**, which is what this is asked about. For a log whose process
+    died mid-action the node stays RUNNING and this keeps growing -- so a "running for" long past
+    anything plausible is a sign the run is gone, not that the action is slow.
+    """
+    if not started_at:
+        return None
+    try:
+        from datetime import datetime, timezone
+        start = datetime.fromisoformat(started_at)
+        if start.tzinfo is None:
+            start = start.replace(tzinfo=timezone.utc)
+        return round((datetime.now(timezone.utc) - start).total_seconds(), 1)
+    except (TypeError, ValueError):
+        return None
+
+
+def _running_leaf(nodes):
+    """The deepest node currently RUNNING, or ``None``.
+
+    Not simply "a RUNNING node": a Sequence is RUNNING for as long as any child is, so the naive
+    answer is a branch when the question was what is *executing*.
+
+    ``tip_id`` is py_trees' own answer and points **downwards** -- a composite names the deepest
+    node being ticked and a **leaf records none at all**. So it is followed from the root rather
+    than searched for a self-reference; an earlier version looked for a node that was its own tip,
+    which no real leaf ever is, and fell through to reporting the root on every live run.
+
+    Failing that -- an older log, or a tip naming a node the log does not hold -- the deepest
+    RUNNING node is the one that is not the parent of another. With two branches running in
+    parallel there are several, and this returns one; ``tree`` carries the rest, which is why the
+    caller gets it.
     """
     running = [n for n in nodes.values() if n.get("status") == _RUNNING]
     if not running:
         return None
     for node in running:
-        # A composite's tip is its child; only the node actually executing is its own tip.
-        if node.get("tip_id") and node["tip_id"] == node.get("behavior_id"):
-            return node
-    # No node claimed itself: an older log without tips, or a composite with no tip recorded.
-    # The last RUNNING record is then the best available answer, and saying which is why the
-    # caller gets the whole tree alongside it.
-    return running[-1]
+        if node.get("parent_id") in (None,) or node.get("parent_id") not in nodes:
+            tip = nodes.get(node.get("tip_id"))
+            if tip is not None and tip.get("status") == _RUNNING:
+                return tip
+            break
+    parents = {n.get("parent_id") for n in running}
+    deepest = [n for n in running if n.get("behavior_id") not in parents]
+    return deepest[0] if deepest else running[-1]
 
 
 def _node_view(node, now=None):
@@ -234,6 +266,13 @@ def tree_state(target, include_tree=True, now=None):
             changed and has no way to know how long ago that was, and inventing a number from its
             own newest stamp would report every running action as having just started.
 
+            **Ignored for a ``monotonic`` log**, where it is derived instead: that clock has no
+            meaning outside the process that produced it (passing ``time.monotonic()`` from a
+            reader produced a running-for of 254472 s on a run three seconds old), but its stamps
+            are elapsed-from-start and ``started_at`` says when that was. A scenario stepping a
+            simulator records **sim** time, which only a caller reading the same simulator can
+            supply -- so that is the case this argument is for.
+
     Returns:
         ``{"found": False, "error": ...}`` when there is no readable log -- an error rather
         than an empty tree, because "the scenario has no nodes" and "nobody could read the
@@ -266,6 +305,12 @@ def tree_state(target, include_tree=True, now=None):
     # caller holding the same clock can, which is why *now* is an argument.
     stamps = [n["timestamp"] for n in nodes.values() if n.get("timestamp") is not None]
     last_change = max(stamps) if stamps else None
+    if meta.get("clock") in (None, "monotonic"):
+        # A caller's own monotonic reading is meaningless here -- that clock counts from an
+        # arbitrary per-process origin, and subtracting the two read as three days on a run three
+        # seconds old. But this column is elapsed-from-start, and ``started_at`` says when that
+        # was, so the number can be derived instead of asked for.
+        now = _elapsed_since(meta.get("started_at"))
     running = _running_leaf(nodes)
     out = {
         "found": True,
@@ -276,10 +321,12 @@ def tree_state(target, include_tree=True, now=None):
         #: ``monotonic`` is wall. Reported because "31.4" means different things in each, and
         #: because a caller supplying *now* has to supply it in this one.
         "clock": meta.get("clock"),
-        #: When anything last changed status. A caller with the same clock subtracts to get "how
-        #: long has nothing happened", which is the question the log can support; it cannot supply
-        #: the other half itself.
+        #: When anything last changed status, in this log's clock.
         "last_change": last_change,
+        #: "Now" in that clock, when it could be established -- derived from ``started_at`` for an
+        #: elapsed-time log, or the value a caller supplied for a sim-time one. ``None`` means no
+        #: duration could honestly be computed, and none is reported.
+        "now": now,
         "running": None,
         "counts": counts,
     }
