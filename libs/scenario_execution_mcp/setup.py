@@ -32,7 +32,7 @@ setup(
     maintainer='Frederik Pasch',
     maintainer_email='fred-labs@mailbox.org',
     description=(
-        'Standalone MCP server exposing this package's own introspection and run state '
+        'Standalone MCP server exposing its own introspection and run state '
         '(list-actions, describe, tree-state) as tools -- usable by any MCP client '
         'with a shell in the image.'
     ),

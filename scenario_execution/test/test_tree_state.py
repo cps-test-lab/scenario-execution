@@ -15,12 +15,15 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Reading back where a scenario has got to, from the log its behaviour tree wrote."""
+import ast
 import json
 import os
 import tempfile
 import unittest
+from datetime import datetime, timedelta, timezone
 
 from scenario_execution import tree_state
+from scenario_execution.utils import bt_logger
 
 
 def _write(directory, lines, name=None):
@@ -39,7 +42,7 @@ def _meta(**over):
     return base
 
 
-def _node(node_id, name, status, *, tip=None, parent=None, kind="BEHAVIOUR",
+def _node(node_id, name, status, *, tip=None, parent=None, kind="BEHAVIOUR",  # pylint: disable=too-many-arguments
           timestamp=0.0, feedback="", line=12):
     """One record, shaped as a real run writes it.
 
@@ -56,6 +59,7 @@ def _node(node_id, name, status, *, tip=None, parent=None, kind="BEHAVIOUR",
 
 
 class TestTreeState(unittest.TestCase):
+    """Reading a behaviour-tree log back as state."""
 
     def setUp(self):
         self.dir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
@@ -64,7 +68,6 @@ class TestTreeState(unittest.TestCase):
     def test_the_filename_matches_the_writer(self):
         """This module duplicates the name so it need not import py_trees. Duplication is only
         safe while something notices it drifting, and this is that something."""
-        from scenario_execution.utils import bt_logger
         self.assertEqual(tree_state.DEFAULT_FILENAME, bt_logger.DEFAULT_FILENAME)
         self.assertEqual(tree_state.FORMAT_NAME, bt_logger.FORMAT_NAME)
 
@@ -121,7 +124,6 @@ class TestTreeState(unittest.TestCase):
     def test_an_elapsed_time_log_gets_its_duration_derived(self):
         """A ``monotonic`` log's stamps are elapsed from the run's start, and ``started_at`` says
         when that was -- so the duration comes from wall time and needs nothing from the caller."""
-        from datetime import datetime, timedelta, timezone
         started = datetime.now(timezone.utc) - timedelta(seconds=30)
         _write(self.dir.name, [
             _meta(clock="monotonic", started_at=started.isoformat(timespec="seconds")),
@@ -246,7 +248,6 @@ class TestTreeState(unittest.TestCase):
     def test_it_imports_nothing_but_the_standard_library(self):
         """A stalled run is when the environment is least trustworthy, so a diagnostic that
         needed py_trees or a middleware to load would be unavailable exactly when it mattered."""
-        import ast
         source = os.path.join(os.path.dirname(tree_state.__file__), "tree_state.py")
         with open(source, "r", encoding="utf-8") as handle:
             parsed = ast.parse(handle.read())
@@ -256,4 +257,4 @@ class TestTreeState(unittest.TestCase):
                 imported.update(a.name.split(".")[0] for a in node.names)
             elif isinstance(node, ast.ImportFrom) and node.module and node.col_offset == 0:
                 imported.add(node.module.split(".")[0])
-        self.assertEqual(imported, {"argparse", "glob", "json", "os", "sys"})
+        self.assertEqual(imported, {"argparse", "datetime", "glob", "json", "os", "sys"})

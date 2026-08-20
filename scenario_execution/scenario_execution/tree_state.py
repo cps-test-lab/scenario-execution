@@ -55,6 +55,7 @@ import glob
 import json
 import os
 import sys
+from datetime import datetime, timezone
 
 #: What :mod:`scenario_execution.utils.bt_logger` names its file. Duplicated rather than
 #: imported so this module keeps its "standard library only" promise -- importing the logger
@@ -125,7 +126,6 @@ def _elapsed_since(started_at):
     if not started_at:
         return None
     try:
-        from datetime import datetime, timezone
         start = datetime.fromisoformat(started_at)
         if start.tzinfo is None:
             start = start.replace(tzinfo=timezone.utc)
@@ -253,6 +253,15 @@ def find_log(target):
     return None
 
 
+def _counts(nodes):
+    """How many nodes stand in each status -- the one-line answer to "how far along is this"."""
+    counts = {}
+    for node in nodes.values():
+        status = node.get("status", _INVALID)
+        counts[status] = counts.get(status, 0) + 1
+    return counts
+
+
 def tree_state(target, include_tree=True, now=None):
     """Where the scenario in *target* has got to, as plain data.
 
@@ -295,10 +304,7 @@ def tree_state(target, include_tree=True, now=None):
         return {"found": False,
                 "error": f"{path} holds no behaviour records yet: the scenario has been "
                          f"launched but has not ticked."}
-    counts = {}
-    for node in nodes.values():
-        status = node.get("status", _INVALID)
-        counts[status] = counts.get(status, 0) + 1
+    counts = _counts(nodes)
     # The newest stamp is when something last CHANGED, which is all the log knows -- and is not
     # "now". Using it as now was worse than useless: the running node is itself the newest record,
     # so its duration came out as 0.0 every time. The log cannot know the current time; only a
@@ -341,6 +347,7 @@ def tree_state(target, include_tree=True, now=None):
 
 
 def main(argv=None):
+    """CLI form: print :func:`tree_state` as JSON. See the module docstring for why both exist."""
     parser = argparse.ArgumentParser(
         prog="python -m scenario_execution.tree_state",
         description="Where a scenario has got to, from the log its behaviour tree writes.")
