@@ -14,26 +14,29 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""A real MCP server for ``scenario_execution.introspection`` -- for use *without*
-robovast at all.
+"""A real MCP server for this package's own introspection, needing no particular consumer.
 
-The JSON CLI (``python -m scenario_execution.introspection ...``) answers "what does
-this container have" from a shell, but not from an MCP client. This registers the exact
-same functions as MCP tools -- no new logic, just a second, equally thin adapter, the
-same one-line pattern robovast's own MCP plugins use to register theirs.
+The JSON CLIs (``python -m scenario_execution.introspection ...``,
+``python -m scenario_execution.tree_state``) answer from a shell but not from an MCP
+client. This registers the exact same functions as MCP tools -- no new logic, just a
+second, equally thin adapter.
 
 Runnable via ``python -m scenario_execution_mcp`` or the ``scenario_execution_mcp``
-console script (stdio transport), so anyone with a shell in the image -- not just
-robovast, and not needing this package's own dependents to have ever heard of
-``fastmcp`` -- can point an MCP client at it directly.
+console script (stdio transport), so anyone with a shell in the image can point an MCP
+client at it directly -- without this package's own dependents having to have heard of
+``fastmcp``, and without a tool on the host that knows how to drive it.
 """
 
 from fastmcp import FastMCP
 
 from scenario_execution.introspection import (describe_scenario, get_action_details,
                                               list_actions, validate)
+from scenario_execution.tree_state import tree_state
 
-_TOOLS = [list_actions, get_action_details, describe_scenario, validate]
+#: ``tree_state`` is the one runtime question here -- where a *particular execution* has got to,
+#: rather than what this environment or this file offers. Registered the same way for the same
+#: reason: it is already a plain function returning plain data, so the adapter stays one line.
+_TOOLS = [list_actions, get_action_details, describe_scenario, validate, tree_state]
 
 
 def create_server() -> FastMCP:

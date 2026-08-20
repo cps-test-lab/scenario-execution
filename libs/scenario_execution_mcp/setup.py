@@ -32,9 +32,9 @@ setup(
     maintainer='Frederik Pasch',
     maintainer_email='fred-labs@mailbox.org',
     description=(
-        'Standalone MCP server exposing scenario_execution.introspection '
-        '(list-actions, describe) as tools -- usable by any MCP client with a shell '
-        'in the image, not just robovast.'
+        'Standalone MCP server exposing this package's own introspection and run state '
+        '(list-actions, describe, tree-state) as tools -- usable by any MCP client '
+        'with a shell in the image.'
     ),
     license='Apache License 2.0',
     tests_require=['pytest'],
