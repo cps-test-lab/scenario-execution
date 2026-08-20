@@ -75,7 +75,7 @@ class TestTreeState(unittest.TestCase):
         state = tree_state.tree_state(self.dir.name)
         self.assertTrue(state["found"])
         self.assertEqual(state["counts"], {"SUCCESS": 1, "RUNNING": 1})
-        by_name = {n["name"]: n for n in state["nodes"]}
+        by_name = {n["name"]: n for n in state["tree"]}
         self.assertEqual(by_name["drive_to"]["status"], "SUCCESS")
         self.assertEqual(by_name["wait"]["status"], "RUNNING")
 
@@ -97,9 +97,56 @@ class TestTreeState(unittest.TestCase):
         self.assertEqual(state["running"]["osc"], "drive.osc:12")
 
     def test_a_finished_scenario_has_no_running_action(self):
-        """``None`` rather than a guess: a scenario that ended is not stuck in its last action."""
+        """``None`` rather than a guess: a scenario that ended is not still in its last action."""
         _write(self.dir.name, [_meta(), _node("a", "drive_to", "SUCCESS", timestamp=9.0)])
         self.assertIsNone(tree_state.tree_state(self.dir.name)["running"])
+
+    def test_no_duration_is_invented_when_the_caller_gives_no_clock(self):
+        """The log records when things changed; it cannot know how long ago that was. Deriving a
+        duration from its own newest stamp reported every running action as having just started,
+        because the running node *is* the newest record."""
+        _write(self.dir.name, [
+            _meta(),
+            _node("a", "drive_to", "RUNNING", timestamp=31.4),
+            _node("b", "log", "SUCCESS", timestamp=0.2),
+        ])
+        state = tree_state.tree_state(self.dir.name)
+        self.assertEqual(state["last_change"], 31.4)
+        self.assertNotIn("for_s", state["running"])
+
+    def test_a_duration_is_reported_only_while_a_node_is_running(self):
+        """With the caller's clock there is a real answer. On a finished node the same subtraction
+        means "how long since it ended", a different quantity wearing the same name -- and it is
+        not a verdict either way: a scenario waits on purpose."""
+        _write(self.dir.name, [
+            _meta(),
+            _node("a", "drive_to", "RUNNING", timestamp=31.4),
+            _node("b", "log", "SUCCESS", timestamp=0.2),
+        ])
+        state = tree_state.tree_state(self.dir.name, now=333.4)
+        by_name = {n["name"]: n for n in state["tree"]}
+        self.assertEqual(by_name["drive_to"]["for_s"], 302.0)
+        self.assertNotIn("for_s", by_name["log"])
+
+    def test_the_tree_is_nested_so_structure_is_read_not_reassembled(self):
+        """A flat list keyed by uuid makes every reader redo a join this module can do once -- and
+        pays for it in ids nobody wants to look at."""
+        _write(self.dir.name, [
+            _meta(),
+            _node("root", "root", "RUNNING", tip="leaf", kind="SEQUENCE"),
+            _node("leaf", "drive_to", "RUNNING", tip="leaf", parent="root", timestamp=31.4),
+        ])
+        state = tree_state.tree_state(self.dir.name)
+        self.assertEqual(state["tree"]["name"], "root")
+        self.assertEqual([c["name"] for c in state["tree"]["children"]], ["drive_to"])
+        self.assertNotIn("id", state["tree"])          # uuids are the record's, not a reader's
+        self.assertEqual(state["running"]["path"], "root > drive_to")
+
+    def test_the_clock_is_named_because_the_numbers_depend_on_it(self):
+        """"31.4" is sim seconds or wall seconds depending on how the scenario was run, and a
+        reader comparing it with anything has to know which."""
+        _write(self.dir.name, [_meta(clock="Clock"), _node("a", "x", "RUNNING")])
+        self.assertEqual(tree_state.tree_state(self.dir.name)["clock"], "Clock")
 
     def test_a_truncated_final_line_is_counted_not_fatal(self):
         """The file is appended to while the scenario runs, so a reader can arrive mid-write.
@@ -143,7 +190,7 @@ class TestTreeState(unittest.TestCase):
         a caller polling "is it still on the same action" can decline it."""
         _write(self.dir.name, [_meta(), _node("a", "drive_to", "RUNNING")])
         state = tree_state.tree_state(self.dir.name, include_tree=False)
-        self.assertNotIn("nodes", state)
+        self.assertNotIn("tree", state)
         self.assertEqual(state["running"]["name"], "drive_to")
         self.assertEqual(state["counts"], {"RUNNING": 1})
 

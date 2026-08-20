@@ -16,10 +16,16 @@
 
 """Where a scenario has got to, read from the log its own behaviour tree writes.
 
-A running scenario that has stopped making progress says almost nothing on stdout -- the
-tree ticks, nothing changes status, and no line is printed. But ``behaviors.jsonl`` still
-holds exactly where it is: which action is running, since when, and everything that
-already finished. This reads that back.
+Which action is running, how long it has been in it, and what already finished --
+``behaviors.jsonl`` holds all of it, and nothing could read it back. Useful for watching a run
+progress, for checking afterwards that it did the steps it was meant to, and for looking at one
+that is not doing what you expected; a scenario between status changes prints nothing at all, so
+the log is the only thing that knows.
+
+**It reports, it does not judge.** An action that has been running for minutes may be exactly
+right: scenarios wait -- for a topic, for a duration, for a robot to arrive. Nothing here calls
+that wrong, and a caller that wants a verdict has to bring its own expectation of what this
+scenario should be doing.
 
 The sibling of :mod:`scenario_execution.introspection` and deliberately not part of it:
 that module answers *static* questions ("what does this environment offer", "what does
@@ -30,15 +36,14 @@ sometimes about a file and sometimes about a process.
 **Why the whole file has to be read.** The log is a metadata line, then a snapshot of every
 node at timestamp 0, then **one record per behaviour whose status changed** -- see
 :mod:`scenario_execution.utils.bt_logger`. So the current tree is the snapshot plus a fold
-over every later record; the last line alone says only what changed last, which for a
-stalled scenario is something that stopped mattering minutes ago. That cost is why this is
-a separate question a caller asks when it wants the answer, rather than something cheap
-enough to poll.
+over every later record; the last line alone says only what changed last, which may have been
+a long time ago. That cost is why this is a question a caller asks when it wants the answer,
+rather than something cheap enough to poll.
 
 Reads nothing but the file it is given, and imports nothing but the standard library: no
-py_trees, no middleware, no simulator. A stalled run is exactly when the environment is
-least trustworthy, so a diagnostic that needed the runtime to load would be unavailable
-when it mattered.
+py_trees, no middleware, no simulator. A run that is misbehaving is when its environment is
+least trustworthy, and that is one of the times someone reads this -- so needing the runtime to
+import would make it unavailable in the case it is most wanted.
 
 Runnable as a module so a caller outside the container can parse its JSON::
 
@@ -127,25 +132,76 @@ def _running_leaf(nodes):
     return running[-1]
 
 
-def _node_view(node):
-    """One node, as a caller wants to read it rather than as the record stores it."""
-    view = {
-        "name": node.get("behavior_name"),
-        "type": node.get("type"),
-        "status": node.get("status", _INVALID),
-        "since": node.get("timestamp"),
-        "active": bool(node.get("is_active")),
-    }
-    for key, source in (("feedback", "feedback_message"), ("id", "behavior_id"),
-                        ("parent", "parent_id"), ("child_index", "child_index")):
-        if node.get(source) not in (None, ""):
-            view[key] = node[source]
+def _node_view(node, now=None):
+    """One node, as a caller wants to read it rather than as the record stores it.
+
+    Deliberately not the record: ``behavior_id``/``parent_id`` are UUIDs that exist to link
+    records, and a reader handed thirty of them pays for thirty joins it should not have to do --
+    the tree below carries the structure instead. ``is_active`` and ``child_index`` go for the
+    same reason: the first nearly restates ``status``, and the second only means anything as the
+    order children are already in.
+
+    *now* is the caller's clock, or ``None``. ``for_s`` appears only when it was given *and* the
+    node is running: on a finished node the same subtraction means "how long since it ended",
+    which is a different quantity wearing the same name. Not a verdict either way -- an action may
+    sit in one state for a long time because that is what it was asked to do.
+    """
+    status = node.get("status", _INVALID)
+    since = node.get("timestamp")
+    view = {"name": node.get("behavior_name"), "type": node.get("type"), "status": status}
+    if since is not None:
+        view["since"] = since
+        if now is not None and status == _RUNNING:
+            view["for_s"] = round(now - since, 1)
+    if node.get("feedback_message"):
+        view["feedback"] = node["feedback_message"]
     where = [node.get("osc_file"), node.get("osc_line")]
     if where[0]:
         # Where the action is written, so a caller can go straight to the line rather than
         # searching a name that may appear more than once.
         view["osc"] = f"{where[0]}:{where[1]}" if where[1] else where[0]
     return view
+
+
+def _build_tree(nodes, now=None):
+    """The nodes as a nested tree, children in declaration order.
+
+    Reconstructed here because it is reconstructible here: every record carries its parent, and a
+    caller doing that join itself would be re-deriving structure this module already has in hand.
+    Children sort by ``child_index``, which is the only thing that field is for.
+
+    Cycles and orphans cannot come from a real log, but a truncated or hand-edited one could carry
+    a parent that is not present; such a node is attached at the top rather than dropped, because
+    losing a node silently is worse than showing one whose place is unclear.
+    """
+    children = {}
+    for node in nodes.values():
+        children.setdefault(node.get("parent_id"), []).append(node)
+    known = set(nodes)
+    roots = [n for n in nodes.values()
+             if n.get("parent_id") is None or n.get("parent_id") not in known]
+
+    def build(node, seen):
+        view = _node_view(node, now)
+        node_id = node.get("behavior_id")
+        kids = sorted(children.get(node_id, []), key=lambda n: n.get("child_index") or 0)
+        kids = [k for k in kids if k.get("behavior_id") not in seen]
+        if kids:
+            view["children"] = [build(k, seen | {node_id}) for k in kids]
+        return view
+
+    built = [build(r, {r.get("behavior_id")}) for r in roots]
+    return built[0] if len(built) == 1 else built
+
+
+def _path_to(nodes, node):
+    """``root > sequence > drive_to`` for *node*, so its place is readable without walking."""
+    names, seen = [], set()
+    while node is not None and node.get("behavior_id") not in seen:
+        seen.add(node.get("behavior_id"))
+        names.append(node.get("behavior_name") or "?")
+        node = nodes.get(node.get("parent_id"))
+    return " > ".join(reversed(names))
 
 
 def find_log(target):
@@ -165,15 +221,18 @@ def find_log(target):
     return None
 
 
-def tree_state(target, include_tree=True):
+def tree_state(target, include_tree=True, now=None):
     """Where the scenario in *target* has got to, as plain data.
 
     Args:
         target: The log file, or a directory holding one (see :func:`find_log`).
-        include_tree: With ``False``, report only the running action and the counts. The whole
-            tree is the useful answer for a human looking at a wedge, but it is also the bulk
-            of the reply, so a caller polling for "is it still on the same action" can decline
-            it.
+        include_tree: With ``False``, report only the running action and the counts -- the whole
+            tree is usually what a reader wants, but it is also most of the reply, so a caller
+            polling "is it still on the same action" can decline it.
+        now: The caller's current time **in this log's clock** (see ``clock`` in the reply). Given,
+            every running node gains ``for_s``. Omitted, none does: the log records when things
+            changed and has no way to know how long ago that was, and inventing a number from its
+            own newest stamp would report every running action as having just started.
 
     Returns:
         ``{"found": False, "error": ...}`` when there is no readable log -- an error rather
@@ -201,17 +260,33 @@ def tree_state(target, include_tree=True):
     for node in nodes.values():
         status = node.get("status", _INVALID)
         counts[status] = counts.get(status, 0) + 1
+    # The newest stamp is when something last CHANGED, which is all the log knows -- and is not
+    # "now". Using it as now was worse than useless: the running node is itself the newest record,
+    # so its duration came out as 0.0 every time. The log cannot know the current time; only a
+    # caller holding the same clock can, which is why *now* is an argument.
+    stamps = [n["timestamp"] for n in nodes.values() if n.get("timestamp") is not None]
+    last_change = max(stamps) if stamps else None
     running = _running_leaf(nodes)
     out = {
         "found": True,
         "log": path,
         "scenario": meta.get("scenario"),
         "started_at": meta.get("started_at"),
-        "running": _node_view(running) if running else None,
+        #: Which clock every stamp here is in -- ``Clock`` is the scenario's (sim) time,
+        #: ``monotonic`` is wall. Reported because "31.4" means different things in each, and
+        #: because a caller supplying *now* has to supply it in this one.
+        "clock": meta.get("clock"),
+        #: When anything last changed status. A caller with the same clock subtracts to get "how
+        #: long has nothing happened", which is the question the log can support; it cannot supply
+        #: the other half itself.
+        "last_change": last_change,
+        "running": None,
         "counts": counts,
     }
+    if running is not None:
+        out["running"] = {**_node_view(running, now), "path": _path_to(nodes, running)}
     if include_tree:
-        out["nodes"] = [_node_view(n) for n in nodes.values()]
+        out["tree"] = _build_tree(nodes, now)
     if unreadable:
         # Never silent: a caller comparing two reads needs to know one of them was partial.
         out["unreadable_lines"] = unreadable
@@ -226,8 +301,11 @@ def main(argv=None):
                         help=f"a {DEFAULT_FILENAME}, or a directory holding one")
     parser.add_argument("--no-tree", action="store_true",
                         help="report only the running action and the status counts")
+    parser.add_argument("--now", type=float, default=None, metavar="T",
+                        help="your current time in this log's clock; adds how long each running "
+                             "node has been running. Without it there is no such number to give.")
     args = parser.parse_args(argv)
-    result = tree_state(args.target, include_tree=not args.no_tree)
+    result = tree_state(args.target, include_tree=not args.no_tree, now=args.now)
     print(json.dumps(result, indent=2))
     return 0 if result.get("found") else 1
 
