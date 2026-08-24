@@ -52,6 +52,45 @@ test_scenario_execution_gazebo_test:
 # --- PyPI release (core 'scenario_execution' package only; ROS/colcon packages are not published) ---
 RELEASE_PKG_DIR = scenario_execution
 
+# --- OSC2 parser generation ------------------------------------------------------------
+# The generated ANTLR parser is committed, so this only needs running when the grammar
+# changes. Pinned to 4.9.1: that is the version the committed files were generated with,
+# and ANTLR 4.10+ changes the Python runtime API (serializedATN shape), which would
+# require moving the antlr4-python3-runtime pin in lockstep.
+#
+# Regenerating without the post-processing step silently drops the license headers and
+# reintroduces a `typing.io` import that does not exist on Python 3.13 -- see
+# tools/antlr_postprocess.py. Always go through this target rather than calling antlr
+# by hand.
+ANTLR_VERSION = 4.9.1
+ANTLR_JAR = dependencies/antlr-$(ANTLR_VERSION)-complete.jar
+# The jar is fetched over the network and then executed, so pin what we expect to run.
+# This digest is the artifact that reproduces the committed generated files byte for byte.
+ANTLR_JAR_SHA256 = 1f645aea79b98e6ff7ec8f6bf7ea82b58cfc60a194cda2a3b1e753589d41f98d
+GRAMMAR_DIR = scenario_execution/scenario_execution/osc2_parsing
+GENERATED_PY = $(GRAMMAR_DIR)/OpenSCENARIO2Lexer.py \
+               $(GRAMMAR_DIR)/OpenSCENARIO2Parser.py \
+               $(GRAMMAR_DIR)/OpenSCENARIO2Listener.py \
+               $(GRAMMAR_DIR)/OpenSCENARIO2Visitor.py
+
+$(ANTLR_JAR):
+	mkdir -p $(dir $@)
+	curl -fsSL -o $@.tmp https://www.antlr.org/download/antlr-$(ANTLR_VERSION)-complete.jar
+	@echo "$(ANTLR_JAR_SHA256)  $@.tmp" | sha256sum --check --status \
+		|| { echo "ANTLR jar digest mismatch -- refusing to run it"; rm -f $@.tmp; exit 1; }
+	mv $@.tmp $@
+
+# antlr mirrors the input path underneath -o, so generating from the repo root would
+# bury the output in a nested tree and silently leave the committed files untouched.
+# Run it from the grammar directory instead, as the generated files must land beside it.
+parser: $(ANTLR_JAR)
+	cd $(GRAMMAR_DIR) && java -jar $(abspath $(ANTLR_JAR)) \
+		-Dlanguage=Python3 -visitor -listener OpenSCENARIO2.g4
+	python3 tools/antlr_postprocess.py $(GENERATED_PY)
+	@echo "Regenerated. Review 'git diff -- $(GRAMMAR_DIR)': a grammar change confined to"
+	@echo "the lexer should leave Parser/Listener/Visitor and the .tokens files untouched."
+
+
 release_tools:
 	python3 -m pip install --upgrade build twine
 
