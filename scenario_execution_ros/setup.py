@@ -52,6 +52,7 @@ setup(
         ],
         'scenario_execution.actions': [
             'action_call = scenario_execution_ros.actions.ros_action_call:RosActionCall',
+            'assert_realtime_factor = scenario_execution_ros.actions.assert_realtime_factor:AssertRealtimeFactor',
             'assert_topic_latency = scenario_execution_ros.actions.assert_topic_latency:AssertTopicLatency',
             'assert_tf_moving = scenario_execution_ros.actions.assert_tf_moving:AssertTfMoving',
             'assert_lifecycle_state = scenario_execution_ros.actions.assert_lifecycle_state:AssertLifecycleState',

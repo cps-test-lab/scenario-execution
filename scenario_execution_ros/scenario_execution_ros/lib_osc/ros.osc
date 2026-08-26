@@ -54,6 +54,14 @@ action assert_lifecycle_state:
     fail_on_unexpected: bool = true      # if true and an unexpected transition or final state occurs, the action fails. Otherwise it succeed.
     keep_running: bool = true            # if true, the action keeps running while the last state in the state_sequence remains
 
+action assert_realtime_factor:
+    # Compares the rate of the ROS clock (/clock) against wall time. If the check with comparison_operator gets false, the action ends with failure.
+    # The action never succeeds, it keeps monitoring until it fails or the scenario ends. Use it in a parallel branch.
+    realtime_factor: float               # realtime factor to compare against
+    comparison_operator: comparison_operator = comparison_operator!ge # the comparison is done using the python operator module
+    rolling_average_count: int = 10      # the check is done against the rolling average over x samples
+    grace_period: time = 10s             # samples within this time after action start are discarded (bring-up)
+
 action assert_tf_moving:
     # Checks that a tf frame_id keeps moving in respect to a parent_frame_id. If there is no movement within timeout the action ends with failure.
     # Speeds below threshold_translation and threshold_rotation are discarded. By default the action waits for the first transform to get available
@@ -69,7 +77,7 @@ action assert_tf_moving:
     use_sim_time: bool = false           # in simulation, we need to look up the transform at a different time as the scenario execution node is not allowed to use the sim time
 
 action assert_topic_latency:
-    # Check the latency of the specified topic (in system time). If the check with comparison_operator gets true, the action ends with failure.
+    # Check the latency of the specified topic (in system time). If the check with comparison_operator gets false, the action ends with failure.
     topic_name: string                   # topic name to wait for message
     latency: time                        # the time to compare against
     comparison_operator: comparison_operator = comparison_operator!le # the comparison is done using the python operator module

@@ -1446,10 +1446,46 @@ Checks for the state of a `lifecycle-managed <https://design.ros2.org/articles/n
      - If true, the action keeps running while the last state in the state_sequence remains
 
 
+``assert_realtime_factor()``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Compares the rate of the ROS clock (``/clock``) against wall time. If the check with ``comparison_operator`` gets false, the action ends with failure. The realtime factor is the ratio of elapsed simulation time to elapsed wall time over the last ``rolling_average_count`` samples, so a single outlier does not trigger a failure while a sustained deviation does. Samples received within ``grace_period`` after the action started are discarded, to skip the bring-up phase. ``/clock`` is subscribed directly, which makes the measurement independent of whether the scenario execution node uses simulation time, and independent of the simulator in use.
+
+The action never succeeds: it keeps monitoring until it fails or the scenario ends. Use it in a ``parallel`` branch alongside the actions that end the scenario.
+
+.. list-table::
+   :widths: 15 15 5 65
+   :header-rows: 1
+   :class: tight-table
+
+   * - Parameter
+     - Type
+     - Default
+     - Description
+   * - ``realtime_factor``
+     - ``float``
+     -
+     - The realtime factor to compare against.
+   * - ``comparison_operator``
+     - ``comparison_operator``
+     - ``comparison_operator!ge``
+     - operator to compare the measured realtime factor against ``realtime_factor``.
+   * - ``rolling_average_count``
+     - ``int``
+     - ``10``
+     - check the realtime factor over the x latest samples. No check is done until that many samples are available.
+   * - ``grace_period``
+     - ``time``
+     - ``10s``
+     - samples received within this time after the action started are discarded.
+
+
 ``assert_tf_moving()``
 ^^^^^^^^^^^^^^^^^^^^^^
 
 Checks that a tf ``frame_id`` keeps moving in respect to a ``parent_frame_id``. If there is no movement within ``timeout`` the action with failure. Speeds below ``threshold_translation`` and ``threshold_rotation`` are discarded. By default the action waits for the first transform to get available before starting the timeout timer. This can be changed by setting ``wait_for_first_transform`` to ``false``. If the tf topics are not available on ``/tf`` and ``/tf_static`` you can specify a namespace by setting ``tf_topic_namespace``.
+
+The action never succeeds: it keeps monitoring until it fails or the scenario ends. Use it in a ``parallel`` branch alongside the actions that end the scenario.
 
 .. list-table:: 
    :widths: 15 15 5 65
@@ -1496,7 +1532,9 @@ Checks that a tf ``frame_id`` keeps moving in respect to a ``parent_frame_id``. 
 ``assert_topic_latency()``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Check the latency of the specified topic (in system time). If the check with ``comparison_operator`` gets true, the action ends with failure.
+Check the latency of the specified topic (in system time). If the check with ``comparison_operator`` gets false, the action ends with failure.
+
+The action never succeeds: it keeps monitoring until it fails or the scenario ends. Use it in a ``parallel`` branch alongside the actions that end the scenario.
 
 .. list-table:: 
    :widths: 15 15 5 65
