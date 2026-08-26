@@ -540,7 +540,7 @@ Declare the OSC parameters you need directly as arguments on your ``reset()``
 override. The framework matches argument names to OSC parameter names and
 injects values automatically:
 
-.. code-block:: osc
+.. code-block::
 
    scenario my_scenario:
        object_start_x: float = 0.0   # metres
