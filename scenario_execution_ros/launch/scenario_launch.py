@@ -33,6 +33,8 @@ def generate_launch_description():
     scenario_execution = LaunchConfiguration('scenario_execution')
     output_dir = LaunchConfiguration('output_dir')
     scenario_parameter_file = LaunchConfiguration('scenario_parameter_file')
+    step_duration = LaunchConfiguration('step_duration')
+    tick_log = LaunchConfiguration('tick_log')
 
     return LaunchDescription([
         DeclareLaunchArgument('scenario', description='Scenario file to execute'),
@@ -47,6 +49,11 @@ def generate_launch_description():
                               description='Log level for scenario execution'),
         DeclareLaunchArgument('output_dir', description='Output directory', default_value=''),
         DeclareLaunchArgument('scenario_parameter_file', description='Yaml file specifying scenario parameter overrides', default_value=''),
+        # 0.0 means "not set here", leaving the executable's own default in place.
+        DeclareLaunchArgument('step_duration', default_value='0.0',
+                              description='Duration between behavior tree ticks in seconds (0.0: use default)'),
+        DeclareLaunchArgument('tick_log', default_value='False',
+                              description='Record tick and per-action timing into output_dir'),
 
         Node(
             condition=IfCondition(scenario_execution),
@@ -63,7 +70,9 @@ def generate_launch_description():
                 'log_model': log_model,
                 'output_dir': output_dir,
                 'scenario': scenario,
-                'scenario_parameter_file': scenario_parameter_file
+                'scenario_parameter_file': scenario_parameter_file,
+                'step_duration': step_duration,
+                'tick_log': tick_log
             }],
             on_exit=Shutdown()),
 

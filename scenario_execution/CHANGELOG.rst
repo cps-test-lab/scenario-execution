@@ -4,6 +4,7 @@ Changelog for package scenario_execution
 
 Forthcoming
 -----------
+* Record tick and per-action timing (``--tick-log``)
 * Support step-based simulators
 * Fix for python 3.13 (`#65 <https://github.com/cps-test-lab/scenario-execution/issues/65>`_)
 * support multiple --post-run (`#63 <https://github.com/cps-test-lab/scenario-execution/issues/63>`_)

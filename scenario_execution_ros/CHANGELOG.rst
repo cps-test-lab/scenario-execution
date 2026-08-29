@@ -4,6 +4,8 @@ Changelog for package scenario_execution_ros
 
 Forthcoming
 -----------
+* Record tick and per-action timing (``--tick-log``)
+* Fix ``--step-duration`` being ignored: the tick period was always the 0.1s default
 * Support step-based simulators
 * Shutdown timeout (`#64 <https://github.com/cps-test-lab/scenario-execution/issues/64>`_)
 * support multiple --post-run (`#63 <https://github.com/cps-test-lab/scenario-execution/issues/63>`_)

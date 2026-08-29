@@ -163,6 +163,51 @@ Records carry ``osc_file``/``osc_line``/``osc_column`` so a behavior can be trac
 
 For a modifier the stamp deliberately uses the *invocation* rather than the ``ModifierDeclaration``: built-in modifiers are declared in an imported library, so the declaration would point every ``timeout()`` in every scenario at the same line of ``helpers.osc``. The file is stored per behavior rather than once per run for the same reason — ``set_ctx`` records the file being parsed, so an imported ``.osc`` keeps its own name.
 
+.. _tick_and_action_timing_internals:
+
+Tick and Action Timing
+----------------------
+
+``--tick-log`` writes ``tick_timing.csv`` and ``action_timing.csv``, described for users under :ref:`tick_and_action_timing`. This section covers why it is built the way it is; ``scenario_execution/utils/tick_recorder.py`` holds the implementation and ``scenario_execution/tick_report.py`` reads the result back.
+
+**Why not the behavior tree status log**
+
+The status log already records *what* the tree did, so it is a fair question why timing is not simply added to it. Two reasons, and both are fatal to that idea. Its records are written only when a status changes, so a scenario sitting in one ``RUNNING`` action writes nothing at all — which is exactly the window a stall occupies. And its ``timestamp`` is simulated time whenever a clock exists, which is the one timeline on which a scheduling delay is invisible by construction.
+
+The two features are therefore separate files and separate flags, either usable alone. They are made to fit together rather than to overlap: ``behavior_id``, ``behavior_name``, ``class_name`` and ``status`` are produced by the same calls the status log uses, and ``timestamp`` comes from the same clock with the same semantics, so the records join on ``behavior_id`` without either being translated into the other's terms. Identity is repeated per row rather than referenced, because ``--tick-log`` may be the only one enabled and a file whose ids resolve to nothing is not a record.
+
+**Timing only**
+
+Nothing here reads process CPU time, ``psutil`` or a cgroup file. Resource accounting is a separate concern, and a file that mixed the two would put two kinds of claim behind one flag.
+
+The distinction that matters is still available, from *where* the time went rather than from what consumed it. Time spent inside a tick shows up as a large ``duration_s`` with action rows summing to most of it, and those rows name the behavior. Time that passed between ticks shows up as a large ``interval_s`` while the previous tick was short and no action row accounts for the gap. What timing alone cannot separate is time lost between ticks to another callback on the same callback group, which looks exactly like not being scheduled; telling those apart needs a resource signal from outside these files, which can be joined to them on ``wall_ts``.
+
+**One row per tick, and one per call**
+
+Aggregating per second was rejected twice over. At the default 10 Hz a one-second bucket holds ten samples, which is too few for the percentiles such a summary would report. Worse, a sampler driven by the tick loop emits *fewer* rows exactly during the seconds it is supposed to describe, so a stall would erase its own evidence. Per tick, a five-second gap is one row whose ``interval_s`` is 5.0.
+
+The same argument decides the action file. Cumulative counters would make "how long did this call take" a subtraction between two rows and locate the worst call only to the nearest second, which is useless for the debugging the file exists to support. One row per call reads directly, and summing it over any window needs no delta arithmetic.
+
+**Nothing is installed unless it is asked for**
+
+``ScenarioExecution._setup_tick_recorder`` returns immediately when the flag is not set: no recorder, no handlers, and no behavior touched. This rules out the two obvious implementations. Wrapping ``update`` at class-definition time would put a wrapper on every behavior in every run, and a per-call ``if`` inside the tick loop or the behaviors would cost every run something for a feature it did not ask for. Instead the recorder wraps the methods on the *instances* of the tree it was given, and only then.
+
+Every leaf is wrapped, not only ``BaseAction`` subclasses. A scenario's ``wait elapsed()`` is a ``ClockTimer`` and its ``emit`` a ``TopicPublish``; covering only the action libraries would leave most of a typical tree unmeasured, and attribution that cannot see a whole class of node does not merely miss time, it blames the wrong node for it. Composites are skipped because they route ticks rather than do work, and their children are ticked from ``Composite.tick()`` rather than from ``update()``, so nothing is double-counted by leaving them out.
+
+For the same reason the recorder does not walk the tree per tick to find newly inserted nodes. py_trees calls ``tree_update_handler`` from ``insert_subtree``, ``replace_subtree`` and ``prune_subtree`` and nowhere else, so a walk happens only when the tree actually changed shape. It is a single callable slot rather than a handler list, so an existing handler is chained rather than replaced.
+
+**Cost**
+
+The call path does no formatting and no I/O: a tick costs two ``time.monotonic()`` reads, and a timed call two more plus one ``list.append``, with the identity resolved once at install time and captured in the wrapper. Rows are serialized in a flush that runs at most once per wall second.
+
+**Reading it back**
+
+The summary logged at the end of a run is produced by reading the finished files, not by counting while ticking. That keeps the arithmetic in one place — shared with ``python -m scenario_execution.tick_report`` — and keeps the tick loop free of bookkeeping that exists only for a log line.
+
+**The tick period had to be fixed first**
+
+``interval_s / period_s`` is only meaningful if ``period_s`` is the period that was actually asked for. Under ROS it was not: ``--step-duration`` was parsed and then dropped, because ``ROSScenarioExecution`` never forwarded ``tick_period`` to its base class and no ROS parameter mirrored the flag. The period was therefore always the 0.1 s default, silently. That is fixed alongside this, which also changes what ``tick_period`` every action receives in ``setup()``.
+
 Log Line Format
 ---------------
 
