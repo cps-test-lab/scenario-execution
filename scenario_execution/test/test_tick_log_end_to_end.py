@@ -60,7 +60,7 @@ class SteppedSim(SimulationInterface):
     def setup(self, **kwargs):
         pass
 
-    def reset(self):
+    def reset(self, **kwargs):
         pass
 
     def step(self):
