@@ -16,6 +16,8 @@ Runtime Parameters
      - show help message
    * - ``--bt-log``
      - Record behavior status over time to ``<output-dir>/behaviors.jsonl``. Requires ``--output-dir``. See `Behavior tree status log`_ for the file format.
+   * - ``--tick-log``
+     - Record how fast the tree actually ticked, and how long each behavior's calls took, to ``<output-dir>/tick_timing.csv`` and ``<output-dir>/action_timing.csv``. Requires ``--output-dir``. See `Tick and action timing`_ for the file format.
    * - ``-d`` ``--debug``
      - (For debugging) print internal debugging output
    * - ``--dot``
@@ -35,7 +37,7 @@ Runtime Parameters
    * - ``--post-run POST_RUN_COMMAND``
      - Command or script to run after scenario execution. The command will be called as ``<command> <output_dir>``. Can be specified multiple times; commands are executed in order with a timeout of 10 minutes each. Failures are logged but do not stop subsequent commands. Example: ``--post-run ./post.sh --post-run ./cleanup.sh``
    * - ``-s STEP_DURATION`` ``--step-duration STEP_DURATION``
-     - Duration in seconds between behavior tree ticks (default: ``0.1``); ticks are paced to it, and a tick that runs longer is reported. With a step-based ``--simulation`` the simulation's ``dt`` governs the tick period instead.
+     - Duration in seconds between behavior tree ticks (default: ``0.1``); ticks are paced to it, and a tick that runs longer is reported. With a step-based ``--simulation`` the simulation's ``dt`` governs the tick period instead. See `Tick and action timing`_ for recording whether the rate was actually held.
    * - ``--simulation MODULE:CLASS``
      - Step-based simulation interface to use. The value must be in ``module.path:ClassName`` format, where the class implements :class:`SimulationInterface <scenario_execution.SimulationInterface>` and is instantiated with no arguments. See `Step-based simulation`_ for details.
    * - ``--snapshot-period SECONDS``
@@ -430,6 +432,99 @@ in time can be reconstructed from the file alone, including branches that never 
 
 Records are flushed as they are written, so a scenario that is aborted or times out still
 leaves a readable file up to that point.
+
+.. _tick_and_action_timing:
+
+Tick and action timing
+----------------------
+
+``--tick-log`` records how fast the behavior tree actually ticked, and where the time inside a
+tick went. It works the same with and without ROS 2 and needs no middleware. ``--output-dir``
+is required. It is independent of ``--bt-log``: either can be used alone.
+
+Two questions, in order. **Was the tick rate held?** ``tick_timing.csv`` has one row per tick,
+with the interval since the previous tick and the period that was configured, so
+``interval_s / period_s`` is the achieved-against-intended ratio — dimensionless, and therefore
+comparable between a fast and a slow machine. **If it was not, where did the time go?**
+``action_timing.csv`` has one row per timed call, so a long tick can be attributed to the
+behavior that spent it. That second file is just as useful on its own, to find out which action
+in a scenario is slow.
+
+Only timing is recorded; no processor or memory usage is measured.
+
+.. code-block:: text
+
+   tick,wall_ts,timestamp,interval_s,duration_s,period_s,driver
+   87,1756450010.411000,10.408000,0.107000,0.023000,0.100000,ros_timer
+   88,1756450010.512000,10.509000,0.101000,0.417000,0.100000,ros_timer
+   89,1756450010.933000,10.930000,0.421000,0.004000,0.100000,ros_timer
+
+.. list-table::
+   :header-rows: 1
+   :class: tight-table
+
+   * - Field
+     - Description
+   * - ``tick``
+     - Tick number, counting from 1. Joins the two files.
+   * - ``wall_ts``
+     - Seconds since the epoch, advanced by a monotonic clock so that a step of the system clock during a run cannot make the series go backwards.
+   * - ``timestamp``
+     - Seconds since the scenario started, with exactly the meaning it has in ``behaviors.jsonl``: simulated time when a clock is available, otherwise monotonic time.
+   * - ``interval_s``
+     - Seconds since the previous tick started. Empty on the first tick, where there is no previous tick to measure against.
+   * - ``duration_s``
+     - Seconds spent inside this tick.
+   * - ``period_s``
+     - The configured tick period this tick was aiming for. Carried on every row so a ratio needs no lookup elsewhere.
+   * - ``driver``
+     - What ticked the tree: ``wall_loop`` (the plain runner), ``ros_timer`` (ROS), or ``sim_step`` (a step-based ``--simulation``). With ``sim_step`` the loop is unpaced, so ``interval_s`` says how fast the machine ran and not whether a rate was held.
+
+.. code-block:: text
+
+   tick,wall_ts,timestamp,behavior_id,behavior_name,class_name,phase,duration_s,status
+   87,1756450010.411000,10.408000,c204…,spawn_walker,…GazeboSpawnActor,execute,0.018000,INVALID
+   88,1756450010.512000,10.509000,c204…,spawn_walker,…GazeboSpawnActor,update,0.414100,RUNNING
+   88,1756450010.512000,10.509000,a17e…,drive_to_kitchen,…NavigateToPose,update,0.002100,RUNNING
+
+.. list-table::
+   :header-rows: 1
+   :class: tight-table
+
+   * - Field
+     - Description
+   * - ``tick``
+     - The tick this call belongs to. Empty for a call made before the first tick, which is where bring-up ``setup`` happens.
+   * - ``wall_ts``, ``timestamp``
+     - The moment of the tick this call belongs to, on the same two clocks as ``tick_timing.csv``.
+   * - ``behavior_id``, ``behavior_name``, ``class_name``
+     - Identity, spelled exactly as ``behaviors.jsonl`` spells it, so the files can be joined on ``behavior_id`` without translating either.
+   * - ``phase``
+     - ``setup`` (once per behavior, at bring-up), ``execute`` (once per activation: for an action, resolving its arguments and running its ``execute()``), or ``update`` (once per tick the behavior was ticked). Separate so a one-off cost is never read as a per-tick one.
+   * - ``duration_s``
+     - Seconds spent in this call.
+   * - ``status``
+     - The behavior's status after the call.
+
+Every leaf of the tree is recorded, not only the actions from the action libraries — a
+``wait elapsed()`` and an ``emit`` are behaviors too, and leaving them out would attribute their
+time to nothing. Composites are left out: they route ticks rather than do work.
+
+Reading the two files together, a tick whose ``duration_s`` is large with ``action_timing`` rows
+summing to most of it is time spent *inside* the tick, by a behavior these name. A large
+``interval_s`` where the previous tick was short and no rows account for the gap is time that
+passed *between* ticks, with nothing running.
+
+A summary is logged at the end of the run, and the same summary can be printed later from the
+files alone::
+
+   python -m scenario_execution.tick_report <output-dir>
+
+If ``behaviors.jsonl`` is present it is used to name the ``.osc`` file and line a slow behavior
+came from; without it everything else still works.
+
+Rows are buffered and written about once per second, so a scenario that is aborted keeps
+everything up to the last flush.
 
 .. _per_scenario_output_directories:
 

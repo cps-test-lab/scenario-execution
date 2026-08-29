@@ -27,6 +27,8 @@ import py_trees
 from scenario_execution.model.osc2_parser import OpenScenario2Parser
 from scenario_execution.utils.logging import Logger
 from scenario_execution.utils import bt_logger
+from scenario_execution.utils import tick_recorder
+from scenario_execution import tick_report
 from scenario_execution.model.model_file_loader import ModelFileLoader
 from scenario_execution.simulation import SimulationClock
 from scenario_execution.actions.process_registry import ProcessRegistry
@@ -158,7 +160,8 @@ class ScenarioExecution(object):
                  register_signal=True,
                  simulation=None,
                  output_result_per_scenario: bool = False,
-                 bt_log: bool = False) -> None:
+                 bt_log: bool = False,
+                 tick_log: bool = False) -> None:
 
         def signal_handler(sig, frame):
             self.on_scenario_shutdown(False, "Aborted")
@@ -214,6 +217,11 @@ class ScenarioExecution(object):
         self.last_snapshot_visitor = None
         self.bt_log = bt_log
         self.bt_logger = None
+        self.tick_log = tick_log
+        self.tick_recorder = None
+        # Which loop is driving the tree. run()/run_with_simulation() set their own;
+        # a middleware runner overrides it before setup() (see ROSScenarioExecution).
+        self.tick_driver = tick_recorder.DRIVER_WALL_LOOP
         self.shutdown_requested = False
         self.results = []
         self.create_scenario_parameter_file_template = create_scenario_parameter_file_template
@@ -254,6 +262,7 @@ class ScenarioExecution(object):
         self.behaviour_tree = self.setup_behaviour_tree(scenario)  # Get the behaviour_tree
         self.behaviour_tree.add_pre_tick_handler(self.pre_tick_handler)
         self._setup_bt_logger(effective_output_dir, kwargs)
+        self._setup_tick_recorder(effective_output_dir, kwargs)
         self.behaviour_tree.add_post_tick_handler(self.post_tick_handler)
         self.last_snapshot_visitor = LastSnapshotVisitor()
         self.behaviour_tree.add_visitor(self.last_snapshot_visitor)
@@ -308,6 +317,62 @@ class ScenarioExecution(object):
         if self.bt_logger is not None:
             self.bt_logger.close()
             self.bt_logger = None
+
+    def _setup_tick_recorder(self, output_dir, setup_kwargs):
+        """Attach the tick and action timing records for this scenario, if --tick-log is set.
+
+        Everything the feature costs is installed here and nowhere else. Without
+        the flag this returns before touching anything, so a run that did not ask
+        for recording keeps exactly the handler set, and exactly the action
+        methods, that it has without the feature -- not a cheap check per tick,
+        but none.
+
+        Middleware-independent, like the behaviour-tree log beside it: the ROS
+        runner inherits this untouched and contributes only its clock and its
+        driver name. The clock is chosen the same way, ``sim_clock`` over
+        ``clock``, so ``timestamp`` means the same thing in both files.
+
+        Ordering: the recorder's post-tick handler is registered here, i.e. before
+        :meth:`post_tick_handler`, because that one detects the end of the scenario
+        and closes the recorder. Registered after it, the tick that ends the run
+        would be the one tick never recorded.
+        """
+        self.close_tick_recorder()
+        if not self.tick_log:
+            return
+        if not output_dir:
+            raise ValueError("--tick-log requires --output-dir.")
+        clock = setup_kwargs.get('sim_clock') or setup_kwargs.get('clock')
+        self.tick_recorder = tick_recorder.TickRecorder(
+            output_dir, self.tick_period, self.tick_driver, clock=clock)
+        # Before the tree is set up, so each action's own setup() cost is recorded.
+        self.tick_recorder.install_on_tree(self.behaviour_tree)
+        self.tick_recorder.watch_tree_updates(self.behaviour_tree)
+        self.behaviour_tree.add_pre_tick_handler(self.tick_recorder.pre_tick_handler)
+        self.behaviour_tree.add_post_tick_handler(self.tick_recorder)
+        self.logger.info(
+            f"Recording tick timing to {os.path.join(output_dir, tick_recorder.TICK_FILENAME)} "
+            f"and action timing to {os.path.join(output_dir, tick_recorder.ACTION_FILENAME)}")
+
+    def close_tick_recorder(self):
+        """Close the records and log what they say.
+
+        The summary is computed by reading the files back, not by counting while
+        ticking: one implementation of the arithmetic, shared with
+        ``python -m scenario_execution.tick_report``, and no bookkeeping in the tick
+        loop. A failure to summarise must not turn a finished scenario into a failed
+        one -- the records themselves are already on disk by then.
+        """
+        if self.tick_recorder is None:
+            return
+        output_dir = self.tick_recorder.output_dir
+        self.tick_recorder.close()
+        self.tick_recorder = None
+        try:
+            for line in tick_report.summarize(output_dir):
+                self.logger.info(line)
+        except Exception as e:  # pylint: disable=broad-except
+            self.logger.warning(f"Could not summarize timing records: {e}")
 
     def setup_behaviour_tree(self, tree):
         """
@@ -432,6 +497,11 @@ class ScenarioExecution(object):
         """
         clock = SimulationClock(simulation.dt)
         self.tick_period = simulation.dt
+        # This loop is unpaced -- it ticks as fast as the simulation allows -- so a
+        # recorded interval says how fast the machine ran, not whether a rate was
+        # held. Naming the driver per row is what lets a reader tell the difference
+        # instead of computing a ratio that looks meaningful and is not.
+        self.tick_driver = tick_recorder.DRIVER_SIM_STEP
 
         try:
             simulation.setup(
@@ -489,6 +559,7 @@ class ScenarioExecution(object):
                     return
         finally:
             self.close_bt_logger()
+            self.close_tick_recorder()
             try:
                 simulation.shutdown()
             except Exception as e:  # pylint: disable=broad-except
@@ -647,6 +718,7 @@ class ScenarioExecution(object):
         if self.behaviour_tree:
             self.behaviour_tree.interrupt()
         self.close_bt_logger()
+        self.close_tick_recorder()
         if self.current_scenario:
             if result:
                 self.logger.info(f"Scenario '{self.current_scenario.name}' succeeded.")
@@ -683,6 +755,9 @@ class ScenarioExecution(object):
                             help='For debugging: Show current state of py tree')
         parser.add_argument('--bt-log', action='store_true',
                             help=f'Record behaviour status over time to <output-dir>/{bt_logger.DEFAULT_FILENAME}')
+        parser.add_argument('--tick-log', action='store_true',
+                            help=f'Record tick timing to <output-dir>/{tick_recorder.TICK_FILENAME} and '
+                            f'per-action call timing to <output-dir>/{tick_recorder.ACTION_FILENAME}')
         parser.add_argument('-o', '--output-dir', type=str, help='Directory for output (e.g. test results)')
         parser.add_argument('-n', '--dry-run', action='store_true', help='Parse and resolve scenario, but do not execute')
         parser.add_argument('--dot', action='store_true', help='Render dot trees of resulting py-tree')
@@ -793,7 +868,8 @@ def main():
                                                post_run=args.post_run,
                                                simulation=simulation,
                                                output_result_per_scenario=args.output_result_per_scenario,
-                                               bt_log=args.bt_log)
+                                               bt_log=args.bt_log,
+                                               tick_log=args.tick_log)
     except ValueError as e:
         print(f"Error while initializing: {e}")
         sys.exit(1)

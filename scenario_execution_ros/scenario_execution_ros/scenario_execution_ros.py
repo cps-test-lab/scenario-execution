@@ -23,6 +23,7 @@ from py_trees_ros_interfaces.srv import OpenSnapshotStream
 from scenario_execution import ScenarioExecution, ShutdownHandler
 from scenario_execution.scenario_execution_base import _load_simulation, _build_reset_kwargs
 from scenario_execution.simulation import Clock
+from scenario_execution.utils import tick_recorder
 from .logging_ros import RosLogger
 from .marker_handler import MarkerHandler
 
@@ -97,6 +98,8 @@ class ROSScenarioExecution(ScenarioExecution):
         self.snapshot_period = args.snapshot_period
         self.output_result_per_scenario = args.output_result_per_scenario
         bt_log = args.bt_log
+        tick_log = args.tick_log
+        step_duration = args.step_duration
 
         # override commandline by ros parameters
         self.node.declare_parameter('debug', False)
@@ -111,6 +114,8 @@ class ROSScenarioExecution(ScenarioExecution):
         self.node.declare_parameter('post_run', [""])
         self.node.declare_parameter('snapshot_period', 1.0)
         self.node.declare_parameter('bt_log', False)
+        self.node.declare_parameter('tick_log', False)
+        self.node.declare_parameter('step_duration', 0.0)
 
         if self.node.get_parameter('debug').value:
             debug = self.node.get_parameter('debug').value
@@ -137,6 +142,13 @@ class ROSScenarioExecution(ScenarioExecution):
             self.snapshot_period = self.node.get_parameter('snapshot_period').value
         if self.node.get_parameter('bt_log').value:
             bt_log = self.node.get_parameter('bt_log').value
+        if self.node.get_parameter('tick_log').value:
+            tick_log = self.node.get_parameter('tick_log').value
+        # Declared default is 0.0 so that "unset" is falsy like every other parameter
+        # here, leaving the commandline value in place. A period of 0 is not a value
+        # anyone can mean.
+        if self.node.get_parameter('step_duration').value:
+            step_duration = self.node.get_parameter('step_duration').value
         self.logger = RosLogger('scenario_execution_ros', debug)
         # Optional step-based SimulationInterface (--simulation module:Class). The base ROS runner
         # historically ignored it; _run_single_scenario() below now drives its
@@ -155,7 +167,12 @@ class ROSScenarioExecution(ScenarioExecution):
                          output_result_per_scenario=self.output_result_per_scenario,
                          simulation=simulation,
                          bt_log=bt_log,
+                         tick_log=tick_log,
+                         tick_period=step_duration,
                          logger=self.logger)
+        # The tree is ticked by an rclpy timer rather than by a loop in this class,
+        # so a late tick is one the executor did not get to on time.
+        self.tick_driver = tick_recorder.DRIVER_ROS_TIMER
 
     def setup_behaviour_tree(self, tree):
         """
