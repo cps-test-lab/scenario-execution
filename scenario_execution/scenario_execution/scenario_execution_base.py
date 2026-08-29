@@ -365,7 +365,7 @@ class ScenarioExecution(object):
         """
         if self.tick_recorder is None:
             return
-        output_dir = self.current_scenario_output_dir
+        output_dir = self.tick_recorder.output_dir
         self.tick_recorder.close()
         self.tick_recorder = None
         try:

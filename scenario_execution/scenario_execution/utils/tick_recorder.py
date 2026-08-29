@@ -173,6 +173,9 @@ class TickRecorder:
     """
 
     def __init__(self, output_dir, tick_period, driver, clock=None, start_epoch=None):
+        # Kept so the summary is read back from the directory this instance wrote,
+        # rather than from wherever the runner has moved on to since.
+        self.output_dir = output_dir
         self.tick_period = tick_period
         self.driver = driver
         self._clock = clock

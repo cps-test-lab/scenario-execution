@@ -27,9 +27,11 @@ import py_trees
 from antlr4.InputStream import InputStream
 
 from scenario_execution import ScenarioExecution
+from scenario_execution.simulation import SimulationInterface
 from scenario_execution.model.model_blackboard import create_py_tree_blackboard
 from scenario_execution.model.model_to_py_tree import create_py_tree
 from scenario_execution.model.osc2_parser import OpenScenario2Parser
+from scenario_execution import tick_report
 from scenario_execution.utils import bt_logger, tick_recorder
 from scenario_execution.utils.logging import Logger
 
@@ -41,6 +43,31 @@ scenario test:
         wait elapsed(0.3s)
         emit end
 """
+
+
+class SteppedSim(SimulationInterface):
+    """Minimal step-based simulation: scenario execution drives the clock itself."""
+
+    DT = 0.05
+
+    def __init__(self):
+        self.steps = 0
+
+    @property
+    def dt(self):
+        return self.DT
+
+    def setup(self, **kwargs):
+        pass
+
+    def reset(self):
+        pass
+
+    def step(self):
+        self.steps += 1
+
+    def shutdown(self):
+        pass
 
 
 class TestTickLogEndToEnd(unittest.TestCase):
@@ -66,6 +93,10 @@ class TestTickLogEndToEnd(unittest.TestCase):
         execution.scenarios_list = [(tree, {}, None)]
         execution.run()
         return execution
+
+    def run_summary(self, **kwargs):
+        self.run_scenario(**kwargs)
+        return tick_report.summarize(self.dir)
 
     def read(self, filename):
         with open(os.path.join(self.dir, filename), encoding="utf-8", newline="") as handle:
@@ -118,6 +149,36 @@ class TestTickLogEndToEnd(unittest.TestCase):
                           "identity must be spelled the same way in both files")
             self.assertEqual(row["behavior_name"], by_id[row["behavior_id"]]["behavior_name"])
             self.assertEqual(row["class_name"], by_id[row["behavior_id"]]["class_name"])
+
+    def test_step_based_simulation_is_recorded(self):
+        """Scenario execution stepping the simulation is the third tick driver.
+
+        The period comes from the simulation's dt rather than from --step-duration,
+        and timestamp advances by exactly that, because the scenario's clock is the
+        simulation's.
+        """
+        sim = SteppedSim()
+        self.run_scenario(tick_log=True, simulation=sim)
+        ticks = self.read(tick_recorder.TICK_FILENAME)
+        self.assertEqual(len(ticks), sim.steps, "one row per step")
+        self.assertEqual({row["driver"] for row in ticks}, {tick_recorder.DRIVER_SIM_STEP})
+        self.assertEqual({row["period_s"] for row in ticks}, {"0.050000"},
+                         "the simulation's dt governs the period, not --step-duration")
+        self.assertEqual([row["timestamp"] for row in ticks[:3]],
+                         ["0.050000", "0.100000", "0.150000"])
+        self.assertTrue(self.read(tick_recorder.ACTION_FILENAME),
+                        "the drill-down still works when the clock is not real")
+
+    def test_step_based_summary_offers_no_ratio(self):
+        """The loop is unpaced, so there is no rate to hold and none is claimed.
+
+        Reporting interval_s against dt here would say the run was many times
+        faster than intended, which is not a statement about anything.
+        """
+        summary = " ".join(self.run_summary(tick_log=True, simulation=SteppedSim()))
+        self.assertIn("unpaced", summary)
+        self.assertNotIn("late", summary)
+        self.assertNotIn("x the configured period", summary)
 
     def test_tick_log_without_output_dir_is_refused(self):
         parser = OpenScenario2Parser(Logger('test', False))
