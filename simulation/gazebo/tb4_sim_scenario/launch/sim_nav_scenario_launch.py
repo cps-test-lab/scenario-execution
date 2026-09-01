@@ -32,7 +32,10 @@ def generate_launch_description():
     gazebo_tf_publisher_dir = get_package_share_directory('gazebo_tf_publisher')
     tf_to_pose_publisher_dir = get_package_share_directory('tf_to_pose_publisher')
     nav2_minimal_tb4_sim_dir = get_package_share_directory('nav2_minimal_tb4_sim')
-    nav2_bringup_dir = get_package_share_directory('nav2_bringup')
+    # TEMPORARY (lyrical): nav2 is not released for lyrical yet. The nav2_bringup
+    # parts below are disabled so this launch file can still be used with
+    # navigation:=false. Re-enable once nav2 lands for lyrical.
+    # nav2_bringup_dir = get_package_share_directory('nav2_bringup')
 
     navigation = LaunchConfiguration('navigation')
     scenario = LaunchConfiguration('scenario')
@@ -49,12 +52,13 @@ def generate_launch_description():
     world_name = LaunchConfiguration('world_name')
     arg_world_name = DeclareLaunchArgument('world_name', default_value='default',
                                            description='Name of Simulation World')
-    map_conf = LaunchConfiguration('map')
+    # map_conf = LaunchConfiguration('map')  # TEMPORARY (lyrical): only used by disabled nav2_bringup
     arg_map = DeclareLaunchArgument('map', default_value=os.path.join(tb4_sim_scenario_dir, 'maps', 'maze.yaml'),
                                     description='Full path to map yaml file to load')
-    params_file = LaunchConfiguration('params_file')
-    arg_params_file = DeclareLaunchArgument('params_file', default_value=PathJoinSubstitution([nav2_bringup_dir, 'params', 'nav2_params.yaml']),
-                                            description='nav2 parameter file')
+    # TEMPORARY (lyrical): nav2 params_file disabled, see note above.
+    # params_file = LaunchConfiguration('params_file')
+    # arg_params_file = DeclareLaunchArgument('params_file', default_value=PathJoinSubstitution([nav2_bringup_dir, 'params', 'nav2_params.yaml']),
+    #                                         description='nav2 parameter file')
     x, y, z = LaunchConfiguration('x'), LaunchConfiguration('y'), LaunchConfiguration('z')
     yaw = LaunchConfiguration('yaw')
 
@@ -70,15 +74,16 @@ def generate_launch_description():
         }.items()
     )
 
-    nav2_bringup = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource([PathJoinSubstitution([tb4_sim_scenario_dir, 'launch', 'nav2', 'bringup_launch.py'])]),
-        condition=IfCondition(navigation),
-        launch_arguments={
-            'use_sim_time': 'True',
-            'params_file': params_file,
-            'map': map_conf,
-        }.items()
-    )
+    # TEMPORARY (lyrical): nav2 is not released for lyrical yet, nav2_bringup disabled.
+    # nav2_bringup = IncludeLaunchDescription(
+    #     PythonLaunchDescriptionSource([PathJoinSubstitution([tb4_sim_scenario_dir, 'launch', 'nav2', 'bringup_launch.py'])]),
+    #     condition=IfCondition(navigation),
+    #     launch_arguments={
+    #         'use_sim_time': 'True',
+    #         'params_file': params_file,
+    #         'map': map_conf,
+    #     }.items()
+    # )
 
     groundtruth_publisher = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(os.path.join(gazebo_tf_publisher_dir, 'launch', 'gazebo_tf_publisher_launch.py')),
@@ -105,14 +110,14 @@ def generate_launch_description():
         arg_scenario,
         arg_scenario_execution,
         arg_world_name,
-        arg_params_file,
+        # arg_params_file,  # TEMPORARY (lyrical): disabled with nav2_bringup
         arg_map
     ])
 
     for pose_element in ['x', 'y', 'z', 'yaw']:
         ld.add_action(DeclareLaunchArgument(pose_element, default_value='0.0', description=f'{pose_element} component of the robot pose.'))
     ld.add_action(simulation)
-    ld.add_action(nav2_bringup)
+    # ld.add_action(nav2_bringup)  # TEMPORARY (lyrical): nav2 not released for lyrical yet
     ld.add_action(groundtruth_publisher)
     ld.add_action(scenario_exec)
     ld.add_action(tf_to_pose)

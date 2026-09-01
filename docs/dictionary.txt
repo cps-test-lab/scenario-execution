@@ -50,7 +50,10 @@ changelog
 changelogs
 sdist
 rosdistro
+distro
 kubernetes
+lyrical
+Lyrical
 pybullet
 floorplan
 dsl

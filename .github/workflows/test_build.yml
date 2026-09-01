@@ -2,7 +2,7 @@
 name: test-build
 on:
   pull_request:
-    branches: [main, humble, jazzy]
+    branches: [main, humble, jazzy, lyrical]
   push:
     branches: [main]
   workflow_dispatch:
@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: true
 permissions: read-all
 env:
-  ROS_DISTRO: jazzy
+  ROS_DISTRO: lyrical
 jobs:
   build-and-push-testing:
     runs-on: ubuntu-latest
@@ -244,7 +244,9 @@ jobs:
           cd nav2_minimal_turtlebot_simulation
           git checkout f4eefd049359b3f0becabd7a0870005f4140ec08
           cd ..
-          colcon build --continue-on-error
+          # nav2 (navigation2 / nav2_simple_commander) is not released for lyrical yet,
+          # so the nav2-dependent packages cannot build here. Re-add them once nav2 lands.
+          colcon build --continue-on-error --packages-ignore scenario_execution_nav2 example_nav2 scenario_execution_nav2_test scenario_execution_pybullet
           source install/setup.bash
       - name: Cache Build
         id: cache-test-id
@@ -351,9 +353,16 @@ jobs:
           # shellcheck source=/dev/null
           source "/opt/ros/${ROS_DISTRO}/setup.bash"
           source install/setup.bash
-          find . -name "*.osc" | grep -Ev "lib_osc/*|examples/example_scenario_variation|scenario_execution_coverage|fail*|install|build" | while read -r file; do 
-            echo "$file"; 
-            ros2 run scenario_execution scenario_execution "$file" -n; 
+          find . -name "*.osc" | grep -Ev "lib_osc/*|examples/example_scenario_variation|scenario_execution_coverage|fail*|install|build" | while read -r file; do
+            # TEMPORARY (lyrical): nav2, pybullet and moveit are not available on
+            # lyrical, so scenarios importing them cannot be parsed. Skip them until
+            # those land.
+            if grep -qE "^import osc\.(nav2|pybullet|moveit2)" "$file"; then
+              echo "skipping (nav2/pybullet/moveit not available on lyrical): $file";
+              continue;
+            fi
+            echo "$file";
+            ros2 run scenario_execution scenario_execution "$file" -n;
           done
   test-example-ros-examples:
     needs: [build, build-and-push-testing]
@@ -473,6 +482,7 @@ jobs:
           name: test-example-variation-result
           path: test_example_variation/test.xml
   test-example-nav2:
+    if: ${{ false }}  # disabled on lyrical: navigation2 not released yet
     needs: [build, build-and-push-testing]
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -641,7 +651,7 @@ jobs:
 #      - name: Test Example Moveit2
 #        shell: bash
 #        run: |
-#          source /opt/ros/${ROS_DISTRO}/setup.bash
+#          source "/opt/ros/${ROS_DISTRO}/setup.bash"
 #          source install/setup.bash
 #          Xvfb :1 -screen 0 800x600x16 &
 #          export DISPLAY=:1.0
@@ -691,6 +701,7 @@ jobs:
           name: test-scenario-execution-gazebo
           path: test_scenario_execution_gazebo/test.xml
   test-scenario-execution-nav2:
+    if: ${{ false }}  # disabled on lyrical: navigation2 not released yet
     needs: [build, build-and-push-testing]
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -724,6 +735,7 @@ jobs:
           name: test-scenario-execution-nav2
           path: test_scenario_execution_nav2/test.xml
   test-scenario-execution-pybullet:
+    if: ${{ false }}  # disabled on lyrical: pybullet does not build on Ubuntu 26.04 / Python 3.14
     needs: [build, build-and-push-testing]
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -801,14 +813,14 @@ jobs:
     - test-example-scenario
     - test-example-library
     - test-example-variation
-    - test-example-nav2
+#    - test-example-nav2  # nav2 not released for lyrical yet
 #    - test-example-simulation
 #    - test-example-multirobot
 #    - test-example-moveit2
     - test-example-external-method
     - test-scenario-execution-gazebo
-    - test-scenario-execution-nav2
-    - test-scenario-execution-pybullet
+#    - test-scenario-execution-nav2  # nav2 not released for lyrical yet
+#    - test-scenario-execution-pybullet  # pybullet does not build on lyrical (Ubuntu 26.04 / py3.14)
     - test-scenario-execution-x11
     runs-on: ubuntu-latest
     if: ${{ always() }}
@@ -844,11 +856,8 @@ jobs:
             downloaded-artifacts/test-example-scenario-result/test.xml
             downloaded-artifacts/test-example-library-result/test.xml
             downloaded-artifacts/test-example-variation-result/test.xml
-            downloaded-artifacts/test-example-nav2-result/test.xml
             downloaded-artifacts/test-example-external-method-result/test.xml
             downloaded-artifacts/test-scenario-execution-gazebo/test.xml
-            downloaded-artifacts/test-scenario-execution-nav2/test.xml
-            downloaded-artifacts/test-scenario-execution-pybullet/test.xml
 #            downloaded-artifacts/test-example-moveit2-result/test.xml
 #            downloaded-artifacts/test-example-multirobot-result/test.xml
 #            downloaded-artifacts/test-example-simulation-result/test.xml
