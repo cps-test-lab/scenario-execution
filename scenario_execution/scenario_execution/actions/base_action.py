@@ -20,6 +20,7 @@ from scenario_execution.model.error import OSC2Error
 import inspect
 from .base_action_subtree import BaseActionSubtree
 
+
 class BaseAction(py_trees.behaviour.Behaviour):
 
     # subclasses might implement __init__() with osc2 arguments as required
@@ -46,9 +47,37 @@ class BaseAction(py_trees.behaviour.Behaviour):
     def shutdown(self):
         pass
 
+    def request_cancel(self) -> bool:
+        """Ask a long-running action to stop before it would finish on its own.
+
+        Long-running actions -- a navigation goal, a recording, a background process -- override
+        this to start their own graceful stop and return True. Returning False means "I cannot be
+        cancelled", and callers turn that into a failure: a cancel that silently does nothing would
+        let a scenario pass while the thing it meant to stop kept running.
+
+        Must be idempotent. An action can be asked to cancel through several routes at once --
+        cancel_after, cancel_action, terminate() on an invalidated branch, and shutdown() at
+        teardown -- and more than one of them can fire for the same stop.
+        """
+        return False
+
     #############
     # Internal methods below, do not override in subclass
     #############
+
+    def terminate(self, new_status):
+        """Cancel the action when its branch is invalidated.
+
+        py_trees invalidates a behaviour whose branch was abandoned: a losing one_of child, or one
+        the timeout modifier gave up on. Without this the branch ends while the action's real-world
+        effect -- a goal the robot is still driving, a container still running -- continues to the
+        end of the scenario.
+
+        Only INVALID means abandonment. py_trees also routes ordinary SUCCESS and FAILURE stops
+        through terminate(), and cancelling there would tear down actions that just finished.
+        """
+        if new_status == py_trees.common.Status.INVALID:
+            self.request_cancel()
 
     def initialise(self):
         if self.execute_method is not None:

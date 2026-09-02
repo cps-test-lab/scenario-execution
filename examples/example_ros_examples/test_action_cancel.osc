@@ -1,0 +1,31 @@
+import osc.types
+import osc.helpers
+import osc.ros
+
+# Cancel a running action goal mid-scenario, and assert the server honored it.
+#
+# Two ways of saying it. cancel_after() cancels on a clock, next to the goal it cancels, and the
+# goal reports what came of it -- so the cancellation itself can be the thing under test. one_of
+# cancels on a condition instead: whichever branch finishes first ends the other, and the goal is
+# stopped on its way out. There the branch reports nothing, so it stops the robot without asserting.
+scenario test_action_cancel:
+    do serial:
+        timeout(30s)
+        parallel:
+            ros_run('examples_rclpy_minimal_action_server', 'server')
+            serial:
+                # On a clock, with the CANCELED status as the oracle.
+                action_call(action_name: '/fibonacci',
+                            action_type: 'example_interfaces.action.Fibonacci',
+                            data: '{\"order\": 10}',
+                            expected_status: action_goal_status!canceled) with:
+                    cancel_after(1s)
+
+                # On a condition. Here the condition is a timer, but any action that finishes will
+                # do -- waiting for a topic, a node, a distance travelled.
+                one_of:
+                    action_call(action_name: '/fibonacci',
+                                action_type: 'example_interfaces.action.Fibonacci',
+                                data: '{\"order\": 10}')
+                    wait elapsed(1s)
+                emit end

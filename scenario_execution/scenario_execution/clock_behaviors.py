@@ -95,3 +95,100 @@ class ClockTimeout(py_trees.decorators.Decorator):
             self.decorated.stop(py_trees.common.Status.INVALID)
             return py_trees.common.Status.FAILURE
         return self.decorated.status
+
+
+class _CancelAfterBase(py_trees.decorators.Decorator):
+    """Shared timing for the decorators that stop an action after a delay.
+
+    Holds the clock, the deadline and the once-only cancel. Subclasses decide only what the branch
+    reports afterwards, which is the whole difference between them:
+
+    ==================  ==========================================
+    ``timeout``         the action failed to finish in time
+    ``cancel_after``    whatever terminal status the action reports
+    ``succeed_after``   done, however far it got
+    ==================  ==========================================
+
+    All three stop the action itself; ``timeout`` does so through ``BaseAction.terminate()``.
+
+    Args:
+        child: The behavior to decorate.
+        name: Decorator name.
+        duration: Clock time to wait before cancelling, in seconds.
+    """
+
+    def __init__(self, child: py_trees.behaviour.Behaviour, name: str, duration: float):
+        super().__init__(child=child, name=name)
+        if duration < 0.0:
+            raise ValueError(f"{self.__class__.__name__} duration must be non-negative, got {duration}")
+        self._duration = duration
+        self._clock: Clock = WallClock()
+        self._cancel_time: float = 0.0
+        self._cancel_sent = False
+        self._cancel_refused = False
+
+    def setup(self, **kwargs):
+        self._clock = kwargs.get('clock', WallClock())
+        super().setup(**kwargs)
+
+    def initialise(self):
+        self._cancel_time = self._clock.now() + self._duration
+        self._cancel_sent = False
+        self._cancel_refused = False
+
+    def _cancel_due(self):
+        """Ask the child to stop, once, when its time is up. False if it cannot be cancelled."""
+        if self._cancel_refused:
+            return False
+        if self._cancel_sent or self._clock.now() < self._cancel_time:
+            return True
+
+        request_cancel = getattr(self.decorated, 'request_cancel', None)
+        if request_cancel is None or not request_cancel():
+            # Not cancellable: a composite, or an action that never implemented it. Saying so is the
+            # point -- a cancel that quietly does nothing leaves the scenario reporting on something
+            # it never stopped.
+            self.feedback_message = (  # pylint: disable= attribute-defined-outside-init
+                f"'{self.decorated.name}' ({self.decorated.__class__.__name__}) cannot be cancelled")
+            self.logger.error(self.feedback_message)
+            self._cancel_refused = True
+            return False
+
+        self.logger.debug(f"Cancel requested for {self.decorated.name}")
+        self._cancel_sent = True
+        return True
+
+
+class CancelAfter(_CancelAfterBase):
+    """Cancel the decorated action after *duration*, then report what it makes of that.
+
+    The child keeps ticking after the cancel, so the branch ends on the child's own terminal status.
+    That is what lets a scenario assert the outcome of a cancellation -- that a goal really reached
+    CANCELED -- rather than merely tolerating the failure a cancelled action would otherwise report.
+    """
+
+    def update(self):
+        if not self._cancel_due():
+            return py_trees.common.Status.FAILURE
+        return self.decorated.status
+
+
+class SucceedAfter(_CancelAfterBase):
+    """Stop the decorated action after *duration* and call it done.
+
+    For running something a fixed length of time -- a recording, a background load -- where the
+    action has no terminal status worth asserting and would otherwise report the cancel as a
+    failure. Success is reported only once a cancel was actually accepted and the child has
+    stopped; a child that cannot be cancelled fails instead of being papered over.
+    """
+
+    def update(self):
+        if not self._cancel_due():
+            return py_trees.common.Status.FAILURE
+        if not self._cancel_sent:
+            # Still within the window. An action that ends early ends the branch on its own terms:
+            # a recording that died after five of its thirty seconds did not do what was asked.
+            return self.decorated.status
+        if self.decorated.status == py_trees.common.Status.RUNNING:
+            return py_trees.common.Status.RUNNING
+        return py_trees.common.Status.SUCCESS

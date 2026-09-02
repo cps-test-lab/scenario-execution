@@ -36,6 +36,12 @@ struct msg_conversion:
 struct ament:
     def get_package_share_directory(package_name: string) -> string is external ament_index_python.packages.get_package_share_directory()
 
+enum action_goal_status: [
+    succeeded = 4,
+    canceled = 5,
+    aborted = 6
+]
+
 action action_call:
     # Call a ros action and wait for the result
     action_name: string                  # name of the action to connect to
@@ -45,6 +51,7 @@ action action_call:
     transient_local: bool = false
     result_variable: string = ""         # variable to store the response in
     result_member_name: string = ""      # if not empty, only the value of the member is stored within the variable
+    expected_status: action_goal_status = action_goal_status!succeeded # terminal goal status to accept as success. Set it to canceled to assert that a cancellation was honoured. Cannot be combined with success_on_acceptance.
 
 action assert_lifecycle_state:
     # Checks for the state of a lifecycle-managed node.

@@ -30,6 +30,18 @@ from scenario_execution.model.types import VariableReference
 from scenario_execution_ros.actions.conversions import get_ros_message_type, set_variable_if_available
 
 
+_STATUS_NAMES = {
+    GoalStatus.STATUS_SUCCEEDED: "succeeded",
+    GoalStatus.STATUS_CANCELED: "canceled",
+    GoalStatus.STATUS_ABORTED: "aborted",
+}
+
+
+def _status_name(status):
+    """The osc name for a GoalStatus, so a message reads like the scenario that asked for it."""
+    return _STATUS_NAMES.get(status, f"status {status}")
+
+
 class ActionCallActionState(Enum):
     """
     States for executing a service call
@@ -38,8 +50,9 @@ class ActionCallActionState(Enum):
     ACTION_SERVER_AVAILABLE = 2
     ACTION_CALLED = 3
     ACTION_ACCEPTED = 4
-    DONE = 5
-    ERROR = 6
+    ACTION_CANCELING = 5
+    DONE = 6
+    ERROR = 7
 
 
 class RosActionCall(BaseAction):
@@ -47,7 +60,8 @@ class RosActionCall(BaseAction):
     ros service call behavior
     """
 
-    def __init__(self, action_name: str, action_type: str, success_on_acceptance: bool = False, transient_local: bool = False):
+    def __init__(self, action_name: str, action_type: str, success_on_acceptance: bool = False, transient_local: bool = False,
+                 expected_status=("succeeded", GoalStatus.STATUS_SUCCEEDED)):
         super().__init__(resolve_variable_reference_arguments_in_execute=False)
         self.node = None
         self.client = None
@@ -64,6 +78,13 @@ class RosActionCall(BaseAction):
         self.transient_local = transient_local
         self.result_variable = None
         self.result_variable_member_name = None
+        # An osc enum arrives as (name, value); the enum's values are the GoalStatus constants, so
+        # the comparison in get_result_callback() is against the status the server actually reports.
+        self.expected_status = expected_status[1] if isinstance(expected_status, tuple) else expected_status
+        #: A cancel can be asked for before there is a goal to cancel, so the request is recorded
+        #: here and _send_cancel() acts on it as soon as the goal is accepted.
+        self.cancel_requested = False
+        self.cancel_sent = False
 
     def setup(self, **kwargs):
         """
@@ -99,6 +120,15 @@ class RosActionCall(BaseAction):
             self.result_variable = result_variable
             self.result_variable_member_name = result_member_name
 
+        if self.success_on_acceptance and self.expected_status != GoalStatus.STATUS_SUCCEEDED:
+            # success_on_acceptance finishes the action the moment the goal is accepted, before any
+            # terminal status exists. Asking for a particular one as well cannot be honoured.
+            raise ActionError(
+                "'expected_status' cannot be combined with 'success_on_acceptance': the action "
+                "finishes at goal acceptance, before the goal reaches any status.", action=self)
+
+        self.cancel_requested = False
+        self.cancel_sent = False
         self.current_state = ActionCallActionState.IDLE
 
     def parse_data(self, data):
@@ -132,8 +162,12 @@ class RosActionCall(BaseAction):
             if self.success_on_acceptance:
                 return py_trees.common.Status.SUCCESS
             result = py_trees.common.Status.RUNNING
+        elif self.current_state == ActionCallActionState.ACTION_CANCELING:
+            result = py_trees.common.Status.RUNNING
         elif self.current_state == ActionCallActionState.DONE:
             result = py_trees.common.Status.SUCCESS
+        elif self.current_state == ActionCallActionState.ERROR:
+            result = py_trees.common.Status.FAILURE
         else:
             self.logger.error(f"Invalid state {self.current_state}")
         feedback_msg = self.get_feedback_message(self.current_state)
@@ -161,6 +195,8 @@ class RosActionCall(BaseAction):
         if not self.success_on_acceptance:
             get_result_future = self.goal_handle.get_result_async()
             get_result_future.add_done_callback(self.get_result_callback)
+        # A cancel asked for while the goal was still being accepted has been waiting for this.
+        self._send_cancel()
 
     def get_result_callback(self, future):
         """
@@ -168,26 +204,45 @@ class RosActionCall(BaseAction):
         """
         status = future.result().status
         self.logger.debug(f"Received state {status}")
-        if self.current_state == ActionCallActionState.ACTION_ACCEPTED:
-            if status == GoalStatus.STATUS_SUCCEEDED:
+        if self.current_state in (ActionCallActionState.ACTION_ACCEPTED, ActionCallActionState.ACTION_CANCELING):
+            self.goal_handle = None
+            if status == self.expected_status:
                 self.current_state = ActionCallActionState.DONE
-                set_variable_if_available(future.result().result, self.result_variable, self.result_variable_member_name)
-                self.goal_handle = None
-            elif status == GoalStatus.STATUS_CANCELED:
+                if status == GoalStatus.STATUS_SUCCEEDED:
+                    set_variable_if_available(future.result().result, self.result_variable, self.result_variable_member_name)
+                self.feedback_message = f"Goal {_status_name(status)}."   # pylint: disable= attribute-defined-outside-init
+            else:
                 self.current_state = ActionCallActionState.ERROR
-                self.feedback_message = f"Goal canceled."   # pylint: disable= attribute-defined-outside-init
-                self.goal_handle = None
-            elif status == GoalStatus.STATUS_ABORTED:
-                self.current_state = ActionCallActionState.ERROR
-                self.feedback_message = f"Goal aborted."   # pylint: disable= attribute-defined-outside-init
-                self.goal_handle = None
+                self.feedback_message = (  # pylint: disable= attribute-defined-outside-init
+                    f"Goal {_status_name(status)}, expected {_status_name(self.expected_status)}.")
         else:
             if not self.success_on_acceptance:
                 self.current_state = ActionCallActionState.ERROR
 
+    def request_cancel(self) -> bool:
+        self.cancel_requested = True
+        self._send_cancel()
+        return True
+
+    def _send_cancel(self):
+        """Send the cancel if there is a goal to send it for. Returns the future, or None.
+
+        A cancel can be asked for before the goal has been accepted, and before then there is no
+        handle to cancel. The request is kept and goal_response_callback() calls this again, so a
+        cancel that arrives early still reaches the server instead of being dropped.
+        """
+        if not self.cancel_requested or self.cancel_sent or self.goal_handle is None:
+            return None
+
+        self.cancel_sent = True
+        self.current_state = ActionCallActionState.ACTION_CANCELING
+        self.feedback_message = f"Canceling goal on {self.action_name}."  # pylint: disable= attribute-defined-outside-init
+        return self.goal_handle.cancel_goal_async()
+
     def shutdown(self):
-        if self.goal_handle:
-            future = self.goal_handle.cancel_goal_async()
+        self.cancel_requested = True
+        future = self._send_cancel()
+        if future is not None:
             shutdown_handler = ShutdownHandler.get_instance()
             shutdown_handler.add_future(future)
 
@@ -201,5 +256,11 @@ class RosActionCall(BaseAction):
             else:
                 feedback_message = f"Action {self.action_name} called."
         elif current_state == ActionCallActionState.DONE:
-            feedback_message = f"Action successfully finished."
+            if self.expected_status == GoalStatus.STATUS_SUCCEEDED:
+                feedback_message = f"Action successfully finished."
+            else:
+                # The action passed by ending the way the scenario said it should, which is not the
+                # same as the goal succeeding -- saying "successfully finished" would misreport a
+                # goal that was canceled or aborted on purpose.
+                feedback_message = f"Action finished as expected: goal {_status_name(self.expected_status)}."
         return feedback_message
