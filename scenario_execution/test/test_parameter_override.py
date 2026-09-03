@@ -161,6 +161,51 @@ scenario test:
         self.assertEqual(self.logger.logs_info[4], "False")
         self.assertEqual(self.logger.logs_info[5], "42")
 
+    def test_base_params_bool_override_both_directions(self):
+        """A bool parameter WITH a default, overridden in both directions.
+
+        The pre-existing bool coverage only ever overrides to False, which is the one value that
+        survives storing a Python bool in a BoolLiteral: the literal carries the source spelling and
+        resolves as `value == "true"`, so True resolved False and False resolved False. Overriding
+        to True is the direction that catches it, and a silently inverted bool is worse than a
+        rejected one -- the scenario runs, and takes the other branch.
+        """
+        scenario_content = """
+action log:
+    msg: string
+
+scenario test:
+    with_default: bool = true
+    do serial:
+        log(with_default)
+"""
+        for override, expected in ((True, "True"), (False, "False")):
+            with self.subTest(override=override):
+                self.setUp()
+                self.execute(scenario_content, {"test": {"with_default": override}})
+                self.assertEqual(self.logger.logs_info[2], expected)
+
+    def test_base_params_bool_override_matches_whether_or_not_a_default_exists(self):
+        """The two override paths must agree. A parameter with no default is built by
+        create_override_value_base_literal, one with a default is patched by set_override_value;
+        they took different representations of the same bool, so which branch a scenario hit
+        decided whether its override survived."""
+        scenario_content = """
+action log:
+    msg: string
+
+scenario test:
+    with_default: bool = false
+    without_default: bool
+    do serial:
+        log(with_default)
+        log(without_default)
+"""
+        self.execute(scenario_content,
+                     {"test": {"with_default": True, "without_default": True}})
+        self.assertEqual(self.logger.logs_info[2], "True")
+        self.assertEqual(self.logger.logs_info[3], "True")
+
     def test_base_params_num_in_string(self):
         scenario_content = """
 action log:
