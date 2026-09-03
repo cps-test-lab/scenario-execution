@@ -483,7 +483,12 @@ class OpenScenario2Parser(object):
         if isinstance(param, BoolLiteral):
             if not isinstance(override_value, (bool)):
                 raise ValueError(f"bool expected, found {type(override_value).__name__}")
-            return override_value
+            # A BoolLiteral carries the SOURCE spelling, and BoolLiteral.get_resolved_value()
+            # reads it as `value == "true"`. Storing a Python bool here makes every override
+            # resolve false -- silently, and correctly by accident for `false`. This is the same
+            # form create_override_value_base_literal() builds for a parameter with no default.
+            return "true" if override_value else "false"
+
         elif isinstance(param, FloatLiteral):
             if not isinstance(override_value, (int, float)):
                 raise ValueError(f"float or int expected, found {type(override_value).__name__}")
