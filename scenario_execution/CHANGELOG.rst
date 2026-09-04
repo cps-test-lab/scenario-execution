@@ -2,9 +2,22 @@
 Changelog for package scenario_execution
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
-* Record tick and per-action timing (``--tick-log``)
+1.6.0 (2026-09-04)
+------------------
+* Support the until directive, and the if guard on an event reference (`#88 <https://github.com/cps-test-lab/scenario-execution/issues/88>`_)
+* Cancel a long-running action mid-scenario, not only at teardown (`#85 <https://github.com/cps-test-lab/scenario-execution/issues/85>`_)
+* Keep a bool parameter override true when the parameter has a default (`#86 <https://github.com/cps-test-lab/scenario-execution/issues/86>`_)
+* Record how fast the tree ticked, and which behavior spent the time (`#84 <https://github.com/cps-test-lab/scenario-execution/issues/84>`_)
+* Drop the lexer predicate that defeats ANTLR's DFA cache (`#82 <https://github.com/cps-test-lab/scenario-execution/issues/82>`_)
+* Get latest scenario state (`#81 <https://github.com/cps-test-lab/scenario-execution/issues/81>`_)
+* Extend the introspection interface: get_action_details, describe_scenario, and a standalone MCP server (`#79 <https://github.com/cps-test-lab/scenario-execution/issues/79>`_)
+* add introspection interface (`#75 <https://github.com/cps-test-lab/scenario-execution/issues/75>`_)
+* Tracing (`#76 <https://github.com/cps-test-lab/scenario-execution/issues/76>`_)
+* Feature/process log check (`#74 <https://github.com/cps-test-lab/scenario-execution/issues/74>`_)
+* Contributors: Florian Mirus, fred-labs
+
+1.5.0 (2026-06-14)
+------------------
 * Support step-based simulators
 * Fix for python 3.13 (`#65 <https://github.com/cps-test-lab/scenario-execution/issues/65>`_)
 * support multiple --post-run (`#63 <https://github.com/cps-test-lab/scenario-execution/issues/63>`_)

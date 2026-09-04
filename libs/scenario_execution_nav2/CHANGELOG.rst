@@ -2,10 +2,9 @@
 Changelog for package scenario_execution_nav2
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.5.0 (2026-06-14)
+------------------
 * Follow waypoints (`#62 <https://github.com/cps-test-lab/scenario-execution/issues/62>`_)
-  Updated comments for clarity and modified loop_count to allow zero iterations.
 * Support adding modifiers (`#60 <https://github.com/cps-test-lab/scenario-execution/issues/60>`_)
 * Added follow_waypoints nav2 action (`#61 <https://github.com/cps-test-lab/scenario-execution/issues/61>`_)
 * Contributors: Samuel Wiest, Frederik Pasch

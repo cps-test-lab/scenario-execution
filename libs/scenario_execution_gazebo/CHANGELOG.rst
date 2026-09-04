@@ -2,8 +2,10 @@
 Changelog for package scenario_execution_gazebo
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.6.0 (2026-09-04)
+------------------
+* Tracing (`#76 <https://github.com/cps-test-lab/scenario-execution/issues/76>`_)
+* Contributors: fred-labs
 
 1.4.0 (2025-11-27)
 ------------------

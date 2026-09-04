@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>scenario_execution_mcp</name>
-  <version>1.5.0</version>
+  <version>1.6.0</version>
   <description>Standalone MCP server exposing scenario_execution's introspection module (list-actions, describe) as tools, for a client with no scenario-execution knowledge of its own.</description>
   <author email="fred-labs@mailbox.org">Frederik Pasch</author>
   <maintainer email="fred-labs@mailbox.org">Frederik Pasch</maintainer>
