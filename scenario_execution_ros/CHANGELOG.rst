@@ -2,10 +2,19 @@
 Changelog for package scenario_execution_ros
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
-* Record tick and per-action timing (``--tick-log``)
+1.6.0 (2026-09-04)
+------------------
+* Cancel a long-running action mid-scenario, not only at teardown (`#85 <https://github.com/cps-test-lab/scenario-execution/issues/85>`_)
+* Record how fast the tree ticked, and which behavior spent the time (`#84 <https://github.com/cps-test-lab/scenario-execution/issues/84>`_)
+* Add assert_realtime_factor() to compare the ROS clock against wall time (`#83 <https://github.com/cps-test-lab/scenario-execution/issues/83>`_)
+* Fix check_data comparing messages received before the action starts (`#80 <https://github.com/cps-test-lab/scenario-execution/issues/80>`_)
+* Tracing (`#76 <https://github.com/cps-test-lab/scenario-execution/issues/76>`_)
+* variable parent frame in tf_close_to action (`#72 <https://github.com/cps-test-lab/scenario-execution/issues/72>`_)
 * Fix ``--step-duration`` being ignored: the tick period was always the 0.1s default
+* Contributors: Florian Mirus, fred-labs
+
+1.5.0 (2026-06-14)
+------------------
 * Support step-based simulators
 * Shutdown timeout (`#64 <https://github.com/cps-test-lab/scenario-execution/issues/64>`_)
 * support multiple --post-run (`#63 <https://github.com/cps-test-lab/scenario-execution/issues/63>`_)
