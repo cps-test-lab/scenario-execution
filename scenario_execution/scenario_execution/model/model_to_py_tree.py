@@ -142,6 +142,9 @@ class ModelToPyTree(object):
                 raise ValueError("ModelToPyTree requires a py-tree sequence as input")
             self.tree = tree
             self.__cur_behavior = tree
+            # One entry per subtree currently being built, each holding the `with:` members that
+            # apply to it. A subtree nests, so this is a stack.
+            self.__with_blocks = []
 
         @staticmethod
         def stamp_source(behavior, node):
@@ -169,7 +172,9 @@ class ModelToPyTree(object):
             self.blackboard = self.__cur_behavior.attach_blackboard_client(
                 name="ModelToPyTree")
 
+            self._push_with_block()
             super().visit_scenario_declaration(node)
+            self._apply_with_block(self.__cur_behavior)
 
         def visit_do_member(self, node: DoMember):
             composition_operator = node.composition_operator
@@ -189,7 +194,9 @@ class ModelToPyTree(object):
             parent = self.__cur_behavior
             self.__cur_behavior.add_child(behavior)
             self.__cur_behavior = behavior
+            self._push_with_block()
             self.visit_children(node)
+            self._apply_with_block(behavior)
             self.__cur_behavior = parent
 
         def visit_wait_directive(self, node: WaitDirective):
@@ -233,7 +240,12 @@ class ModelToPyTree(object):
                     missing_args.remove(element)
             return method_args, unexpected_args, missing_args
 
-        def create_decorator(self, node: ModifierDeclaration, resolved_values, invocation=None):
+        def build_decorator(self, node: ModifierDeclaration, resolved_values, child, invocation=None):
+            """Construct the decorator a modifier stands for, wrapping *child*.
+
+            Building and placing are separate: a ``with:`` block is applied as a whole once its
+            subtree is complete, so nothing here touches a parent.
+            """
             # *node* is the modifier's declaration, which for a built-in modifier lives in
             # an imported library -- useless as a source anchor. *invocation* is the call
             # site in the scenario, which is what a reader wants to be pointed at.
@@ -247,73 +259,83 @@ class ModelToPyTree(object):
                 for ep in modifier_eps:
                     if ep.name == node.name:
                         factory = ep.load()
-                        instance = factory(self.__cur_behavior, resolved_values)
+                        instance = factory(child, resolved_values)
                         self.stamp_source(instance, source_node)
-                        parent = self.__cur_behavior.parent
-                        if parent:
-                            parent.children.remove(self.__cur_behavior)
-                        if isinstance(parent, py_trees.composites.Composite):
-                            parent.add_child(instance)
-                        elif isinstance(parent, py_trees.decorators.Decorator):
-                            parent.children.append(instance)
-                            parent.decorated = instance
-                        elif not parent:
-                            instance.name = self.__cur_behavior.name
-                            self.__cur_behavior.parent = instance
-                            self.tree = instance
-                        else:
-                            raise OSC2ParsingError(
-                                msg=f'Modifier "{node.name}" found at unsupported location.', context=node.get_ctx())
-                        return
+                        return instance
                 raise OSC2ParsingError(
                     msg=f'Unknown modifier "{node.name}". Available built-in modifiers: {available_modifiers}. No plugin found either.', context=node.get_ctx())
-            parent = self.__cur_behavior.parent
-            if parent:
-                parent.children.remove(self.__cur_behavior)
             if node.name == "repeat":
-                instance = py_trees.decorators.Repeat(name="repeat", child=self.__cur_behavior, num_success=resolved_values["count"])
+                instance = py_trees.decorators.Repeat(name="repeat", child=child, num_success=resolved_values["count"])
             elif node.name == "inverter":
-                instance = py_trees.decorators.Inverter(name="inverter", child=self.__cur_behavior)
+                instance = py_trees.decorators.Inverter(name="inverter", child=child)
             elif node.name == "timeout":
-                instance = ClockTimeout(name="timeout", child=self.__cur_behavior, duration=resolved_values["duration"])
+                instance = ClockTimeout(name="timeout", child=child, duration=resolved_values["duration"])
             elif node.name == "retry":
-                instance = py_trees.decorators.Retry(name="retry", child=self.__cur_behavior, num_failures=resolved_values["count"])
+                instance = py_trees.decorators.Retry(name="retry", child=child, num_failures=resolved_values["count"])
             elif node.name == "failure_is_running":
-                instance = py_trees.decorators.FailureIsRunning(name="failure_is_running", child=self.__cur_behavior)
+                instance = py_trees.decorators.FailureIsRunning(name="failure_is_running", child=child)
             elif node.name == "failure_is_success":
-                instance = py_trees.decorators.FailureIsSuccess(name="failure_is_success", child=self.__cur_behavior)
+                instance = py_trees.decorators.FailureIsSuccess(name="failure_is_success", child=child)
             elif node.name == "running_is_failure":
-                instance = py_trees.decorators.RunningIsFailure(name="running_is_failure", child=self.__cur_behavior)
+                instance = py_trees.decorators.RunningIsFailure(name="running_is_failure", child=child)
             elif node.name == "running_is_success":
-                instance = py_trees.decorators.RunningIsSuccess(name="running_is_success", child=self.__cur_behavior)
+                instance = py_trees.decorators.RunningIsSuccess(name="running_is_success", child=child)
             elif node.name == "success_is_failure":
-                instance = py_trees.decorators.SuccessIsFailure(name="success_is_failure", child=self.__cur_behavior)
+                instance = py_trees.decorators.SuccessIsFailure(name="success_is_failure", child=child)
             elif node.name == "success_is_running":
-                instance = py_trees.decorators.SuccessIsRunning(name="success_is_running", child=self.__cur_behavior)
+                instance = py_trees.decorators.SuccessIsRunning(name="success_is_running", child=child)
             else:
                 raise ValueError('unknown modifier (should not reach here).')
 
             self.stamp_source(instance, source_node)
+            return instance
+
+        def _push_with_block(self):
+            """Start collecting the ``with:`` members that apply to the subtree about to be built."""
+            self.__with_blocks.append([])
+
+        def _apply_with_block(self, target):
+            """Wrap *target* in what its ``with:`` block collected, and put it in place once.
+
+            Modifiers nest, and the one written last ends up closest to the action, so the block is
+            applied back to front. Building the whole stack before touching the tree is what keeps
+            that order stated here rather than emerging from repeated re-parenting.
+            """
+            modifiers = self.__with_blocks.pop()
+            if not modifiers:
+                return
+            parent = target.parent
+            if parent:
+                parent.children.remove(target)
+                target.parent = None
+
+            wrapped = target
+            for declaration, resolved_values, invocation, error_prefix in reversed(modifiers):
+                try:
+                    wrapped = self.build_decorator(declaration, resolved_values, wrapped, invocation)
+                except ValueError as e:
+                    raise OSC2ParsingError(msg=f'{error_prefix} {e}.', context=invocation.get_ctx()) from e
+
+            name, context = modifiers[0][0].name, modifiers[0][2]
             if isinstance(parent, py_trees.composites.Composite):
-                parent.add_child(instance)
+                parent.add_child(wrapped)
             elif isinstance(parent, py_trees.decorators.Decorator):
-                parent.children.append(instance)
-                parent.decorated = instance
+                parent.children.append(wrapped)
+                parent.decorated = wrapped
+                wrapped.parent = parent
             elif not parent:
-                instance.name = self.__cur_behavior.name  # as name is used for blackboard variables later, use child-name for decorator
-                self.__cur_behavior.parent = instance
-                self.tree = instance
+                # the name is used as a blackboard key later, so the wrapper takes the child's
+                wrapped.name = target.name
+                self.tree = wrapped
             else:
                 raise OSC2ParsingError(
-                    msg=f'Modifier "{node.name}" found at unsupported location.', context=node.get_ctx())
+                    msg=f'Modifier "{name}" found at unsupported location.', context=context.get_ctx())
 
         def visit_behavior_invocation(self, node: BehaviorInvocation):
             if isinstance(node.behavior, ModifierDeclaration):
                 resolved_values = node.get_resolved_value(self.blackboard)
-                try:
-                    self.create_decorator(node.behavior, resolved_values, invocation=node)
-                except ValueError as e:
-                    raise OSC2ParsingError(msg=f'Modifier "{node.behavior.name}" {e}.', context=node.get_ctx()) from e
+                self.__with_blocks[-1].append(
+                    (node.behavior, resolved_values, node, f'Modifier "{node.behavior.name}"'))
             elif isinstance(node.behavior, ActionDeclaration):
                 behavior_name = node.behavior.name
                 available_plugins = []
@@ -418,12 +440,14 @@ class ModelToPyTree(object):
                 self.__cur_behavior.add_child(instance)
                 previous = self.__cur_behavior
                 self.__cur_behavior = instance
+                self._push_with_block()
                 super().visit_behavior_invocation(node)
 
 		# For BaseActionSubtree, check create_subtree method instead of execute
                 create_subtree_method = getattr(behavior_cls, "create_subtree", None)
                 if issubclass(behavior_cls, BaseActionSubtree) and create_subtree_method is not None:
                     create_subtree_method(self.__cur_behavior)
+                self._apply_with_block(instance)
                 self.__cur_behavior = previous
 
         def visit_event_reference(self, node: EventReference):
@@ -477,10 +501,7 @@ class ModelToPyTree(object):
 
         def visit_modifier_invocation(self, node: ModifierInvocation):
             resolved_values = node.get_resolved_value()
-            try:
-                self.create_decorator(node.modifier, resolved_values, invocation=node)
-            except ValueError as e:
-                raise OSC2ParsingError(msg=f'ModifierDeclaration {e}.', context=node.get_ctx()) from e
+            self.__with_blocks[-1].append((node.modifier, resolved_values, node, 'ModifierDeclaration'))
 
         def visit_keep_constraint_declaration(self, node: KeepConstraintDeclaration):
             # skip relation-expression
