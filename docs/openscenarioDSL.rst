@@ -17,12 +17,12 @@ was adapted to be usable by the current parsing support of scenario execution.
 Mapping to py-trees
 -------------------
 
-.. list-table:: 
+.. list-table::
    :widths: 15 25 60
    :header-rows: 1
-   :class: tight-table   
-   
-   - * OpenScenario2  
+   :class: tight-table
+
+   - * OpenScenario2
      * py-trees
      * Comment
    - * ``action``
@@ -51,57 +51,57 @@ In the following the OpenSCENARIO DSL keywords are listed with their current sup
 ======================= ==================== =============================
 Element Tag             Support              Notes
 ======================= ==================== =============================
-``action``              :raw-html:`&#9989;`  partially, see details below      
-``actor``               :raw-html:`&#9989;`  partially, see details below      
-``as``                  :raw-html:`&#10060;`       
-``bool``                :raw-html:`&#9989;`          
-``call``                :raw-html:`&#10060;`       
-``cover``               :raw-html:`&#10060;`       
+``action``              :raw-html:`&#9989;`  partially, see details below
+``actor``               :raw-html:`&#9989;`  partially, see details below
+``as``                  :raw-html:`&#10060;`
+``bool``                :raw-html:`&#9989;`
+``call``                :raw-html:`&#10060;`
+``cover``               :raw-html:`&#10060;`
 ``def``                 :raw-html:`&#9989;`  only ``external``
-``default``             :raw-html:`&#10060;`      
-``do``                  :raw-html:`&#9989;`          
-``elapsed``             :raw-html:`&#9989;`           
-``emit``                :raw-html:`&#9989;`              
-``enum``                :raw-html:`&#9989;`              
-``event``               :raw-html:`&#9989;`              
-``every``               :raw-html:`&#10060;`        
-``expression``          :raw-html:`&#9989;`
-``extend``              :raw-html:`&#10060;`        
-``external``            :raw-html:`&#10060;`      
-``fall``                :raw-html:`&#10060;`          
-``float``               :raw-html:`&#9989;`    
-``global``              :raw-html:`&#9989;`       
-``hard``                :raw-html:`&#10060;`         
-``if``                  :raw-html:`&#10060;`       
-``import``              :raw-html:`&#9989;`    
-``inherits``            :raw-html:`&#9989;`    
-``int``                 :raw-html:`&#9989;`    
-``is``                  :raw-html:`&#10060;`         
-``it``                  :raw-html:`&#9989;`    
-``keep``                :raw-html:`&#9989;`    
-``list``                :raw-html:`&#9989;`    
-``of``                  :raw-html:`&#9989;`        
-``on``                  :raw-html:`&#10060;` 
-``one_of``              :raw-html:`&#9989;`        
-``only``                :raw-html:`&#10060;`      
-``parallel``            :raw-html:`&#9989;`         
-``range``               :raw-html:`&#10060;`        
-``record``              :raw-html:`&#10060;`   
-``remove_default``      :raw-html:`&#10060;`   
-``rise``                :raw-html:`&#10060;`   
-``scenario``            :raw-html:`&#9989;`     
-``serial``              :raw-html:`&#9989;`     
-``SI``                  :raw-html:`&#9989;`     
-``string``              :raw-html:`&#9989;`     
-``struct``              :raw-html:`&#9989;`   
-``type``                :raw-html:`&#9989;`       
-``uint``                :raw-html:`&#9989;`    
-``undefined``           :raw-html:`&#10060;`     
-``unit``                :raw-html:`&#9989;`       
-``until``               :raw-html:`&#10060;`        
-``var``                 :raw-html:`&#9989;`         
-``wait``                :raw-html:`&#9989;`        
-``with``                :raw-html:`&#9989;`        
+``default``             :raw-html:`&#10060;`
+``do``                  :raw-html:`&#9989;`
+``elapsed``             :raw-html:`&#9989;`
+``emit``                :raw-html:`&#9989;`
+``enum``                :raw-html:`&#9989;`
+``event``               :raw-html:`&#9989;`
+``every``               :raw-html:`&#10060;`
+``expression``          :raw-html:`&#10060;` method bodies are ``external`` only
+``extend``              :raw-html:`&#10060;`
+``external``            :raw-html:`&#9989;`  method implementation qualifier
+``fall``                :raw-html:`&#10060;`
+``float``               :raw-html:`&#9989;`
+``global``              :raw-html:`&#9989;`
+``hard``                :raw-html:`&#10060;`
+``if``                  :raw-html:`&#10060;`
+``import``              :raw-html:`&#9989;`
+``inherits``            :raw-html:`&#9989;`
+``int``                 :raw-html:`&#9989;`
+``is``                  :raw-html:`&#9989;`
+``it``                  :raw-html:`&#9989;`
+``keep``                :raw-html:`&#9989;`
+``list``                :raw-html:`&#9989;`
+``of``                  :raw-html:`&#9989;`
+``on``                  :raw-html:`&#10060;`
+``one_of``              :raw-html:`&#9989;`
+``only``                :raw-html:`&#9989;`  method implementation qualifier
+``parallel``            :raw-html:`&#9989;`
+``range``               :raw-html:`&#10060;`
+``record``              :raw-html:`&#10060;`
+``remove_default``      :raw-html:`&#10060;`
+``rise``                :raw-html:`&#10060;`
+``scenario``            :raw-html:`&#9989;`
+``serial``              :raw-html:`&#9989;`
+``SI``                  :raw-html:`&#9989;`
+``string``              :raw-html:`&#9989;`
+``struct``              :raw-html:`&#9989;`
+``type``                :raw-html:`&#9989;`
+``uint``                :raw-html:`&#9989;`
+``undefined``           :raw-html:`&#10060;`
+``unit``                :raw-html:`&#9989;`
+``until``               :raw-html:`&#10060;`
+``var``                 :raw-html:`&#9989;`
+``wait``                :raw-html:`&#9989;`
+``with``                :raw-html:`&#9989;`
 ======================= ==================== =============================
 
 
@@ -113,12 +113,12 @@ Composition types are ``struct``, ``actor``, ``action``, ``scenario``.
 ============== ==================== ===========================
 Element Type   Support              Notes
 ============== ==================== ===========================
-Event          :raw-html:`&#9989;`      
-Field          :raw-html:`&#9989;`     
+Event          :raw-html:`&#9989;`
+Field          :raw-html:`&#9989;`
 Constraint     :raw-html:`&#9989;`  partially
-Method         :raw-html:`&#9989;`       
-Coverage       :raw-html:`&#10060;`       
-Modifier       :raw-html:`&#9989;`  partially (only predefined)     
+Method         :raw-html:`&#9989;`
+Coverage       :raw-html:`&#10060;`
+Modifier       :raw-html:`&#9989;`  partially (only predefined)
 ============== ==================== ===========================
 
 Patterns
