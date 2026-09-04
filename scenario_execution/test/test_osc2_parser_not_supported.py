@@ -163,13 +163,25 @@ modifier test of foo
         parsed_tree = self.parser.parse_input_stream(InputStream(scenario_content))
         self.assertRaises(ValueError, self.parser.create_internal_model, parsed_tree, self.tree, "test.osc")
 
-    def test_until(self):
+    def test_on(self):
         scenario_content = """
 scenario test:
     event ev
+    on @ev:
+        emit end
     do serial:
-        test_action() with:
-            until @ev
+        emit end
+"""
+        parsed_tree = self.parser.parse_input_stream(InputStream(scenario_content))
+        self.assertRaises(ValueError, self.parser.create_internal_model, parsed_tree, self.tree, "test.osc")
+
+    def test_event_condition(self):
+        scenario_content = """
+scenario test:
+    var x: int = 0
+    event ev is x == 1
+    do serial:
+        wait @ev
 """
         parsed_tree = self.parser.parse_input_stream(InputStream(scenario_content))
         self.assertRaises(ValueError, self.parser.create_internal_model, parsed_tree, self.tree, "test.osc")

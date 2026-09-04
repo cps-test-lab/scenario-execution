@@ -48,6 +48,22 @@ scenario test:
         model = self.parse(scenario_content)
         self.tree = create_py_tree(model, self.tree, self.parser.logger, False)
 
+    def test_wait_guarded_event_reference(self):
+        scenario_content = """
+scenario test:
+    event ev
+    var x: int = 0
+    do serial:
+        wait @ev if x == 1
+"""
+        model = self.parse(scenario_content)
+        self.tree = create_py_tree(model, self.tree, self.parser.logger, False)
+        guard = self.tree.children[0].children[0]
+        # Both the event flag and the condition are re-checked every tick, so the guard stays live
+        # after the flag has latched.
+        self.assertFalse(guard.memory)
+        self.assertEqual(2, len(guard.children))
+
     def test_wait_invalid(self):
         scenario_content = """
 type time is SI(s: 1)

@@ -15,7 +15,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-from .types import CompilationUnit, PhysicalTypeDeclaration, UnitDeclaration, EnumDeclaration, EnumMemberDeclaration, EnumValueReference, StructDeclaration, StructInherits, ActionDeclaration, ActionInherits, ActorDeclaration, ActorInherits, FieldAccessExpression,  FloatLiteral, FunctionApplicationExpression, Argument, BehaviorInvocation, BinaryExpression, BoolLiteral, DoDirective, ElapsedExpression, DoMember, EmitDirective,  EventCondition, EventDeclaration, EventFieldDecl, EventReference,  GlobalParameterDeclaration, Identifier, IdentifierReference, IntegerLiteral, KeepConstraintDeclaration,  LogicalExpression, MethodBody, MethodDeclaration, NamedArgument, OnDirective, ParameterDeclaration, PhysicalLiteral, ParameterReference, PositionalArgument,  RelationExpression, ScenarioInherits, SIUnitSpecifier, StringLiteral, ScenarioDeclaration, StructuredTypeExtension,  Type, VariableDeclaration, WaitDirective, ListExpression, ModifierDeclaration, ModifierInvocation
+from .types import CompilationUnit, PhysicalTypeDeclaration, UnitDeclaration, EnumDeclaration, EnumMemberDeclaration, EnumValueReference, StructDeclaration, StructInherits, ActionDeclaration, ActionInherits, ActorDeclaration, ActorInherits, FieldAccessExpression,  FloatLiteral, FunctionApplicationExpression, Argument, BehaviorInvocation, BinaryExpression, BoolLiteral, DoDirective, ElapsedExpression, DoMember, EmitDirective,  EventCondition, EventDeclaration, EventFieldDecl, EventReference,  GlobalParameterDeclaration, Identifier, IdentifierReference, IntegerLiteral, KeepConstraintDeclaration,  LogicalExpression, MethodBody, MethodDeclaration, NamedArgument, ParameterDeclaration, PhysicalLiteral, ParameterReference, PositionalArgument,  RelationExpression, ScenarioInherits, SIUnitSpecifier, StringLiteral, ScenarioDeclaration,  Type, VariableDeclaration, UntilDirective, WaitDirective, ListExpression, ModifierDeclaration, ModifierInvocation
 
 
 from ..osc2_parsing.OpenSCENARIO2Parser import OpenSCENARIO2Parser
@@ -588,27 +588,29 @@ class ModelBuilder(OpenSCENARIO2Listener):  # pylint: disable=too-many-public-me
 
     # Enter a parse tree produced by OpenSCENARIO2Parser#structuredTypeExtension.
     def enterStructuredTypeExtension(self, ctx: OpenSCENARIO2Parser.StructuredTypeExtensionContext):
-        self.__node_stack.append(self.__cur_node)
+        # The extension is built into the model and never merged into the type it names, so a field
+        # added here could not be read back -- the declaration looked accepted and did nothing.
+        raise OSC2ParsingError(msg="structured type extension not yet supported", context=ctx)
+        # self.__node_stack.append(self.__cur_node)
 
-        type_name = None
-        if ctx.extendableTypeName().typeName():
-            type_name = ctx.extendableTypeName().typeName().getText()
-            # Even if a symbol table with the corresponding name is found,
-            # it is necessary to determine whether the extended symbol table matches the original type
+        # type_name = None
+        # if ctx.extendableTypeName().typeName():
+        #     type_name = ctx.extendableTypeName().typeName().getText()
+        #     # Even if a symbol table with the corresponding name is found,
+        #     # it is necessary to determine whether the extended symbol table matches the original type
 
-        # The two ifs here are syntactically mutually exclusive
-        qualified_behavior_name = None
-        if ctx.extendableTypeName().qualifiedBehaviorName():
-            qualified_behavior_name = (
-                ctx.extendableTypeName().qualifiedBehaviorName().getText()
-            )
+        # # The two ifs here are syntactically mutually exclusive
+        # qualified_behavior_name = None
+        # if ctx.extendableTypeName().qualifiedBehaviorName():
+        #     qualified_behavior_name = (
+        #         ctx.extendableTypeName().qualifiedBehaviorName().getText()
+        #     )
 
-        node = StructuredTypeExtension(type_name, qualified_behavior_name)
-        node.set_ctx(ctx, self.current_file)
+        # node = StructuredTypeExtension(type_name, qualified_behavior_name)
+        # node.set_ctx(ctx, self.current_file)
 
-        self.__cur_node.set_children(node)
-        self.__cur_node = node
-
+        # self.__cur_node.set_children(node)
+        # self.__cur_node = node
     # Exit a parse tree produced by OpenSCENARIO2Parser#structuredTypeExtension.
     def exitStructuredTypeExtension(self, ctx: OpenSCENARIO2Parser.StructuredTypeExtensionContext):
         self.__cur_node = self.__node_stack.pop()
@@ -727,6 +729,10 @@ class ModelBuilder(OpenSCENARIO2Listener):  # pylint: disable=too-many-public-me
 
     # Enter a parse tree produced by OpenSCENARIO2Parser#eventDeclaration.
     def enterEventDeclaration(self, ctx: OpenSCENARIO2Parser.EventDeclarationContext):
+        if ctx.eventSpecification():
+            # An event is a blackboard flag that `emit` sets; nothing evaluates a condition attached
+            # to the declaration, so it used to be dropped and `wait @name` then waited forever.
+            raise OSC2ParsingError(msg="event condition not supported yet.", context=ctx)
         self.__node_stack.append(self.__cur_node)
         event_name = ctx.eventName().getText()
 
@@ -1011,10 +1017,13 @@ class ModelBuilder(OpenSCENARIO2Listener):  # pylint: disable=too-many-public-me
 
     # Enter a parse tree produced by OpenSCENARIO2Parser#keepConstraintDeclaration.
     def enterKeepConstraintDeclaration(self, ctx: OpenSCENARIO2Parser.KeepConstraintDeclarationContext):
+        if ctx.constraintQualifier():
+            # The qualifier reached the model and nothing ever read it, so `keep(default ...)` and
+            # `keep(hard ...)` both behaved as a plain keep -- an overridable constraint silently
+            # became a binding one.
+            raise OSC2ParsingError(msg="constraint qualifier not supported yet.", context=ctx)
         self.__node_stack.append(self.__cur_node)
         constraint_qualifier = None
-        if ctx.constraintQualifier():
-            constraint_qualifier = ctx.constraintQualifier().getText()
 
         node = KeepConstraintDeclaration(constraint_qualifier)
         node.set_ctx(ctx, self.current_file)
@@ -1117,12 +1126,16 @@ class ModelBuilder(OpenSCENARIO2Listener):  # pylint: disable=too-many-public-me
 
     # Enter a parse tree produced by OpenSCENARIO2Parser#onDirective.
     def enterOnDirective(self, ctx: OpenSCENARIO2Parser.OnDirectiveContext):
-        self.__node_stack.append(self.__cur_node)
-        node = OnDirective()
-        node.set_ctx(ctx, self.current_file)
+        # The node built fine, but nothing lowered it, so the base visitor descended into the body
+        # and emitted it unconditionally. Refusing is the honest answer until the directive is
+        # implemented: an event handler needs to re-arm, which no composite here does.
+        raise OSC2ParsingError(msg="on directive not supported yet.", context=ctx)
+        # self.__node_stack.append(self.__cur_node)
+        # node = OnDirective()
+        # node.set_ctx(ctx, self.current_file)
 
-        self.__cur_node.set_children(node)
-        self.__cur_node = node
+        # self.__cur_node.set_children(node)
+        # self.__cur_node = node
 
     # Exit a parse tree produced by OpenSCENARIO2Parser#onDirective.
     def exitOnDirective(self, ctx: OpenSCENARIO2Parser.OnDirectiveContext):
@@ -1290,13 +1303,13 @@ class ModelBuilder(OpenSCENARIO2Listener):  # pylint: disable=too-many-public-me
 
     # Enter a parse tree produced by OpenSCENARIO2Parser#untilDirective.
     def enterUntilDirective(self, ctx: OpenSCENARIO2Parser.UntilDirectiveContext):
-        raise OSC2ParsingError(msg=f"until declaration not supported yet.", context=ctx)
-        # self.__node_stack.append(self.__cur_node)
-        # node = UntilDirective()
-        # node.set_ctx(ctx, self.current_file)
+        self.__node_stack.append(self.__cur_node)
 
-        # self.__cur_node.set_children(node)
-        # self.__cur_node = node
+        node = UntilDirective()
+        node.set_ctx(ctx, self.current_file)
+
+        self.__cur_node.set_children(node)
+        self.__cur_node = node
 
     # Exit a parse tree produced by OpenSCENARIO2Parser#untilDirective.
     def exitUntilDirective(self, ctx: OpenSCENARIO2Parser.UntilDirectiveContext):
