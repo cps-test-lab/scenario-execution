@@ -136,6 +136,18 @@ class _CancelAfterBase(py_trees.decorators.Decorator):
         self._cancel_sent = False
         self._cancel_refused = False
 
+    def _cancel_target(self):
+        """The action underneath, looking past any modifiers stacked between us and it.
+
+        Modifiers nest, and the one written last ends up closest to the action, so the decorated
+        child is not necessarily the action itself. Asking the nearest child would make the cancel
+        depend on the order the modifiers happen to be written in.
+        """
+        target = self.decorated
+        while isinstance(target, py_trees.decorators.Decorator):
+            target = target.decorated
+        return target
+
     def _cancel_due(self):
         """Ask the child to stop, once, when its time is up. False if it cannot be cancelled."""
         if self._cancel_refused:
@@ -143,13 +155,14 @@ class _CancelAfterBase(py_trees.decorators.Decorator):
         if self._cancel_sent or self._clock.now() < self._cancel_time:
             return True
 
-        request_cancel = getattr(self.decorated, 'request_cancel', None)
+        target = self._cancel_target()
+        request_cancel = getattr(target, 'request_cancel', None)
         if request_cancel is None or not request_cancel():
             # Not cancellable: a composite, or an action that never implemented it. Saying so is the
             # point -- a cancel that quietly does nothing leaves the scenario reporting on something
             # it never stopped.
             self.feedback_message = (  # pylint: disable= attribute-defined-outside-init
-                f"'{self.decorated.name}' ({self.decorated.__class__.__name__}) cannot be cancelled")
+                f"'{target.name}' ({target.__class__.__name__}) cannot be cancelled")
             self.logger.error(self.feedback_message)
             self._cancel_refused = True
             return False

@@ -120,3 +120,155 @@ Method         :raw-html:`&#9989;`
 Coverage       :raw-html:`&#10060;`       
 Modifier       :raw-html:`&#9989;`  partially (only predefined)     
 ============== ==================== ===========================
+
+Patterns
+--------
+
+Short, working answers to "how do I express this in a scenario", using the subset described above.
+Each entry is a shape that has been run, not a sketch.
+
+This section is meant to grow: add to it whenever a use case takes more than one attempt to express,
+so the next reader finds the answer instead of rediscovering it. Keep the same form -- when to reach
+for it, the scenario, and any caveat that would otherwise be found the hard way.
+
+Stopping a running action
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Stop after a fixed time, and check what came of it
+""""""""""""""""""""""""""""""""""""""""""""""""""
+
+When the cancellation *is* the thing under test -- did the server honor it?
+
+.. code-block:: none
+
+    action_call(action_name: '/backup',
+                action_type: 'nav2_msgs.action.BackUp',
+                data: '{\"target\": {\"x\": 0.5}, \"speed\": 0.5}',
+                expected_status: action_goal_status!canceled) with:
+        cancel_after(0.5s)
+
+The action keeps running just long enough to report its terminal status, and ``expected_status``
+turns that into the assertion. This is the only form that can tell "the goal was canceled" from "the
+server ignored us and finished anyway".
+
+Stop after a fixed time, without checking
+"""""""""""""""""""""""""""""""""""""""""
+
+When the action is scaffolding -- a recording, a background load -- and only the stopping matters.
+
+.. code-block:: none
+
+    one_of:
+        ros_bag_record(topics: ['/scan', '/odom'])
+        wait elapsed(30s)
+
+The timer finishing ends the other branch, and the action is stopped on the way out.
+
+.. caution::
+
+    ``one_of`` cannot report *whether* the action stopped. An action that does not support
+    cancellation is left running until the scenario ends, silently. Use the form above when that
+    distinction matters.
+
+Stop when something happens
+"""""""""""""""""""""""""""
+
+Same shape, with a condition in place of the timer:
+
+.. code-block:: none
+
+    one_of:
+        nav_to_pose(goal_pose: ...)
+        wait_for_data(topic_name: '/obstacle_detected', topic_type: 'std_msgs.msg.Bool')
+
+Stop from another branch
+""""""""""""""""""""""""
+
+When the condition is established elsewhere in the scenario, carry it as an ``event``. The emitting
+branch decides *when*, the waiting branch decides *what it ends*, and neither refers to the other.
+
+.. code-block:: none
+
+    scenario cancel_on_event:
+        event obstacle_detected
+        do parallel:
+            serial:
+                one_of:
+                    nav_to_pose(goal_pose: ...)
+                    wait @obstacle_detected
+                emit end
+            serial:
+                wait_for_data(topic_name: '/obstacle_detected', topic_type: 'std_msgs.msg.Bool')
+                emit obstacle_detected
+
+This is the way to reach across branches. There is no way to name a running action and act on it
+directly, and there should not be: an event goes through the blackboard, so the two branches stay
+independent of each other's structure.
+
+Calling actions
+^^^^^^^^^^^^^^^
+
+Send a second goal while the first is still running
+"""""""""""""""""""""""""""""""""""""""""""""""""""
+
+To exercise a server's preemption, the first call must not block its branch. ``success_on_acceptance``
+finishes it at goal acceptance and leaves the goal running for the second to supersede.
+
+.. code-block:: none
+
+    do parallel:
+        action_call(action_name: '/spin', ..., success_on_acceptance: true)
+        serial:
+            wait elapsed(0.5s)
+            action_call(action_name: '/spin', ...)
+
+The second call waits for the terminal status, so it carries the assertion.
+
+Expect a goal to be rejected or to fail
+"""""""""""""""""""""""""""""""""""""""
+
+``expected_status`` is not only for cancellation. Asserting that a bad goal is refused:
+
+.. code-block:: none
+
+    action_call(action_name: '/compute_path_to_pose',
+                action_type: 'nav2_msgs.action.ComputePathToPose',
+                data: '{...}',
+                expected_status: action_goal_status!aborted)
+
+Inspecting another action
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Wait for a process to log something
+"""""""""""""""""""""""""""""""""""
+
+Label the process, then name the label:
+
+.. code-block:: none
+
+    do serial:
+        app: run_process('./server')
+        process_log_check('app', ['Ready'])
+
+Combining modifiers
+^^^^^^^^^^^^^^^^^^^
+
+Modifiers stack, and they nest: the one written **last** ends up closest to the action.
+
+.. code-block:: none
+
+    run_process('./load-generator') with:
+        cancel_after(30s)
+        failure_is_success()
+
+``cancel_after`` stops the process and reports what the process made of that -- a failure, since it
+was killed -- and ``failure_is_success()`` turns that into the verdict the scenario wants.
+
+Things that are usually looked for first
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The keyword table above is the full answer, but two absences send people looking for a pattern that
+does not exist. There is no conditional branch: ``if`` is unsupported, and choosing between two
+courses of action is expressed by which branch of a ``one_of`` finishes first. And ``emit end`` /
+``emit fail`` end the whole scenario rather than the branch they appear in -- to end one branch, let
+it finish.
