@@ -22,7 +22,7 @@ from importlib.metadata import entry_points
 import inspect
 
 from scenario_execution.model.types import KeepConstraintDeclaration, visit_expression, ActionDeclaration, BinaryExpression, EventReference, Expression, FunctionApplicationExpression, ModifierInvocation, ScenarioDeclaration, DoMember, WaitDirective, EmitDirective, BehaviorInvocation, EventCondition, EventDeclaration, RelationExpression, LogicalExpression, ElapsedExpression, PhysicalLiteral, ModifierDeclaration
-from scenario_execution.clock_behaviors import ClockTimer, ClockTimeout, CancelAfter, SucceedAfter
+from scenario_execution.clock_behaviors import ClockTimer, ClockTimeout
 from scenario_execution.model.model_base_visitor import ModelBaseVisitor
 from scenario_execution.model.error import OSC2ParsingError
 from scenario_execution.actions.base_action import BaseAction
@@ -238,7 +238,7 @@ class ModelToPyTree(object):
             # an imported library -- useless as a source anchor. *invocation* is the call
             # site in the scenario, which is what a reader wants to be pointed at.
             source_node = invocation if invocation is not None else node
-            available_modifiers = ["repeat", "inverter", "timeout", "retry", "cancel_after", "succeed_after",
+            available_modifiers = ["repeat", "inverter", "timeout", "retry",
                                    "failure_is_running", "failure_is_success",
                                    "running_is_failure", "running_is_success", "success_is_failure", "success_is_running"]
             if node.name not in available_modifiers:
@@ -276,10 +276,6 @@ class ModelToPyTree(object):
                 instance = py_trees.decorators.Inverter(name="inverter", child=self.__cur_behavior)
             elif node.name == "timeout":
                 instance = ClockTimeout(name="timeout", child=self.__cur_behavior, duration=resolved_values["duration"])
-            elif node.name == "cancel_after":
-                instance = CancelAfter(name="cancel_after", child=self.__cur_behavior, duration=resolved_values["duration"])
-            elif node.name == "succeed_after":
-                instance = SucceedAfter(name="succeed_after", child=self.__cur_behavior, duration=resolved_values["duration"])
             elif node.name == "retry":
                 instance = py_trees.decorators.Retry(name="retry", child=self.__cur_behavior, num_failures=resolved_values["count"])
             elif node.name == "failure_is_running":

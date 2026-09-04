@@ -30,7 +30,7 @@ from scenario_execution.utils.logging import Logger
 
 
 class TestCancel(unittest.TestCase):
-    """Mid-scenario cancellation: the cancel_after/succeed_after modifiers, and terminate()."""
+    """Stopping an action that a branch abandoned, and cancelling on a signal from elsewhere."""
     # pylint: disable=missing-function-docstring
 
     def setUp(self) -> None:
@@ -77,85 +77,6 @@ class TestCancel(unittest.TestCase):
         self.tmp_files.append(script.name)
         os.chmod(script.name, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
         return script.name
-
-    #########
-    # cancel_after
-    #########
-
-    def test_cancel_after_stops_the_action(self):
-        marker = self.marker_path()
-        self.execute("""
-import osc.helpers
-
-scenario test:
-    timeout(20s)
-    do serial:
-        run_process('""" + self.sleep_then_touch(marker, 10) + """') with:
-            cancel_after(1s)
-""")
-        # The process is killed, so run_process reports the non-zero exit and the branch fails.
-        # cancel_after passes that verdict through -- that is the whole point of it.
-        self.assertFalse(self.scenario_execution.process_results())
-        self.assertFalse(os.path.exists(marker), "process outlived its cancel")
-
-    def test_cancel_after_longer_than_the_action_does_not_fire(self):
-        marker = self.marker_path()
-        self.execute("""
-import osc.helpers
-
-scenario test:
-    timeout(20s)
-    do serial:
-        run_process('""" + self.sleep_then_touch(marker, 1) + """') with:
-            cancel_after(15s)
-""")
-        self.assertTrue(self.scenario_execution.process_results())
-        self.assertTrue(os.path.exists(marker), "process was cancelled although it had time to finish")
-
-    def test_cancel_after_on_a_non_cancellable_action_fails(self):
-        # log() has no request_cancel(). A cancel that quietly did nothing would let this pass.
-        self.execute("""
-import osc.helpers
-
-scenario test:
-    timeout(20s)
-    do serial:
-        log('hello') with:
-            cancel_after(0s)
-""")
-        self.assertFalse(self.scenario_execution.process_results())
-
-    #########
-    # succeed_after
-    #########
-
-    def test_succeed_after_stops_the_action_and_succeeds(self):
-        marker = self.marker_path()
-        self.execute("""
-import osc.helpers
-
-scenario test:
-    timeout(20s)
-    do serial:
-        run_process('""" + self.sleep_then_touch(marker, 10) + """') with:
-            succeed_after(1s)
-""")
-        self.assertTrue(self.scenario_execution.process_results())
-        self.assertFalse(os.path.exists(marker), "process outlived its cancel")
-
-    def test_succeed_after_passes_through_an_early_failure(self):
-        # Ends well inside the window with a non-zero exit: it did not do what was asked, so
-        # succeed_after must not paper over it.
-        self.execute("""
-import osc.helpers
-
-scenario test:
-    timeout(20s)
-    do serial:
-        run_process('false') with:
-            succeed_after(15s)
-""")
-        self.assertFalse(self.scenario_execution.process_results())
 
     #########
     # cancelling on a condition, the OpenSCENARIO way

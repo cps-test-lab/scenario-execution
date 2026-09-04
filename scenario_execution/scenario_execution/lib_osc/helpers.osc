@@ -69,16 +69,6 @@ modifier timeout:
     # modifier to set a timeout for a subtree
     duration: time                       # time to wait
 
-modifier cancel_after:
-    # modifier to cancel a running action after a delay. The action then reports its own outcome, so
-    # a scenario can assert what the cancellation led to. Fails if the action cannot be cancelled.
-    duration: time                       # time to wait before cancelling
-
-modifier succeed_after:
-    # modifier to stop a running action after a delay and report success, for running something a
-    # fixed length of time. Fails if the action cannot be cancelled, or if it ends early by itself.
-    duration: time                       # time to run before stopping the action
-
 modifier failure_is_running
     # don't stop running
 

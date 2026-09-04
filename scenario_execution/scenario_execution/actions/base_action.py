@@ -55,9 +55,9 @@ class BaseAction(py_trees.behaviour.Behaviour):
         cancelled", and callers turn that into a failure: a cancel that silently does nothing would
         let a scenario pass while the thing it meant to stop kept running.
 
-        Must be idempotent. An action can be asked to cancel through several routes at once --
-        cancel_after, cancel_action, terminate() on an invalidated branch, and shutdown() at
-        teardown -- and more than one of them can fire for the same stop.
+        Must be idempotent. An action can be asked to stop through more than one route for the
+        same stop -- terminate() on an invalidated branch, shutdown() at teardown, and whatever the
+        action itself offers.
         """
         return False
 

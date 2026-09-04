@@ -52,6 +52,7 @@ action action_call:
     result_variable: string = ""         # variable to store the response in
     result_member_name: string = ""      # if not empty, only the value of the member is stored within the variable
     expected_status: action_goal_status = action_goal_status!succeeded # terminal goal status to accept as success. Set it to canceled to assert that a cancellation was honoured. Cannot be combined with success_on_acceptance.
+    cancel_after: time = -1s             # if not negative, cancel the goal this long after it is sent and wait for the terminal status. 0s cancels as soon as the goal is accepted.
 
 action assert_lifecycle_state:
     # Checks for the state of a lifecycle-managed node.

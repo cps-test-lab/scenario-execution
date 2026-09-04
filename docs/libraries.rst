@@ -494,7 +494,7 @@ Modifier to retry a sub-tree until it succeeds.
 
 ``timeout()``
 """""""""""""
-Modifier to set a timeout for a sub-tree. When the time is up the action is canceled and ``failure`` is reported.
+Modifier to set a timeout for a sub-tree. When the time is up the action is canceled and ``failure`` is reported. The action is stopped, but its own outcome is discarded -- to cancel a ROS action *and* assert how it ended, use ``action_call()``'s ``cancel_after`` and ``expected_status`` instead.
 
 .. list-table:: 
    :widths: 15 15 5 65
@@ -509,74 +509,6 @@ Modifier to set a timeout for a sub-tree. When the time is up the action is canc
      - ``time``
      - 
      - Time to wait
-
-``cancel_after()``
-""""""""""""""""""
-Modifier to cancel a running action after a delay. The action keeps running afterwards just long enough to report its own outcome, so the scenario can assert what the cancellation led to -- with ``action_call()``, pair it with ``expected_status: action_goal_status!canceled`` to require that the server honored the cancel. Reports ``failure`` if the action does not support cancellation.
-
-Use ``succeed_after()`` instead when the point is to run something for a fixed length of time rather than to observe how it ends.
-
-.. list-table:: 
-   :widths: 15 15 5 65
-   :header-rows: 1
-   :class: tight-table   
-
-   * - Parameter
-     - Type
-     - Default
-     - Description
-   * - ``duration``
-     - ``time``
-     - 
-     - Time to wait before canceling the action
-
-``succeed_after()``
-"""""""""""""""""""
-Modifier to stop a running action after a delay and report ``success``, for running something a fixed length of time -- a recording, a background load generator. Reports ``failure`` if the action does not support cancellation, or if it ends by itself before the time is up.
-
-.. list-table:: 
-   :widths: 15 15 5 65
-   :header-rows: 1
-   :class: tight-table   
-
-   * - Parameter
-     - Type
-     - Default
-     - Description
-   * - ``duration``
-     - ``time``
-     - 
-     - Time to run before stopping the action
-
-.. note::
-
-   ``timeout()``, ``cancel_after()`` and ``succeed_after()`` all stop the action they decorate; they differ only in what the branch then reports -- ``failure``, the action's own outcome, and ``success`` respectively. An action reports whether it can be canceled at all, and the three modifiers fail on one that cannot rather than silently leaving it running.
-
-   These three cancel on a clock. To cancel when something *happens* instead, put the action and the condition in a ``one_of``: whichever finishes first ends the other branch, and the action is stopped on its way out.
-
-   .. code-block:: none
-
-      one_of:
-          nav_to_pose(goal_pose: ...)
-          wait_for_data(topic_name: '/obstacle_detected', topic_type: 'std_msgs.msg.Bool')
-
-   When the condition is established somewhere else in the scenario, carry it as an ``event``. The
-   emitting branch decides *when*, the waiting branch decides *what it ends*, and neither refers to
-   the other:
-
-   .. code-block:: none
-
-      scenario cancel_on_event:
-          event obstacle_detected
-          do parallel:
-              serial:
-                  one_of:
-                      nav_to_pose(goal_pose: ...)
-                      wait @obstacle_detected
-                  emit end
-              serial:
-                  wait_for_data(topic_name: '/obstacle_detected', topic_type: 'std_msgs.msg.Bool')
-                  emit obstacle_detected
 
 ``failure_is_running()``
 """"""""""""""""""""""""
@@ -1492,7 +1424,11 @@ Call a ROS action and wait for the result.
    * - ``expected_status``
      - ``action_goal_status``
      - ``action_goal_status!succeeded``
-     - Terminal goal status to accept as success, one of ``succeeded``, ``canceled``, ``aborted``. Any other status fails the action. Set it to ``canceled`` to assert that a cancellation was honored, e.g. together with the ``cancel_after()`` modifier. Cannot be combined with ``success_on_acceptance``, which finishes the action before the goal reaches any status.
+     - Terminal goal status to accept as success, one of ``succeeded``, ``canceled``, ``aborted``. Any other status fails the action. Set it to ``canceled`` to assert that a cancellation was honored, together with ``cancel_after``. Cannot be combined with ``success_on_acceptance``, which finishes the action before the goal reaches any status.
+   * - ``cancel_after``
+     - ``time``
+     - ``-1s``
+     - If not negative, cancel the goal this long after it is sent. The action then waits for the terminal status rather than ending, so ``expected_status`` can assert what the cancellation led to. ``0s`` cancels as soon as the goal is accepted.
 
 ``assert_lifecycle_state()``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^

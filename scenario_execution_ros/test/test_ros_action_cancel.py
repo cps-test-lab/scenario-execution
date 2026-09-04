@@ -118,8 +118,8 @@ import osc.ros
 scenario test:
     timeout(30s)
     do serial:
-        action_call(""" + self.ACTION + """, expected_status: action_goal_status!canceled) with:
-            cancel_after(1s)
+        action_call(""" + self.ACTION + """, cancel_after: 1s,
+                    expected_status: action_goal_status!canceled)
 """)
         self.assertTrue(self.cancel_seen.wait(timeout=5), "no cancel reached the action server")
         self.assertTrue(self.scenario_execution_ros.process_results())
@@ -135,8 +135,7 @@ import osc.ros
 scenario test:
     timeout(30s)
     do serial:
-        action_call(""" + self.ACTION + """) with:
-            cancel_after(1s)
+        action_call(""" + self.ACTION + """, cancel_after: 1s)
 """)
         self.assertTrue(self.cancel_seen.wait(timeout=5), "no cancel reached the action server")
         self.assertFalse(self.scenario_execution_ros.process_results())

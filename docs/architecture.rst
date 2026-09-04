@@ -76,6 +76,33 @@ Modules
 - ``tools/scenario_status``: Publish the current scenario status on a topic (e.g. to be capture within a ROS bag).
 
 
+Action Lifecycle
+----------------
+
+Every action is a py-trees behavior (``BaseAction``), so the tree owns when it runs, when it stops,
+and what it is allowed to assume in between.
+
+**A tick is shared.** ``update()`` is called once per tick for every action currently running, in
+every branch, on one thread. Blocking there stalls the whole scenario, so a long operation is
+started and then polled across ticks rather than waited for. Actions that must clean up
+asynchronously hand a future to ``ShutdownHandler`` instead of blocking on it.
+
+**Stopping is not the same as finishing.** py-trees calls ``terminate(new_status)`` when a behavior
+stops, and ``INVALID`` means the branch was abandoned rather than completed -- a losing ``one_of``
+child, or one the ``timeout`` modifier gave up on. An action whose effect outlives the tick, such as
+a goal a robot is still driving or a process still running, has to end that effect there; otherwise
+the branch ends while the effect continues to the end of the scenario. ``BaseAction.terminate()``
+does this centrally by calling ``request_cancel()``, which an action overrides to stop whatever it
+started, and which reports ``False`` when it cannot.
+
+**Actions do not reference each other.** There is no way for one action to reach another and act on
+it, by name or otherwise. Coordination between branches goes through the blackboard, which at the
+DSL surface is ``event`` / ``emit`` / ``wait @``: one branch decides when to signal, another decides
+what the signal ends, and neither depends on the other's structure or on the order the branches were
+written in. This is what keeps composition predictable -- an action's behavior follows from its own
+subtree, not from what a sibling elsewhere chose to do to it.
+
+
 Step-based Simulation
 ---------------------
 

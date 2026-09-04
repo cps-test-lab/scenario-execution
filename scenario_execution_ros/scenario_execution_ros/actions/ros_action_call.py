@@ -25,6 +25,7 @@ from rosidl_runtime_py.set_message import set_message_fields
 import py_trees  # pylint: disable=import-error
 from action_msgs.msg import GoalStatus
 from scenario_execution.actions.base_action import BaseAction, ActionError
+from scenario_execution.simulation import Clock, WallClock
 from scenario_execution import ShutdownHandler
 from scenario_execution.model.types import VariableReference
 from scenario_execution_ros.actions.conversions import get_ros_message_type, set_variable_if_available
@@ -61,7 +62,7 @@ class RosActionCall(BaseAction):
     """
 
     def __init__(self, action_name: str, action_type: str, success_on_acceptance: bool = False, transient_local: bool = False,
-                 expected_status=("succeeded", GoalStatus.STATUS_SUCCEEDED)):
+                 expected_status=("succeeded", GoalStatus.STATUS_SUCCEEDED), cancel_after: float = -1.0):
         super().__init__(resolve_variable_reference_arguments_in_execute=False)
         self.node = None
         self.client = None
@@ -81,6 +82,12 @@ class RosActionCall(BaseAction):
         # An osc enum arrives as (name, value); the enum's values are the GoalStatus constants, so
         # the comparison in get_result_callback() is against the status the server actually reports.
         self.expected_status = expected_status[1] if isinstance(expected_status, tuple) else expected_status
+        #: Negative disables it. The goal is cancelled this long after it is sent, and the action
+        #: then waits for the terminal status instead of ending, which is what lets expected_status
+        #: assert that the cancellation was honoured.
+        self.cancel_after = cancel_after
+        self.cancel_deadline = None
+        self.clock: Clock = WallClock()
         #: A cancel can be asked for before there is a goal to cancel, so the request is recorded
         #: here and _send_cancel() acts on it as soon as the goal is accepted.
         self.cancel_requested = False
@@ -91,6 +98,7 @@ class RosActionCall(BaseAction):
         Setup ROS2 node and action client
 
         """
+        self.clock = kwargs.get('clock', WallClock())
         try:
             self.node: Node = kwargs['node']
         except KeyError as e:
@@ -129,6 +137,7 @@ class RosActionCall(BaseAction):
 
         self.cancel_requested = False
         self.cancel_sent = False
+        self.cancel_deadline = None
         self.current_state = ActionCallActionState.IDLE
 
     def parse_data(self, data):
@@ -144,6 +153,9 @@ class RosActionCall(BaseAction):
         Execute states
         """
         self.logger.debug(f"Current State {self.current_state}")
+        if self.cancel_deadline is not None and self.clock.now() >= self.cancel_deadline:
+            self.cancel_deadline = None
+            self.request_cancel()
         result = py_trees.common.Status.FAILURE
         if self.current_state == ActionCallActionState.IDLE:
             if self.client.wait_for_server(0.0):
@@ -155,6 +167,8 @@ class RosActionCall(BaseAction):
                 self.send_goal_future.cancel()
             self.send_goal_future = self.client.send_goal_async(self.get_goal_msg(), feedback_callback=self.feedback_callback)
             self.send_goal_future.add_done_callback(self.goal_response_callback)
+            if self.cancel_after >= 0:
+                self.cancel_deadline = self.clock.now() + self.cancel_after
             result = py_trees.common.Status.RUNNING
         elif self.current_state == ActionCallActionState.ACTION_CALLED:
             result = py_trees.common.Status.RUNNING
