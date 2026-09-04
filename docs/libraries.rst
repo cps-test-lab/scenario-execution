@@ -494,7 +494,7 @@ Modifier to retry a sub-tree until it succeeds.
 
 ``timeout()``
 """""""""""""
-Modifier to set a timeout for a sub-tree.
+Modifier to set a timeout for a sub-tree. When the time is up the action is canceled and ``failure`` is reported. The action is stopped, but its own outcome is discarded -- to cancel a ROS action *and* assert how it ended, use ``action_call()``'s ``cancel_after`` and ``expected_status`` instead.
 
 .. list-table:: 
    :widths: 15 15 5 65
@@ -1409,6 +1409,26 @@ Call a ROS action and wait for the result.
      - ``bool``
      - ``false``
      -  succeed on goal acceptance
+   * - ``transient_local``
+     - ``bool``
+     - ``false``
+     - If true, the result service uses a transient-local QoS profile
+   * - ``result_variable``
+     - ``string``
+     - ``""``
+     - Variable to store the result in
+   * - ``result_member_name``
+     - ``string``
+     - ``""``
+     - If not empty, only the value of this member is stored within the variable
+   * - ``expected_status``
+     - ``action_goal_status``
+     - ``action_goal_status!succeeded``
+     - Terminal goal status to accept as success, one of ``succeeded``, ``canceled``, ``aborted``. Any other status fails the action. Set it to ``canceled`` to assert that a cancellation was honored, together with ``cancel_after``. Cannot be combined with ``success_on_acceptance``, which finishes the action before the goal reaches any status.
+   * - ``cancel_after``
+     - ``time``
+     - ``-1s``
+     - If not negative, cancel the goal this long after it is sent. The action then waits for the terminal status rather than ending, so ``expected_status`` can assert what the cancellation led to. ``0s`` cancels as soon as the goal is accepted.
 
 ``assert_lifecycle_state()``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^

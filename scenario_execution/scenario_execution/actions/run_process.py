@@ -19,6 +19,7 @@ import subprocess  # nosec B404
 from threading import Thread, Lock
 from collections import deque
 import signal
+import time
 from scenario_execution.actions.base_action import BaseAction
 import os
 
@@ -56,6 +57,11 @@ class RunProcess(BaseAction):
         self.output = deque()
         self.output_lock = Lock()
         self.process_registry = None
+        #: Set once a cancel has been asked for. The signal cannot always be sent at that moment --
+        #: a cancel can arrive before the process is spawned -- so update() carries it out.
+        self.cancel_requested = False
+        self.cancel_signal_sent = False
+        self.cancel_kill_deadline = None
 
     def setup(self, **kwargs):
         self.process_registry = kwargs.get('process_registry')
@@ -69,6 +75,47 @@ class RunProcess(BaseAction):
         self.shutdown_timeout = shutdown_timeout
         self.shutdown_signal = shutdown_signal[1]
         self.executed = False
+        self.cancel_requested = False
+        self.cancel_signal_sent = False
+        self.cancel_kill_deadline = None
+
+    def request_cancel(self) -> bool:
+        """Stop the process before it exits on its own.
+
+        Unlike shutdown(), this must not block: it runs inside a tick, and waiting here would stall
+        every other branch of the scenario. The signal is sent, and _apply_cancel() escalates to
+        SIGKILL on a later tick if the process ignores it -- the same two-stage stop shutdown()
+        performs, spread across ticks instead of blocking in one.
+        """
+        self.cancel_requested = True
+        self._apply_cancel()
+        return True
+
+    def _apply_cancel(self):
+        """Carry out a requested cancel as far as the current tick allows.
+
+        Called from request_cancel() and again from update(), because a cancel can arrive before
+        there is a process to signal -- on the very tick that spawns it. Signalling only at request
+        time would drop the cancel entirely.
+        """
+        if not self.cancel_requested or self.process is None or self.process.poll() is not None:
+            return
+
+        try:
+            pgid = os.getpgid(self.process.pid)
+            if not self.cancel_signal_sent:
+                self.logger.info(f'Cancel requested, sending {signal.Signals(self.shutdown_signal).name} to process...')
+                os.killpg(pgid, self.shutdown_signal)
+                self.cancel_signal_sent = True
+                self.cancel_kill_deadline = time.time() + (self.shutdown_timeout or 0)
+            elif self.cancel_kill_deadline is not None and time.time() >= self.cancel_kill_deadline:
+                self.logger.info('Process ignored the shutdown signal, sending SIGKILL...')
+                os.killpg(pgid, signal.SIGKILL)
+                self.cancel_kill_deadline = None
+        except ProcessLookupError:
+            # Exited between the poll above and the signal. Nothing left to stop.
+            self.cancel_signal_sent = True
+            self.cancel_kill_deadline = None
 
     def update(self) -> py_trees.common.Status:
         """
@@ -143,6 +190,8 @@ class RunProcess(BaseAction):
         if self.process is None:
             self.process = None
             return py_trees.common.Status.FAILURE
+
+        self._apply_cancel()
 
         ret = self.process.poll()
 

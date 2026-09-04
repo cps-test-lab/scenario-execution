@@ -238,7 +238,8 @@ class ModelToPyTree(object):
             # an imported library -- useless as a source anchor. *invocation* is the call
             # site in the scenario, which is what a reader wants to be pointed at.
             source_node = invocation if invocation is not None else node
-            available_modifiers = ["repeat", "inverter", "timeout", "retry", "failure_is_running", "failure_is_success",
+            available_modifiers = ["repeat", "inverter", "timeout", "retry",
+                                   "failure_is_running", "failure_is_success",
                                    "running_is_failure", "running_is_success", "success_is_failure", "success_is_running"]
             if node.name not in available_modifiers:
                 # fall back to installed modifier plugins
