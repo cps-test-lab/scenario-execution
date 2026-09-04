@@ -21,7 +21,7 @@ from py_trees.common import Access, Status
 from importlib.metadata import entry_points
 import inspect
 
-from scenario_execution.model.types import KeepConstraintDeclaration, visit_expression, ActionDeclaration, BinaryExpression, EventReference, Expression, FunctionApplicationExpression, ModifierInvocation, ScenarioDeclaration, DoMember, WaitDirective, EmitDirective, BehaviorInvocation, EventCondition, EventDeclaration, RelationExpression, LogicalExpression, ElapsedExpression, PhysicalLiteral, ModifierDeclaration
+from scenario_execution.model.types import KeepConstraintDeclaration, visit_expression, ActionDeclaration, BinaryExpression, EventReference, Expression, FunctionApplicationExpression, ModifierInvocation, ScenarioDeclaration, DoMember, UntilDirective, WaitDirective, EmitDirective, BehaviorInvocation, EventCondition, EventDeclaration, RelationExpression, LogicalExpression, ElapsedExpression, PhysicalLiteral, ModifierDeclaration
 from scenario_execution.clock_behaviors import ClockTimer, ClockTimeout
 from scenario_execution.model.model_base_visitor import ModelBaseVisitor
 from scenario_execution.model.error import OSC2ParsingError
@@ -199,16 +199,36 @@ class ModelToPyTree(object):
             self._apply_with_block(behavior)
             self.__cur_behavior = parent
 
+        def condition_behavior(self, node, directive):
+            """The behaviour a ``wait`` or an ``until`` waits on, from its event specification.
+
+            An event reference, a condition, or -- written as ``@event if <condition>`` -- both, in
+            which case the two are checked together on every tick. ``memory=False`` is what keeps
+            the guard live: an event is a flag that stays set once emitted, so a Sequence with
+            memory would latch on it and stop re-checking the condition beside it.
+            """
+            children = list(node.get_children())  # a generator, and it is walked twice below
+            if not children or not all(isinstance(child, (EventCondition, EventReference)) for child in children):
+                raise OSC2ParsingError(msg=f"Invalid {directive} directive.", context=node.get_ctx())
+
+            behaviors = [self.visit(child) for child in children]
+            if len(behaviors) == 1:
+                return behaviors[0]
+
+            guarded = py_trees.composites.Sequence(name=f"{directive} guarded", memory=False)
+            for behavior in behaviors:
+                guarded.add_child(behavior)
+            return guarded
+
         def visit_wait_directive(self, node: WaitDirective):
-            child = node.get_only_child()
+            behavior = self.condition_behavior(node, "wait")
+            self.stamp_source(behavior, node)
+            self.__cur_behavior.add_child(behavior)
 
-            if isinstance(child, (EventCondition, EventReference)):
-                behavior = self.visit(child)
-
-                self.stamp_source(behavior, node)
-                self.__cur_behavior.add_child(behavior)
-            else:
-                raise OSC2ParsingError(msg="Invalid wait directive.", context=node.get_ctx())
+        def visit_until_directive(self, node: UntilDirective):
+            behavior = self.condition_behavior(node, "until")
+            self.stamp_source(behavior, node)
+            self.__with_blocks[-1][1].append((behavior, node))
 
         def visit_emit_directive(self, node: EmitDirective):
             if node.event_name in ['start', 'end', 'fail']:
@@ -292,7 +312,7 @@ class ModelToPyTree(object):
 
         def _push_with_block(self):
             """Start collecting the ``with:`` members that apply to the subtree about to be built."""
-            self.__with_blocks.append([])
+            self.__with_blocks.append(([], []))
 
         def _apply_with_block(self, target):
             """Wrap *target* in what its ``with:`` block collected, and put it in place once.
@@ -301,8 +321,8 @@ class ModelToPyTree(object):
             applied back to front. Building the whole stack before touching the tree is what keeps
             that order stated here rather than emerging from repeated re-parenting.
             """
-            modifiers = self.__with_blocks.pop()
-            if not modifiers:
+            modifiers, untils = self.__with_blocks.pop()
+            if not modifiers and not untils:
                 return
             parent = target.parent
             if parent:
@@ -316,7 +336,23 @@ class ModelToPyTree(object):
                 except ValueError as e:
                     raise OSC2ParsingError(msg=f'{error_prefix} {e}.', context=invocation.get_ctx()) from e
 
-            name, context = modifiers[0][0].name, modifiers[0][2]
+            if untils:
+                # `until` is not a modifier -- it bounds the whole invocation -- so it ends up
+                # outside every one of them, however the block was written. The target is added
+                # first so it ticks before the conditions, and any condition reaching SUCCESS ends
+                # the branch: several `until` directives are the disjunction the standard asks for.
+                bounded = py_trees.composites.Parallel(
+                    name="until", policy=py_trees.common.ParallelPolicy.SuccessOnOne())
+                bounded.add_child(wrapped)
+                for condition, _ in untils:
+                    bounded.add_child(condition)
+                self.stamp_source(bounded, untils[0][1])
+                wrapped = bounded
+
+            if modifiers:
+                name, context = modifiers[0][0].name, modifiers[0][2]
+            else:
+                name, context = 'until', untils[0][1]
             if isinstance(parent, py_trees.composites.Composite):
                 parent.add_child(wrapped)
             elif isinstance(parent, py_trees.decorators.Decorator):
@@ -334,7 +370,7 @@ class ModelToPyTree(object):
         def visit_behavior_invocation(self, node: BehaviorInvocation):
             if isinstance(node.behavior, ModifierDeclaration):
                 resolved_values = node.get_resolved_value(self.blackboard)
-                self.__with_blocks[-1].append(
+                self.__with_blocks[-1][0].append(
                     (node.behavior, resolved_values, node, f'Modifier "{node.behavior.name}"'))
             elif isinstance(node.behavior, ActionDeclaration):
                 behavior_name = node.behavior.name
@@ -501,7 +537,7 @@ class ModelToPyTree(object):
 
         def visit_modifier_invocation(self, node: ModifierInvocation):
             resolved_values = node.get_resolved_value()
-            self.__with_blocks[-1].append((node.modifier, resolved_values, node, 'ModifierDeclaration'))
+            self.__with_blocks[-1][0].append((node.modifier, resolved_values, node, 'ModifierDeclaration'))
 
         def visit_keep_constraint_declaration(self, node: KeepConstraintDeclaration):
             # skip relation-expression
