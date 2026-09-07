@@ -80,6 +80,35 @@ scenario test:
         self.execute(scenario_content)
         self.assertTrue(self.scenario_execution_ros.process_results())
 
+    def test_empty_argument_value_does_not_abort_the_launch(self):
+        """An explicitly empty argument value must be omitted from the `ros2 launch`
+        command line rather than passed on as `key:=` -- there is no launch-CLI syntax
+        for overriding an argument with an empty string, so appending it aborts the
+        whole launch process before the launch file runs at all. That failure is silent
+        from the scenario's point of view: this pins it by asserting the launch actually
+        starts and succeeds despite the empty override, the same way test_success does
+        for the non-empty case.
+        """
+        scenario_content = """
+import osc.helpers
+import osc.ros
+import osc.os
+
+scenario test:
+    timeout(10s)
+    do serial:
+        ros_launch('scenario_execution_ros_test', 'test_launch.py', [
+            key_value(key: 'test_param', value: '""" + self.tmp_dir.name + """'),
+            key_value(key: 'test_path', value: '""" + self.tmp_dir.name + """'),
+            key_value(key: 'timeout', value: '')
+        ])
+        check_file_exists(file_name: '""" + self.tmp_dir.name + '/test_started' + """')
+        check_file_exists(file_name: '""" + self.tmp_dir.name + '/test_success' + """')
+        check_file_not_exists(file_name: '""" + self.tmp_dir.name + '/test_aborted' + """')
+"""
+        self.execute(scenario_content)
+        self.assertTrue(self.scenario_execution_ros.process_results())
+
     def test_success_not_wait_for_shutdown(self):
         scenario_content = """
 import osc.helpers

@@ -37,5 +37,16 @@ class RosLaunch(RunProcess):
                 if 'key' not in arg or 'value' not in arg:
                     raise ActionError(f'Invalid argument: {arg}', action=self)
                 if arg["key"] is not None:
+                    # `ros2 launch`'s own CLI grammar (ros2launch.api.parse_launch_arguments)
+                    # rejects any argument ending in ':=' as malformed -- there is no syntax for
+                    # "override this argument with an explicitly empty string". An empty value
+                    # here therefore means "do not override", which the launch file's own
+                    # DeclareLaunchArgument default already provides; appending 'key:=' would
+                    # instead abort the whole `ros2 launch` process before the launch file runs
+                    # at all, which is silent from a scenario's point of view (a subprocess exits,
+                    # nothing it depended on ever starts, and a later action waiting on that
+                    # subprocess's effects -- a service, a topic -- blocks until ITS OWN timeout).
+                    if arg["value"] == "":
+                        continue
                     self.command.append(f'{arg["key"]}:={arg["value"]}')
         self.logger.info(f'Command: {" ".join(self.command)}')
