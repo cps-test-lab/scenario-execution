@@ -322,7 +322,7 @@ class ROSScenarioExecution(ScenarioExecution):
                                 f"Shutdown timed out after {self.SHUTDOWN_TIMEOUT}s waiting for async operations.")
                             break
             except Exception as e:  # pylint: disable=broad-except
-                self.on_scenario_shutdown(False, "Run failed", f"{e}")
+                self.fail_from_exception("Run failed", e)
             finally:
                 # ensure behaviour tree threads are stopped before the next scenario
                 self._robust_tree_shutdown()

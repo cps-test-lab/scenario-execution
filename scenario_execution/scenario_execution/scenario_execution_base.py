@@ -20,6 +20,7 @@ import inspect
 import os
 import sys
 import time
+import traceback
 import argparse
 import signal
 from datetime import datetime, timedelta
@@ -461,7 +462,7 @@ class ScenarioExecution(object):
             try:
                 self.setup(tree, current_output_dir=effective_output_dir)
             except Exception as e:  # pylint: disable=broad-except
-                self.on_scenario_shutdown(False, "Setup failed", f"{e}")
+                self.fail_from_exception("Setup failed", e)
                 return
 
             while not self.shutdown_requested:
@@ -510,7 +511,7 @@ class ScenarioExecution(object):
                 tick_period=self.tick_period,
             )
         except Exception as e:  # pylint: disable=broad-except
-            self.on_scenario_shutdown(False, "Simulation setup failed", f"{e}")
+            self.fail_from_exception("Simulation setup failed", e)
             return
 
         multiple_scenarios = len(self.scenarios_list) > 1
@@ -535,7 +536,7 @@ class ScenarioExecution(object):
                     reset_kwargs = _build_reset_kwargs(simulation, params)
                     simulation.reset(**reset_kwargs)
                 except Exception as e:  # pylint: disable=broad-except
-                    self.on_scenario_shutdown(False, "Simulation reset failed", f"{e}")
+                    self.fail_from_exception("Simulation reset failed", e)
                     return
 
                 clock.reset()
@@ -543,7 +544,7 @@ class ScenarioExecution(object):
                 try:
                     self.setup(tree, current_output_dir=effective_output_dir, simulation=simulation, clock=clock)
                 except Exception as e:  # pylint: disable=broad-except
-                    self.on_scenario_shutdown(False, "Setup failed", f"{e}")
+                    self.fail_from_exception("Setup failed", e)
                     return
 
                 try:
@@ -712,6 +713,19 @@ class ScenarioExecution(object):
                 result = False
             if not self.shutdown_requested:
                 self.on_scenario_shutdown(result)
+
+    def fail_from_exception(self, failure_message, e):
+        """
+        Report a scenario failure caused by an exception, keeping the traceback.
+
+        The verdict carries only ``str(e)``, and for a whole class of errors that string names no
+        location: a RecursionError reports "maximum recursion depth exceeded" and nothing more, so
+        every run that dies that way produces an identical, unactionable verdict. Log the traceback
+        first, then report the message as before -- the recorded verdict is unchanged, what is added
+        is the one artifact that says where it happened.
+        """
+        self.logger.error(f"{failure_message}: {type(e).__name__}:\n{traceback.format_exc()}")
+        self.on_scenario_shutdown(False, failure_message, f"{e}")
 
     def on_scenario_shutdown(self, result, failure_message="", failure_output=""):
         self.shutdown_requested = True
