@@ -359,19 +359,30 @@ class OpenScenario2Parser(object):
         struct_keys = list(override_value.keys())
         pos = 0
         ref = None
+        ref_fields = None
         for child in parameter.get_children():
             if first:
                 first = False
                 if not isinstance(child, IdentifierReference):
                     raise ValueError(f"Expected IdentifierReference, got {child}")
                 ref = child.ref
+                # `ref.get_children()` also carries a leading StructInherits entry for a
+                # struct declared `inherits <base>` (e.g. position_3d inherits position),
+                # which has no name and is never itself a positional constructor argument.
+                # A POSITIONAL default value's Nth argument binds to the struct's Nth
+                # FIELD, not to `ref`'s Nth child -- indexing `ref.get_child(pos)` directly
+                # counted that inherited placeholder as field 0 and shifted every real
+                # field's override by one position (silently misassigning x/y/z-shaped
+                # partial overrides on any struct using `inherits` with a positional
+                # default, e.g. pose_3d(position_3d(...)) with only {x, y} overridden).
+                ref_fields = [c for c in ref.get_children() if isinstance(c, ParameterDeclaration)]
                 continue
 
             arg_name = None
             if isinstance(child, NamedArgument):
                 arg_name = child.name
             elif isinstance(child, PositionalArgument):
-                arg_name = ref.get_child(pos).name
+                arg_name = ref_fields[pos].name
                 pos += 1
 
             if arg_name not in struct_keys:
