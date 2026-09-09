@@ -55,23 +55,24 @@ class TestActionNameIsLibraryScoped(unittest.TestCase):
         m._library_dist_by_file = lambda: mapping
 
     def test_a_plugin_is_taken_from_the_package_whose_library_declared_the_action(self):
-        """Two packages may each ship a `spawn_entity`. The one that answers is the one whose
-        library the scenario imported -- which is what makes the name usable at all."""
-        self._with_libraries({"/pkg/sim/lib_osc/sim.osc": "scenario_execution_sim",
-                              "/pkg/roq/lib_osc/roqsim.osc": "scenario_execution_roqsim"})
-        plugins = [_Plugin("scenario_execution_sim"), _Plugin("scenario_execution_roqsim")]
+        """Two packages may each ship an action of the same name -- two simulator libraries both
+        offering `spawn_entity` is the obvious case. The one that answers is the one whose library
+        the scenario imported, which is what makes such a name usable at all."""
+        self._with_libraries({"/pkg/one/lib_osc/sim_one.osc": "package_one",
+                              "/pkg/two/lib_osc/sim_two.osc": "package_two"})
+        plugins = [_Plugin("package_one"), _Plugin("package_two")]
 
-        scoped = m._plugins_declaring(plugins, _Decl("/pkg/roq/lib_osc/roqsim.osc"))
-        self.assertEqual([p.dist.name for p in scoped], ["scenario_execution_roqsim"])
+        scoped = m._plugins_declaring(plugins, _Decl("/pkg/two/lib_osc/sim_two.osc"))
+        self.assertEqual([p.dist.name for p in scoped], ["package_two"])
 
-        scoped = m._plugins_declaring(plugins, _Decl("/pkg/sim/lib_osc/sim.osc"))
-        self.assertEqual([p.dist.name for p in scoped], ["scenario_execution_sim"])
+        scoped = m._plugins_declaring(plugins, _Decl("/pkg/one/lib_osc/sim_one.osc"))
+        self.assertEqual([p.dist.name for p in scoped], ["package_one"])
 
     def test_a_declaration_that_is_not_a_librarys_disambiguates_nothing(self):
         """A scenario declaring its own action names no package, so the caller reports the
         ambiguity rather than binding an implementation the author never named."""
-        self._with_libraries({"/pkg/sim/lib_osc/sim.osc": "scenario_execution_sim"})
-        plugins = [_Plugin("scenario_execution_sim"), _Plugin("scenario_execution_roqsim")]
+        self._with_libraries({"/pkg/one/lib_osc/sim_one.osc": "package_one"})
+        plugins = [_Plugin("package_one"), _Plugin("package_two")]
         self.assertEqual(m._plugins_declaring(plugins, _Decl("/tmp/my_scenario.osc")), [])
 
     def test_a_declaration_with_no_source_disambiguates_nothing(self):
