@@ -21,7 +21,7 @@ from py_trees.common import Access, Status
 from importlib.metadata import entry_points
 import inspect
 
-from scenario_execution.model.types import KeepConstraintDeclaration, visit_expression, ActionDeclaration, BinaryExpression, EventReference, Expression, FunctionApplicationExpression, ModifierInvocation, ScenarioDeclaration, DoMember, UntilDirective, WaitDirective, EmitDirective, BehaviorInvocation, EventCondition, EventDeclaration, RelationExpression, LogicalExpression, ElapsedExpression, PhysicalLiteral, ModifierDeclaration
+from scenario_execution.model.types import KeepConstraintDeclaration, visit_expression, ActionDeclaration, BinaryExpression, EventReference, Expression, FunctionApplicationExpression, ModifierInvocation, ScenarioDeclaration, DoMember, UntilDirective, WaitDirective, EmitDirective, BehaviorInvocation, EventCondition, EventDeclaration, RelationExpression, LogicalExpression, ElapsedExpression, PhysicalLiteral, ModifierDeclaration, IdentifierReference
 from scenario_execution.clock_behaviors import ClockTimer, ClockTimeout
 from scenario_execution.model.model_base_visitor import ModelBaseVisitor
 from scenario_execution.model.error import OSC2ParsingError
@@ -514,15 +514,56 @@ class ModelToPyTree(object):
             return visit_expression(node, self.blackboard)
 
         def visit_elapsed_expression(self, node: ElapsedExpression):
+            # A literal (`elapsed(3s)`), a call, or a PARAMETER (`elapsed(budget)`). The grammar
+            # has always allowed the last one -- `durationExpression : expression` -- and only this
+            # visitor refused it, so a scenario could not take its own time budget as a parameter
+            # and a campaign had no way to vary one.
             elem = node.find_first_child_of_type(PhysicalLiteral)
             if not elem:
                 elem = node.find_first_child_of_type(FunctionApplicationExpression)
+            if not elem:
+                elem = node.find_first_child_of_type(IdentifierReference)
 
             if not elem:
                 raise OSC2ParsingError(
-                    msg=f'Elapsed expression currently only supports PhysicalLiteral and FunctionApplicationExpression.', context=node.get_ctx())
+                    msg='Elapsed expression supports a physical literal (elapsed(3s)), a parameter '
+                        'holding one (elapsed(budget)), or a function application.',
+                    context=node.get_ctx())
 
-            return elem.get_resolved_value()
+            # ASAM OpenSCENARIO DSL: `duration-expression: expression`, so the FORM is
+            # unconstrained -- but it is a *duration*, and a physical quantity that is not a time
+            # is not one. Checked for the literal too, not only the parameter: `elapsed(7m)` was
+            # accepted and waited 7 seconds, which is the same silent unit error one level up.
+            #
+            # A function application is left unchecked: its return type is not introspectable
+            # here, and refusing what cannot be verified would reject working scenarios.
+            if not isinstance(elem, FunctionApplicationExpression):
+                try:
+                    type_string = elem.get_type_string()
+                except (AttributeError, IndexError):
+                    # Narrow on purpose: by here the model is resolved, so these are the two
+                    # shapes a reference can still be in that have no type to report -- a node
+                    # carrying no type at all, and an empty reference list. Anything else
+                    # raising is a defect worth seeing rather than reporting as "unknown type".
+                    type_string = None
+                if type_string != 'time':
+                    raise OSC2ParsingError(
+                        msg=f'Elapsed expression needs a duration, but this is '
+                            f'{type_string or "of unknown type"}. Use a time -- a literal like '
+                            f'`3s`, or a parameter declared `budget: time = 3s`.',
+                        context=node.get_ctx())
+
+            value = elem.get_resolved_value()
+            # Resolved here rather than left to the caller so the refusal names `elapsed` and this
+            # line, instead of a `float(None)` several frames away that cannot say where the value
+            # came from.
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                raise OSC2ParsingError(
+                    msg=f'Elapsed expression needs a duration; got {value!r}, which no time can '
+                        'be built from.',
+                    context=node.get_ctx()) from None
 
         def visit_event_declaration(self, node: EventDeclaration):
             if node.name in ['start', 'end', 'fail']:
