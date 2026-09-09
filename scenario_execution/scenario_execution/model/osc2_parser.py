@@ -34,6 +34,26 @@ from scenario_execution.model.model_blackboard import create_py_tree_blackboard
 import py_trees
 
 
+def _decode_error_message(file: str, err: UnicodeDecodeError) -> str:
+    """A decode failure as a place in the file, not as a byte offset.
+
+    The offset is converted by reading the bytes that precede it, because that is the only
+    thing that maps one to a line: the file cannot be decoded, so nothing else in the
+    pipeline can count its lines. Falls back to the original message if the file cannot be
+    re-read, so a diagnostic never becomes the failure.
+    """
+    try:
+        with open(file, 'rb') as handle:
+            prefix = handle.read(err.start)
+    except OSError:
+        return f'{file}: {err}'
+    line = prefix.count(b'\n') + 1
+    column = err.start - (prefix.rfind(b'\n') + 1) + 1
+    return (f"{file}:{line}:{column}: not valid UTF-8 "
+            f"(byte {err.object[err.start:err.end]!r}). An .osc file is read as UTF-8; "
+            f"re-save it in that encoding.")
+
+
 class OpenScenario2Parser(object):
     """ Helper class for parsing openscenario 2 files """
 
@@ -536,8 +556,18 @@ class OpenScenario2Parser(object):
             return None
         self.parsed_files.append(file)
         try:
-            input_stream = FileStream(file)
-        except (OSError, UnicodeDecodeError) as e:
+            # UTF-8 explicitly: ANTLR's FileStream defaults to ASCII, and an .osc is source
+            # text. A dash, a degree sign or an accented name -- in a comment, a string, or
+            # a label -- is ordinary content in a file every editor writes as UTF-8, and
+            # under the default it aborted the parse before the grammar saw a token.
+            input_stream = FileStream(file, encoding='utf-8')
+        except UnicodeDecodeError as e:
+            # A decode error carries a BYTE offset, which is unusable in a source file: it
+            # is neither the line the author has to edit nor a column within it. Only the
+            # bytes can turn one into a position, so it is done here rather than left to a
+            # caller that no longer has them.
+            raise ValueError(_decode_error_message(file, e)) from e
+        except OSError as e:
             raise ValueError(f'{e}') from e
         return self.parse_input_stream(input_stream, log_model, error_prefix)
 
