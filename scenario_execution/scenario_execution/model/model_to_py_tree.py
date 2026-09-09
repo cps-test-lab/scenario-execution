@@ -492,9 +492,12 @@ class ModelToPyTree(object):
                         available_plugins = scoped
                     else:
                         for available_plugin in available_plugins:
+                            # `.value` (`module:Class`), not `.module_name`: EntryPoint has no such
+                            # attribute, so reporting the ambiguity raised an AttributeError of its
+                            # own and the caller saw that instead of the collision.
                             self.logger.error(
                                 f'Found available plugin for "{behavior_name}" '
-                                f'in module "{available_plugin.module_name}".')
+                                f'in "{available_plugin.value}".')
                         raise OSC2ParsingError(
                             msg=f'More than one plugin is found for "{behavior_name}", and the '
                                 'library that declares this action does not identify one of them. '

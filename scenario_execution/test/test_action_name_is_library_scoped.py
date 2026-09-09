@@ -78,3 +78,17 @@ class TestActionNameIsLibraryScoped(unittest.TestCase):
     def test_a_declaration_with_no_source_disambiguates_nothing(self):
         self._with_libraries({})
         self.assertEqual(m._plugins_declaring([_Plugin("a")], _Decl("")), [])
+
+    def test_the_ambiguity_report_can_name_a_real_entry_point(self):
+        """The diagnostic must survive being needed.
+
+        It read `.module_name`, which an EntryPoint does not have -- so reporting a collision raised
+        an AttributeError of its own and the caller saw that instead of the collision. Pinned
+        against a real entry point rather than the stand-ins above, because the attribute that broke
+        is one only the real object has an opinion about.
+        """
+        from importlib.metadata import entry_points
+
+        real = next(iter(entry_points(group="scenario_execution.actions")))
+        self.assertTrue(real.value, "an entry point reports itself as module:Class")
+        self.assertFalse(hasattr(real, "module_name"))
