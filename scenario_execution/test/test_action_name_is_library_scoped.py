@@ -16,6 +16,7 @@
 """An action name is unique within a library, not across every installed package."""
 
 import unittest
+from importlib.metadata import entry_points
 
 from scenario_execution.model import model_to_py_tree as m
 
@@ -87,8 +88,6 @@ class TestActionNameIsLibraryScoped(unittest.TestCase):
         against a real entry point rather than the stand-ins above, because the attribute that broke
         is one only the real object has an opinion about.
         """
-        from importlib.metadata import entry_points
-
         real = next(iter(entry_points(group="scenario_execution.actions")))
         self.assertTrue(real.value, "an entry point reports itself as module:Class")
         self.assertFalse(hasattr(real, "module_name"))
