@@ -16,7 +16,7 @@
 
 from scenario_execution.model.types import ActionDeclaration, ActionInherits, EnumDeclaration, EnumValueReference, KeepConstraintDeclaration, EmitDirective, Type
 
-from .types import Argument, UnitDeclaration, EnumValueReference, StructInherits, ActionDeclaration, ActionInherits, ActorInherits, FieldAccessExpression,  BehaviorInvocation, EmitDirective, GlobalParameterDeclaration, IdentifierReference, Parameter, MethodBody, MethodDeclaration, ModelElement, StructuredDeclaration, KeepConstraintDeclaration, NamedArgument, ParameterDeclaration, PhysicalLiteral,  PositionalArgument,  RelationExpression, ScenarioInherits, SIUnitSpecifier,  Type, EnumMemberDeclaration, ListExpression, print_tree, ModifierInvocation, ScenarioDeclaration, DoDirective
+from .types import Argument, declarations_named, UnitDeclaration, EnumValueReference, StructInherits, ActionDeclaration, ActionInherits, ActorInherits, FieldAccessExpression,  BehaviorInvocation, EmitDirective, GlobalParameterDeclaration, IdentifierReference, Parameter, MethodBody, MethodDeclaration, ModelElement, StructuredDeclaration, KeepConstraintDeclaration, NamedArgument, ParameterDeclaration, PhysicalLiteral,  PositionalArgument,  RelationExpression, ScenarioInherits, SIUnitSpecifier,  Type, EnumMemberDeclaration, ListExpression, print_tree, ModifierInvocation, ScenarioDeclaration, DoDirective
 
 from .model_base_visitor import ModelBaseVisitor
 from scenario_execution.model.error import OSC2ParsingError
@@ -209,18 +209,44 @@ class ModelResolver(ModelBaseVisitor):
             node.actor = resolved_actor
 
             current, _ = node.actor.get_type()
+            # Only an UNQUALIFIED action can collide across libraries; one qualified by an actor
+            # resolves inside that actor's type, which is a scope of its own.
+            behavior_name = None
             resolved = None
             while current and resolved is None:  # look for action in all base_types
                 qualified_behavior_name = current.name + "." + node.behavior
                 resolved = node.resolve(qualified_behavior_name)
                 current = current.get_base_type()
         else:
+            behavior_name = node.behavior
             resolved = node.resolve(node.behavior)
 
         if not resolved:
             raise OSC2ParsingError(
                 msg=f'BehaviorInvocation uses unknown behavior "{qualified_behavior_name}".', context=node.get_ctx())
         node.behavior = resolved
+
+        if behavior_name is not None:
+            # BEFORE the arguments are checked, because `resolve` above takes the first
+            # declaration it walks past and the check below compares this call's arguments
+            # against that one. When two imported libraries declare the action, whichever came
+            # first decides what the author is told: import the other library first and the same
+            # scenario is refused for an argument name that is perfectly good in the library it
+            # meant. The ambiguity is the problem in both orders, so it is reported in both.
+            # Declarations in the file the CALL is written in are excluded: an action declared
+            # beside its use is a local one the author wrote on purpose, and shadowing a
+            # library's name with it is allowed. Only two IMPORTED libraries are a collision.
+            here = node.get_ctx()
+            here = here[3] if isinstance(here, (tuple, list)) and len(here) > 3 else None
+            declarations = {d for d in declarations_named(resolved, behavior_name)
+                            if not (here and d == str(here))}
+            if len(declarations) > 1:
+                where = ", ".join(sorted(declarations))
+                raise OSC2ParsingError(
+                    msg=f'Action "{behavior_name}" is declared by more than one imported '
+                    f'library ({where}). Import only the library whose '
+                    f'"{behavior_name}" you mean.',
+                    context=node.get_ctx())
 
         pos_arg_count = 0
         named = False
