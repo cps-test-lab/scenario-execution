@@ -1208,14 +1208,69 @@ Use nav2 to follow waypoints.
      - Type
      - Default
      - Description
-   * - ``goal_pose``
-     - ``pose_3d``
+   * - ``goal_poses``
+     - ``list of pose_3d``
      - 
-     - Goal pose to navigate to
+     - Goal poses to navigate through
    * - ``loop_count``
      - ``int``
-     - ``1``
-     - Loop count
+     - ``0``
+     - Number of times to loop through the waypoints
+   * - ``namespace_override``
+     - ``string``
+     -
+     - If set, it's used as namespace (instead of the associated actor's namespace)
+   * - ``action_topic``
+     - ``string``
+     - ``follow_waypoints``
+     - Action name
+   * - ``success_on_acceptance``
+     - ``bool``
+     - ``false``
+     -  succeed on goal acceptance
+
+``differential_drive_robot.follow_waypoints_from_file()``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Use nav2 to follow waypoints read from a JSON file at execute time, instead of a list declared in the scenario.
+
+This suits a trial that drives a waypoint sequence produced by an offline planner: tens to hundreds of poses, one sequence per repetition, which would otherwise have to be written into the scenario itself.
+
+The file is shaped ``{"repetitions": [{"waypoints": [[...], ...]}, ...]}`` - one entry of ``repetitions`` per recorded run of the offline step, each holding an ordered list of fixed-width rows. ``x_index``, ``y_index`` and ``theta_index`` say where the pose sits within a row, so a caller's own column layout is usable as it is. ``rep`` selects the entry, wrapped by the number of entries, so a file holding a single run serves every ``rep`` value alike.
+
+.. list-table:: 
+   :widths: 15 15 5 65
+   :header-rows: 1
+   :class: tight-table   
+   
+   * - Parameter
+     - Type
+     - Default
+     - Description
+   * - ``poses_file``
+     - ``string``
+     -
+     - Path to the JSON file holding the waypoints
+   * - ``rep``
+     - ``int``
+     - ``0``
+     - Which entry of ``repetitions`` to use (wraps by the number of entries)
+   * - ``x_index``
+     - ``int``
+     - ``2``
+     - Index of the pose's x [m] within a waypoint row
+   * - ``y_index``
+     - ``int``
+     - ``3``
+     - Index of the pose's y [m] within a waypoint row
+   * - ``theta_index``
+     - ``int``
+     - ``4``
+     - Index of the pose's yaw [rad] within a waypoint row
+   * - ``loop_count``
+     - ``int``
+     - ``0``
+     - Number of times to loop through the waypoints
    * - ``namespace_override``
      - ``string``
      -

@@ -9,6 +9,20 @@ action differential_drive_robot.follow_waypoints:
     action_topic: string = 'follow_waypoints' # Name of action
     success_on_acceptance: bool = false  # succeed on goal acceptance
 
+action differential_drive_robot.follow_waypoints_from_file:
+    # Nav2 to follow a precomputed waypoint sequence read from a JSON file at execute time, rather
+    # than an OSC-declared list -- for a trial driving a waypoint set an offline planner produced
+    # (tens to hundreds of poses), which is impractical to write into the .osc or a .vast.
+    poses_file: string                   # path to a JSON file: {"repetitions": [{"waypoints": [[...], ...]}, ...]}
+    rep: int = 0                         # which entry of "repetitions" to use (wraps: rep % len(repetitions))
+    x_index: int = 2                     # index of the pose's x [m] within each waypoint row
+    y_index: int = 3                     # index of the pose's y [m] within each waypoint row
+    theta_index: int = 4                 # index of the pose's yaw [rad] within each waypoint row
+    loop_count: int = 0                  # number of times to loop through the waypoints
+    namespace_override: string = ''      # if set, it's used as namespace (instead of the associated actor's name)
+    action_topic: string = 'follow_waypoints' # Name of action
+    success_on_acceptance: bool = false  # succeed on goal acceptance
+
 action differential_drive_robot.init_nav2:
     # Initialize nav2
     initial_pose: pose_3d                # the initial pose to set during initialization
