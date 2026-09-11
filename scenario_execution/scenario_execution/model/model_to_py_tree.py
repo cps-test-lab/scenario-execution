@@ -24,13 +24,12 @@ from importlib.metadata import entry_points
 from importlib.resources import files
 import inspect
 
-from scenario_execution.model.types import KeepConstraintDeclaration, visit_expression, ActionDeclaration, BinaryExpression, EventReference, Expression, FunctionApplicationExpression, ModifierInvocation, ScenarioDeclaration, DoMember, UntilDirective, WaitDirective, EmitDirective, BehaviorInvocation, EventCondition, EventDeclaration, RelationExpression, LogicalExpression, ElapsedExpression, PhysicalLiteral, ModifierDeclaration, IdentifierReference
+from scenario_execution.model.types import KeepConstraintDeclaration, visit_expression, ActionDeclaration, declarations_named, BinaryExpression, EventReference, Expression, FunctionApplicationExpression, ModifierInvocation, ScenarioDeclaration, DoMember, UntilDirective, WaitDirective, EmitDirective, BehaviorInvocation, EventCondition, EventDeclaration, RelationExpression, LogicalExpression, ElapsedExpression, PhysicalLiteral, ModifierDeclaration, IdentifierReference
 from scenario_execution.clock_behaviors import ClockTimer, ClockTimeout
 from scenario_execution.model.model_base_visitor import ModelBaseVisitor
 from scenario_execution.model.error import OSC2ParsingError
 from scenario_execution.actions.base_action import BaseAction
 from scenario_execution.actions.base_action_subtree import BaseActionSubtree
-
 
 
 @lru_cache(maxsize=1)
@@ -78,33 +77,6 @@ def _plugins_declaring(plugins: list, declaration) -> list:
         p for p in plugins
         if getattr(getattr(p, "dist", None), "name", None) == dist_name
     ]
-
-
-
-def _declarations_named(declaration, name: str) -> set:
-    """Source files of every ``ActionDeclaration`` called *name* that is in scope.
-
-    More than one means two imported libraries declare the same action, which
-    :meth:`ModelElement.find_reference_by_name` resolves by taking the first it walks past -- so
-    without this the scenario silently gets one of them. Returns paths rather than nodes because
-    what a caller has to be told is WHERE the competing declarations are.
-    """
-    root = declaration
-    while root.get_parent() is not None:
-        root = root.get_parent()
-
-    found = set()
-
-    def _walk(node):
-        if isinstance(node, ActionDeclaration) and node.name == name:
-            ctx = node.get_ctx()
-            source = ctx[3] if isinstance(ctx, (tuple, list)) and len(ctx) > 3 else None
-            found.add(str(source) if source else "<unknown>")
-        for child in node.get_children():
-            _walk(child)
-
-    _walk(root)
-    return found
 
 
 def create_py_tree(model, tree, logger, log_tree):
@@ -474,7 +446,7 @@ class ModelToPyTree(object):
                     # broke every scenario using EITHER, including scenarios that import neither
                     # of the colliding libraries.
                     scoped = _plugins_declaring(available_plugins, node.behavior)
-                    declarations = _declarations_named(node.behavior, behavior_name)
+                    declarations = declarations_named(node.behavior, behavior_name)
                     if len(declarations) > 1:
                         # Two imported libraries both declare this action, so the name alone does
                         # not say which the author meant -- and OSC name resolution silently takes
