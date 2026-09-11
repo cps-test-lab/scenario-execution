@@ -81,7 +81,10 @@ class ModelBuilder(OpenSCENARIO2Listener):  # pylint: disable=too-many-public-me
     def enterImportReference(self, ctx: OpenSCENARIO2Parser.ImportReferenceContext):
         file = None
         if ctx.StringLiteral():
-            file = ctx.getText()
+            # The literal's own text, with its quotes removed: `getText()` returns them as part
+            # of the token, so the path was opened WITH them and no file import could ever
+            # resolve ('"/tmp/lib.osc"': No such file or directory).
+            file = ctx.StringLiteral().getText().strip('"\'')
         if ctx.structuredIdentifier():
             import_reference_string = ""
             for child in ctx.structuredIdentifier().getChildren():

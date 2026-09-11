@@ -811,6 +811,32 @@ class ScenarioInherits(Inheritance):
             return visitor.visit_children(self)
 
 
+def declarations_named(declaration, name: str) -> set:
+    """Source files of every ``ActionDeclaration`` called *name* that is in scope.
+
+    More than one means two imported libraries declare the same action, which
+    :meth:`ModelElement.find_reference_by_name` resolves by taking the first it walks past -- so
+    without this the scenario silently gets one of them. Returns paths rather than nodes because
+    what a caller has to be told is WHERE the competing declarations are.
+    """
+    root = declaration
+    while root.get_parent() is not None:
+        root = root.get_parent()
+
+    found = set()
+
+    def _walk(node):
+        if isinstance(node, ActionDeclaration) and node.name == name:
+            ctx = node.get_ctx()
+            source = ctx[3] if isinstance(ctx, (tuple, list)) and len(ctx) > 3 else None
+            found.add(str(source) if source else "<unknown>")
+        for child in node.get_children():
+            _walk(child)
+
+    _walk(root)
+    return found
+
+
 class ActionDeclaration(StructuredDeclaration):
 
     def __init__(self, qualified_behavior_name):
