@@ -219,6 +219,11 @@ _DECL_RE = re.compile(
 _PARAM_RE = re.compile(
     r"^\s+([A-Za-z_]\w*)\s*:\s*([^=#]+?)\s*(?:=\s*(.+?))?\s*(?:#\s*(.*))?$")
 _COMMENT_RE = re.compile(r"^\s*#\s?(.*)$")
+# One member of an enum body: "    lt," or "    lt = 0,", with an optional trailing comment.
+# Enum members carry no type and no colon, so the parameter shape above cannot match them --
+# which is why an enum used to parse as a declaration with an empty signature.
+_ENUM_MEMBER_RE = re.compile(
+    r"^\s+([A-Za-z_]\w*)\s*(?:=\s*([^,#]+?))?\s*,?\s*(?:#\s*(.*))?$")
 
 
 def _parse_osc_library(text, source_lib):
@@ -268,16 +273,43 @@ def _parse_osc_library(text, source_lib):
                     "doc": param_doc or None,
                 })
                 pending_doc = []
-        declarations.append({
+        declaration = {
             "name": name,
             "kind": kind,
             "source_lib": source_lib,
             "doc": " ".join(doc_parts).strip() or None,
             "parameters": params,
             "raw": "\n".join(block).rstrip(),
-        })
+        }
+        if kind == "enum":
+            declaration["values"] = _enum_values(block)
+        declarations.append(declaration)
         i = block_end
     return declarations
+
+
+def _enum_values(block):
+    """The members of an ``enum`` declaration, in the order written.
+
+    Without these an enum reaches a caller as a name and nothing else, so a parameter typed
+    ``comparison_operator`` says only that some fixed set exists -- and the set is the whole
+    content of the type. Guessing it wrong is a scenario that fails at parse time.
+    """
+    values = []
+    for line in block[1:]:
+        text = line.strip()
+        if not text or text in ("[", "]", "],") or text.startswith("#"):
+            continue
+        member = _ENUM_MEMBER_RE.match(line)
+        if not member:
+            continue
+        name, value, comment = member.groups()
+        values.append({
+            "name": name,
+            "value": value.strip() if value else None,
+            "doc": comment.strip() if comment else None,
+        })
+    return values
 
 
 def _osc_library_files():
@@ -313,7 +345,7 @@ def list_actions():
     modifier_eps = {ep.name for ep in entry_points(group='scenario_execution.modifiers')}
     resolvable_modifiers = set(BUILTIN_MODIFIERS) | modifier_eps
 
-    catalog = {"actions": [], "modifiers": [], "actors": [], "structs": []}
+    catalog = {"actions": [], "modifiers": [], "actors": [], "structs": [], "enums": []}
     seen = set()
     for library_name, path in _osc_library_files():
         try:
@@ -336,6 +368,10 @@ def list_actions():
                 catalog["actors"].append(decl)
             elif decl["kind"] == "struct":
                 catalog["structs"].append(decl)
+            elif decl["kind"] == "enum":
+                # Parsed and then dropped until now: an enum was added to `seen` and matched no
+                # bucket, so a parameter's type could be discovered but never its legal values.
+                catalog["enums"].append(decl)
 
     # Surface action plugins that are registered but have no .osc declaration in a
     # reachable library (so the caller still learns the name exists).
