@@ -75,6 +75,12 @@ class RosBagRecord(RunProcess):
                 shutil.rmtree(self.bag_dir)
 
         self.topics = topics
+        # A hidden topic (a name segment starting with '_', as an action's topics do) is never
+        # subscribed without the flag, and the recording would wait for it without end.
+        hidden = [t for t in topics if any(part.startswith('_') for part in t.split('/') if part)]
+        if hidden and not hidden_topics:
+            raise ActionError(f"topics {hidden} are hidden: 'ros2 bag record' subscribes to them only with "
+                              "hidden_topics: true", action=self)
         if topics:
             self.missing_topics = topics.copy()
         else:
