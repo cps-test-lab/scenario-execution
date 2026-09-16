@@ -64,3 +64,5 @@ cgroup
 subclasses
 unpaced
 subdirectory
+waypoint
+yaw

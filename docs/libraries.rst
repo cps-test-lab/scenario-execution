@@ -1229,6 +1229,59 @@ Use nav2 to follow waypoints.
      - ``false``
      -  succeed on goal acceptance
 
+``differential_drive_robot.follow_waypoints_from_file()``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Use nav2 to follow waypoints read from a JSON file at execute time, instead of from a list written into the scenario. Intended for a waypoint sequence an offline planner produced, which is impractical to write into a scenario or into its parameter overrides.
+
+The file is shaped ``{"repetitions": [{"waypoints": [[...], ...]}, ...]}``: one entry of ``repetitions`` per draw of the offline step that produced the sequence, each holding an ordered list of fixed-width rows. ``x_index``, ``y_index`` and ``theta_index`` say where the pose sits within a row, so a caller's own column layout is read as it is. ``rep`` selects the repetition and wraps by the number of entries, so a file holding a single sequence serves every ``rep`` value alike.
+
+.. list-table:: 
+   :widths: 15 15 5 65
+   :header-rows: 1
+   :class: tight-table   
+   
+   * - Parameter
+     - Type
+     - Default
+     - Description
+   * - ``poses_file``
+     - ``string``
+     -
+     - Path to the JSON file holding the waypoint sequences
+   * - ``rep``
+     - ``int``
+     - ``0``
+     - Which entry of ``repetitions`` to use, wrapped by the number of entries
+   * - ``x_index``
+     - ``int``
+     - ``2``
+     - Index of the pose's x [m] within a waypoint row
+   * - ``y_index``
+     - ``int``
+     - ``3``
+     - Index of the pose's y [m] within a waypoint row
+   * - ``theta_index``
+     - ``int``
+     - ``4``
+     - Index of the pose's yaw [rad] within a waypoint row
+   * - ``loop_count``
+     - ``int``
+     - ``0``
+     - Loop count
+   * - ``namespace_override``
+     - ``string``
+     -
+     - If set, it's used as namespace (instead of the associated actor's namespace)
+   * - ``action_topic``
+     - ``string``
+     - ``follow_waypoints``
+     - Action name
+   * - ``success_on_acceptance``
+     - ``bool``
+     - ``false``
+     -  succeed on goal acceptance
+
 Network
 -------
 
