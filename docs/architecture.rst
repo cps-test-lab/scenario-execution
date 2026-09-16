@@ -159,7 +159,7 @@ The framework names two time domains and hands a clock for each to every behavio
    :class: tight-table
 
    * - Domain
-     - Kwarg
+     - Argument
      - What belongs to it
    * - scenario time
      - ``clock``
