@@ -21,7 +21,7 @@ from . import model
 from scenario_execution.scenario_execution_base import ScenarioExecution, ShutdownHandler
 from scenario_execution.utils.logging import BaseLogger, Logger
 from scenario_execution.model.external_interface import get_scenario_parameters
-from scenario_execution.simulation import SimulationInterface, Clock, WallClock, SimulationClock
+from scenario_execution.simulation import SimulationInterface, Clock, WallClock, HostClock, SimulationClock
 
 __all__ = [
     'actions',
@@ -35,5 +35,6 @@ __all__ = [
     'SimulationInterface',
     'Clock',
     'WallClock',
+    'HostClock',
     'SimulationClock',
 ]

@@ -53,6 +53,7 @@ class RosBagRecord(RunProcess):
         """
         set up
         """
+        self.node = kwargs.get('node')
         if "output_dir" not in kwargs:
             raise ActionError("output_dir not defined.", action=self)
 
@@ -84,7 +85,10 @@ class RosBagRecord(RunProcess):
             self.command.append("--include-hidden-topics")
         if storage:
             self.command.extend(["--storage", storage])
-        if use_sim_time:
+        # The recorder is a separate node with a parameter of its own, so it does not follow
+        # this one automatically. A scenario running on simulated time wants its bag stamped
+        # the same way without having to say so, and the parameter forces it either way.
+        if use_sim_time or (self.node is not None and self.node.get_parameter('use_sim_time').value):
             self.command.append("--use-sim-time")
         self.command.extend(["-o", self.bag_dir] + self.topics)
 

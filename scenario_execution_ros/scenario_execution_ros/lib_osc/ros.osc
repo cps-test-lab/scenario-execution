@@ -82,7 +82,7 @@ action assert_tf_moving:
     threshold_rotation: angular_rate = 0.01radps # rotational speed, below this threshold is skipped
     wait_for_first_transform: bool = true # start measuring with the first received message
     tf_topic_namespace: string = ''      # if set, it's used as namespace
-    use_sim_time: bool = false           # in simulation, we need to look up the transform at a different time as the scenario execution node is not allowed to use the sim time
+    latest_transform: bool = false       # look the transform up at the latest available stamp, instead of at the node's current time
 
 action assert_topic_latency:
     # Check the latency of the specified topic (in system time). If the check with comparison_operator gets false, the action ends with failure.
@@ -107,7 +107,7 @@ action bag_record:
     timestamp_suffix: bool = true        # add a timestamp suffix to output directory name
     hidden_topics: bool = false          # whether to record hidden topics
     storage: string = ''                 # storage type to use (empty string: use default)
-    use_sim_time: bool = false           # use simulation time for message timestamps by subscribing to the /clock topic
+    use_sim_time: bool = false           # stamp messages with simulation time even when the scenario execution node runs on host time
 
 action check_data:
     # Compare received topic messages using the given comparison_operator, against the specified value. Either the whole message gets compared or a member defined by member_name.
@@ -143,7 +143,6 @@ action differential_drive_robot.tf_close_to:
     threshold: length                    # distance at which the action succeeds
     reference_point: position_3d         # z is not considered
     robot_frame_id: string = 'base_link' # defines the TF frame id of the robot 
-    sim: bool = false                    # in simulation, we need to look up the transform parent_frame_id --> robot_frame_id at a different time as the scenario execution node is not allowed to use the sim time
     namespace_override: string = ''      # if set, it's used as namespace (instead of the associated actor's name)
     parent_frame_id: string = 'map'      # defines the TF parent frame id of the robot. Defaults to map.
 

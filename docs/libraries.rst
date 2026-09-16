@@ -1544,10 +1544,10 @@ The action never succeeds: it keeps monitoring until it fails or the scenario en
      - ``string``
      - ``''``
      - namespace of `tf` and `tf_static` topic.
-   * - ``use_sim_time``
+   * - ``latest_transform``
      - ``bool``
      - ``false``
-     - In simulation, we need to look up the transform at a different time as the scenario execution node is not allowed to use the sim time
+     - Look the transform up at the latest available stamp, instead of at the node's current time
 
 ``assert_topic_latency()``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1667,7 +1667,7 @@ To capture only what the behavior tree did, use ``--bt-log`` instead (see :ref:`
    * - ``use_sim_time``
      - ``bool``
      - ``false``
-     - Use simulation time for message timestamps by subscribing to the /clock topic
+     - Stamp messages with simulation time even when the scenario execution node runs on host time
 
 
 ``check_data()``
@@ -1827,10 +1827,6 @@ Wait until a TF frame is close to a defined reference point.
      - ``string``
      - ``base_link``
      - Defines the TF frame id of the robot
-   * - ``sim``
-     - ``bool``
-     - ``false``
-     - In simulation, we need to look up the transform parent_frame_id --> robot_frame_id at a different time as the scenario execution node is not allowed to use the sim time
    * - ``namespace_override``
      - ``string``
      - ``''``

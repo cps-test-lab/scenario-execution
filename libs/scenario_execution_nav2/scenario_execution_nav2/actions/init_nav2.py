@@ -26,12 +26,12 @@ from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.time import Time
 from rclpy.duration import Duration
 from tf2_ros import Buffer
-from datetime import datetime, timedelta
 import py_trees
 
 from .nav2_common import NamespaceAwareBasicNavigator
 from scenario_execution_ros.actions.common import get_pose_stamped, NamespacedTransformListener
 from scenario_execution.actions.base_action import BaseAction, ActionError
+from scenario_execution.simulation import HostClock
 
 
 class InitNav2State(Enum):
@@ -87,6 +87,7 @@ class InitNav2(BaseAction):
         Setup ROS2 node and service client
 
         """
+        self.host_clock = kwargs.get('host_clock', HostClock())
         try:
             self.node: Node = kwargs['node']
         except KeyError as e:
@@ -148,15 +149,16 @@ class InitNav2(BaseAction):
                     req = GetState.Request()
                     self.feedback_message = f"Waiting for localizer to become active. Try {1001 - self.retry_count}"  # pylint: disable= attribute-defined-outside-init
                     self.future = self.amcl_state_client.call_async(req)
-                    self.service_called_timestamp = datetime.now()
+                    self.service_called_timestamp = self.host_clock.now()
                     self.future.add_done_callback(self._get_state_done_callback)
                     result = py_trees.common.Status.RUNNING
             else:
                 self.current_state = InitNav2State.LOCALIZER_STATE_ACTIVE
                 result = py_trees.common.Status.RUNNING
         elif self.current_state == InitNav2State.LOCALIZER_STATE_REQUESTED:
-            timeout = timedelta(seconds=1)
-            if timeout < datetime.now() - self.service_called_timestamp:
+            # Host time: this retries a ROS service until the stack answers. On the stack's
+            # own clock it would never give up if the stack never comes up.
+            if self.host_clock.now() - self.service_called_timestamp > 1.0:
                 self.feedback_message = f"Localizer state request timed out after 1s. Requesting again..."  # pylint: disable= attribute-defined-outside-init
                 self.current_state = InitNav2State.IDLE
             result = py_trees.common.Status.RUNNING
@@ -204,12 +206,13 @@ class InitNav2(BaseAction):
                 req = GetState.Request()
                 self.feedback_message = f"Request navigator state. Try {1001 - self.retry_count}"  # pylint: disable= attribute-defined-outside-init
                 self.future = self.bt_navigator_state_client.call_async(req)
-                self.service_called_timestamp = datetime.now()
+                self.service_called_timestamp = self.host_clock.now()
                 self.future.add_done_callback(self._get_state_done_callback)
                 result = py_trees.common.Status.RUNNING
         elif self.current_state == InitNav2State.NAVIGATOR_STATE_REQUESTED:
-            timeout = timedelta(seconds=1)
-            if timeout < datetime.now() - self.service_called_timestamp:
+            # Host time: this retries a ROS service until the stack answers. On the stack's
+            # own clock it would never give up if the stack never comes up.
+            if self.host_clock.now() - self.service_called_timestamp > 1.0:
                 self.feedback_message = f"Navigator state request timed out after 1s. Requesting again..."  # pylint: disable= attribute-defined-outside-init
                 self.current_state = InitNav2State.MAP_BASELINK_TF_RECEIVED
             result = py_trees.common.Status.RUNNING
