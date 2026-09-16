@@ -28,6 +28,7 @@ would be waiting for its own output.
 import unittest
 import threading
 import time
+from unittest.mock import patch
 import py_trees
 
 import rclpy
@@ -68,6 +69,16 @@ class SimTimeFixture(unittest.TestCase):
         self.executor_thread = threading.Thread(target=self.executor.spin, daemon=True)
         self.executor_thread.start()
         self.tree = py_trees.composites.Sequence(name="", memory=True)
+
+    def shorten(self, name, value):
+        """Shorten one of the runner's deadlines for the length of this test.
+
+        On the class, and restored afterwards, so a shortened deadline cannot leak into
+        whatever runs next.
+        """
+        patcher = patch.object(ROSScenarioExecution, name, value)
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def execute(self, scenario_content):
         parsed_tree = self.parser.parse_input_stream(InputStream(scenario_content))
@@ -159,7 +170,7 @@ scenario test_timeout:
     def test_fails_loudly_when_clock_stalls(self):
         # The tree ticks on /clock, so a stopped clock stops the tree; the stall has to be
         # caught on host time or the run hangs.
-        self.scenario_execution_ros.CLOCK_STALL_TIMEOUT = 2.0  # pylint: disable=invalid-name
+        self.shorten('CLOCK_STALL_TIMEOUT', 2.0)
         scenario_content = """
 import osc.ros
 import osc.helpers
@@ -210,7 +221,7 @@ class TestNoClockUnderSimTime(SimTimeFixture):
         self.publish_clock = False  # nothing ever publishes /clock
 
     def test_fails_loudly_without_clock(self):
-        self.scenario_execution_ros.CLOCK_WAIT_TIMEOUT = 2.0  # pylint: disable=invalid-name
+        self.shorten('CLOCK_WAIT_TIMEOUT', 2.0)
         scenario_content = """
 import osc.ros
 import osc.helpers
