@@ -277,3 +277,25 @@ Modifiers stack, and they nest: the one written **last** ends up closest to the 
 ``timeout()`` stops the process and reports failure, and ``failure_is_success()`` turns that into
 the verdict the scenario wants. Order matters: the modifier written last ends up closest to the
 action.
+
+Choosing what a second means
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When the duration is the experiment's own -- a dwell the method prescribes, a trial limit the
+paper states -- rather than a wall-clock convenience.
+
+.. code-block:: bash
+
+    ros2 launch scenario_execution_ros scenario_launch.py scenario:=trial.osc use_sim_time:=True
+
+Nothing in the scenario changes. ``wait elapsed()``, ``until elapsed()`` and ``timeout()`` read the
+scenario's clock, and ``use_sim_time`` makes that clock ``/clock``, so a stated duration is
+simulated seconds and does not vary with how loaded the host is. The behavior tree ticks on the same
+clock, so the run is reproducible tick for tick. See :ref:`ros_simulated_time_usage`.
+
+.. caution::
+
+    Something must publish ``/clock``, or the scenario fails at startup rather than measuring every
+    duration from zero -- and a simulator that stops or is reset mid-run ends the scenario, because
+    a tree ticking on a stopped clock does not tick. Deadlines that exist to catch a dead simulator
+    stay on host time and are unaffected: a ``shutdown_timeout``, and ``assert_realtime_factor()``.

@@ -136,8 +136,61 @@ The loop above belongs to the base runner, where the simulation drives everythin
 because the executor owns its loop. ``ROSScenarioExecution`` therefore steps the simulation *from
 inside* the spin loop instead, so the simulation advances alongside the ROS behaviors that drive it
 and a scenario can bring up a ROS stack against a step-based simulator. Stepping is paced to real
-time; a simulation that publishes ``/clock`` on ``step()`` becomes the time source and other nodes
-run ``use_sim_time``.
+time; a simulation that publishes ``/clock`` on ``step()`` becomes the time source for every node,
+including this one.
+
+.. _ros_simulated_time:
+
+**ROS simulated time**
+
+Under ``use_sim_time`` the scenario execution node's clock is ``/clock``, and with it two things at
+once: ``RosClock`` -- the scenario clock every ``wait elapsed()``, ``timeout()`` and
+``action_call(cancel_after:)`` reads -- and the ``rclpy`` timer ``py_trees_ros`` ticks the tree with,
+because ``Node.create_timer`` takes the node's clock by default. The tree therefore ticks in
+simulated time and counts simulated seconds, and the same scenario produces the same ticks at the
+same points whatever the host was doing. It is off by default; ``scenario_launch.py`` takes it as a
+launch argument.
+
+The framework names two time domains and hands a clock for each to every behavior's ``setup()``:
+
+.. list-table::
+   :widths: 15 20 65
+   :header-rows: 1
+   :class: tight-table
+
+   * - Domain
+     - Kwarg
+     - What belongs to it
+   * - scenario time
+     - ``clock``
+     - The durations a scenario states: ``wait``/``until elapsed()``, ``timeout()``,
+       ``cancel_after``, an action's own measurement window. ``/clock`` under ``use_sim_time``,
+       ``SimulationClock`` under ``--simulation``, the system clock otherwise.
+   * - host time
+     - ``host_clock``
+     - What has to keep running when a simulated clock does not: the setup timeout, a process
+       kill deadline, the teardown guard, clock liveness. Always monotonic.
+
+The rule that assigns a duration to one of them: *if the simulator stopping should stop this timer,
+it is scenario time; if the simulator stopping is what this timer exists to catch, it is host time.*
+A host-time guard measured on a simulated clock can never expire, which is the one failure a guard
+exists to catch. ``assert_realtime_factor()`` sits outside both by construction -- it subscribes
+``/clock`` directly and compares it against ``time.monotonic()``, so its measurement does not depend
+on how the node it runs in is configured.
+
+Because the tree ticks on ``/clock``, a clock that never starts, stops, or is reset is the one
+failure the tree cannot report about itself: it simply stops being ticked. ``ClockWatch`` holds that
+state and the spin loop asks it. Before the first tick it waits for ``/clock`` to advance -- two
+strictly increasing readings, since a single latched message from a dead publisher would otherwise
+start the run against a frozen timeline -- and fails the scenario if it does not, rather than
+falling back to host time and reporting a duration that was never measured. While the scenario runs
+it fails on a stall and on a backwards jump, the latter being a simulation reset underneath a
+running scenario. Both deadlines are host time, because what is being measured is the clock itself.
+
+One consequence worth knowing before writing an action: the node's default callback group is
+mutually exclusive, so the ``/clock`` callback and the tick callback serialize. A behavior that
+*blocks inside* ``update()`` waiting for time to pass deadlocks under ``use_sim_time`` rather than
+merely running slowly. py_trees forbids that anyway; here it stops being a matter of style.
 
 The lifecycle differs accordingly. The base runner sets the simulation up and shuts it down once per
 run, whereas the ROS runner does it **per scenario** — each scenario already runs on its own node and
@@ -182,7 +235,7 @@ Two of their fields are dropped and one is kept for a specific reason:
 
 The writer takes a :class:`Clock <scenario_execution.Clock>` and calls ``now()``, so ``timestamp`` is simulated time whenever one exists and monotonic time otherwise — zero-based either way, with the metadata record naming which applied.
 
-``ScenarioExecution.setup()`` resolves it as ``kwargs.get('sim_clock') or kwargs.get('clock')``. The ROS runner passes ``sim_clock=RosClock(node)`` rather than ``clock=``: ``clock`` is what ``ClockTimer``/``ClockTimeout`` read, so passing it there would retarget every scenario's timeouts from wall time to ``/clock``. That may well be the correct semantics under ``use_sim_time``, but it changes when timeouts fire and is a separate decision from recording a log.
+``ScenarioExecution.setup()`` resolves it as ``kwargs.get('clock')``. There is one scenario clock and the timers read the same one, so a duration a scenario states and a timestamp the run records are on the same timeline by construction rather than by agreement.
 
 **Source locations**
 
