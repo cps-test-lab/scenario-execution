@@ -5,6 +5,9 @@ Changelog for package scenario_execution_interfaces
 Forthcoming
 -----------
 
+1.5.0 (2026-06-14)
+------------------
+
 1.4.0 (2025-11-27)
 ------------------
 
