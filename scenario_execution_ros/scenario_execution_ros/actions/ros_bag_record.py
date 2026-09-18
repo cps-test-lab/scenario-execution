@@ -81,7 +81,10 @@ class RosBagRecord(RunProcess):
         else:
             self.missing_topics = None
         self.command = ["ros2", "bag", "record"]
-        if hidden_topics:
+        # A hidden topic (a name segment starting with '_', as an action's topics do) is never
+        # subscribed without the flag, and the recording would wait for it without end. With an
+        # explicit list the flag admits only the listed ones, so it is set whenever one is hidden.
+        if hidden_topics or any(part.startswith('_') for topic in topics for part in topic.split('/') if part):
             self.command.append("--include-hidden-topics")
         if storage:
             self.command.extend(["--storage", storage])

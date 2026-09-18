@@ -1651,7 +1651,7 @@ To capture only what the behavior tree did, use ``--bt-log`` instead (see :ref:`
    * - ``topics``
      - ``list of string``
      - 
-     - List of topics to capture
+     - List of topics to capture. A hidden topic (a name segment starting with ``_``, e.g. an action's ``/_action/`` topics) is captured too; an empty list captures all topics
    * - ``timestamp_suffix``
      - ``bool``
      - ``true``
@@ -1659,7 +1659,7 @@ To capture only what the behavior tree did, use ``--bt-log`` instead (see :ref:`
    * - ``hidden_topics``
      - ``bool``
      - ``false``
-     - Whether to record hidden topics
+     - Whether to record hidden topics when all topics are recorded
    * - ``storage``
      - ``string``
      - ``''``
