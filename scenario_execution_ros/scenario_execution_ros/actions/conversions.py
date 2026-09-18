@@ -19,7 +19,7 @@
 
 import operator
 import importlib
-from rclpy.qos import QoSPresetProfiles, ReliabilityPolicy, DurabilityPolicy
+from rclpy.qos import QoSPresetProfiles, QoSProfile, ReliabilityPolicy, DurabilityPolicy
 from array import array
 
 def get_ros_message_type(message_type_string):
@@ -34,6 +34,32 @@ def get_ros_message_type(message_type_string):
         return getattr(importlib.import_module(".".join(datatype_in_list[0:-1])), datatype_in_list[-1])
     except (ModuleNotFoundError, ValueError) as e:
         raise ValueError(f"Could not find message type {message_type_string}: {e}") from e
+
+
+def _system_default_copy():
+    """A QoSProfile of one's own, carrying the system default's settings.
+
+    `QoSPresetProfiles.SYSTEM_DEFAULT.value` hands back the enum's own object rather than a copy, so
+    a profile adjusted in place IS the preset from then on: every later subscriber asking for plain
+    `system_default` in this process gets the adjustment too, and stops matching publishers offering
+    exactly what it used to ask for. One topic wanting a latched subscription would silently change
+    the QoS of every other topic the scenario reads, surfacing as an "incompatible QoS" warning on a
+    topic nobody touched.
+
+    Built field by field because a QoSProfile wraps a C structure and does not deep-copy.
+    """
+    source = QoSPresetProfiles.SYSTEM_DEFAULT.value
+    return QoSProfile(
+        history=source.history,
+        depth=source.depth,
+        reliability=source.reliability,
+        durability=source.durability,
+        lifespan=source.lifespan,
+        deadline=source.deadline,
+        liveliness=source.liveliness,
+        liveliness_lease_duration=source.liveliness_lease_duration,
+        avoid_ros_namespace_conventions=source.avoid_ros_namespace_conventions,
+    )
 
 
 def get_qos_preset_profile(qos_profile): # pylint: disable=too-many-return-statements
@@ -51,11 +77,11 @@ def get_qos_preset_profile(qos_profile): # pylint: disable=too-many-return-state
     elif qos_profile[0] == 'system_default':
         return QoSPresetProfiles.SYSTEM_DEFAULT.value
     elif qos_profile[0] == 'system_default_reliable':
-        profile = QoSPresetProfiles.SYSTEM_DEFAULT.value
+        profile = _system_default_copy()
         profile.reliability = ReliabilityPolicy.RELIABLE
         return profile
     elif qos_profile[0] == 'system_default_transient_local':
-        profile = QoSPresetProfiles.SYSTEM_DEFAULT.value
+        profile = _system_default_copy()
         profile.durability = DurabilityPolicy.TRANSIENT_LOCAL
         return profile
     else:

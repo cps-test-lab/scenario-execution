@@ -17,10 +17,10 @@
 import rclpy
 import py_trees  # pylint: disable=import-error
 from rclpy.node import Node
-import time
 import tf2_ros
 from .common import NamespacedTransformListener
 from scenario_execution.actions.base_action import BaseAction, ActionError
+from scenario_execution.simulation import WallClock
 from tf2_ros import TransformException  # pylint: disable= no-name-in-module
 import math
 
@@ -36,7 +36,7 @@ class AssertTfMoving(BaseAction):
         self.threshold_rotation = None
         self.wait_for_first_transform = None
         self.tf_topic_namespace = tf_topic_namespace
-        self.use_sim_time = None
+        self.latest_transform = None
         self.start_timeout = False
         self.timer = 0
         self.transforms_received = 0
@@ -46,6 +46,10 @@ class AssertTfMoving(BaseAction):
         self.tf_listener = None
 
     def setup(self, **kwargs):
+        # Scenario time: a "no movement for N seconds" assertion is about the robot, so both
+        # the timeout and the window the speeds are divided by are measured on the timeline
+        # the robot moves in.
+        self.clock = kwargs.get('clock', WallClock())
         try:
             self.node: Node = kwargs['node']
         except KeyError as e:
@@ -64,25 +68,26 @@ class AssertTfMoving(BaseAction):
             tf_static_topic=(tf_prefix + "/tf_static"),
         )
 
-    def execute(self, frame_id: str, parent_frame_id: str, timeout: int, threshold_translation: float, threshold_rotation: float, wait_for_first_transform: bool, use_sim_time: bool):
+    def execute(self, frame_id: str, parent_frame_id: str, timeout: int, threshold_translation: float,
+                threshold_rotation: float, wait_for_first_transform: bool, latest_transform: bool):
         self.frame_id = frame_id
         self.parent_frame_id = parent_frame_id
         self.timeout = timeout
         self.threshold_translation = threshold_translation
         self.threshold_rotation = threshold_rotation
         self.wait_for_first_transform = wait_for_first_transform
-        self.use_sim_time = use_sim_time
+        self.latest_transform = latest_transform
         self.feedback_message = f"Waiting for transform {self.parent_frame_id} --> {self.frame_id}"  # pylint: disable= attribute-defined-outside-init
 
     def update(self) -> py_trees.common.Status:
-        now = time.time()
+        now = self.clock.now()
         transform = self.get_transform(self.frame_id, self.parent_frame_id)
         result = py_trees.common.Status.RUNNING
         if self.wait_for_first_transform:
             if transform is not None:
                 self.feedback_message = f"Transform {self.parent_frame_id} -> {self.frame_id} got available."  # pylint: disable= attribute-defined-outside-init
                 self.prev_transform = transform
-                self.timer = time.time()
+                self.timer = self.clock.now()
                 self.wait_for_first_transform = False
                 result = py_trees.common.Status.RUNNING
             else:
@@ -94,12 +99,12 @@ class AssertTfMoving(BaseAction):
             self.prev_transform = transform
             if translational_speed >= self.threshold_translation or rotational_speed >= self.threshold_rotation:
                 self.start_timeout = False
-                self.timer = time.time()
+                self.timer = self.clock.now()
                 self.feedback_message = f"The frame {self.frame_id} is moving with respect to frame {self.parent_frame_id} with linear velocity ({translational_speed}) and rotational ({rotational_speed})."  # pylint: disable= attribute-defined-outside-init
                 result = py_trees.common.Status.RUNNING
             else:
                 if not self.start_timeout:
-                    self.timer = time.time()
+                    self.timer = self.clock.now()
                     self.start_timeout = True
                 elif now - self.timer > self.timeout:
                     self.feedback_message = f"Timeout: No movement detected for {self.timeout} seconds."  # pylint: disable= attribute-defined-outside-init
@@ -117,7 +122,7 @@ class AssertTfMoving(BaseAction):
 
     def get_transform(self, frame_id, parent_frame_id):
         when = self.node.get_clock().now()
-        if self.use_sim_time:
+        if self.latest_transform:
             when = rclpy.time.Time()
         try:
             transform = self.tf_buffer.lookup_transform(

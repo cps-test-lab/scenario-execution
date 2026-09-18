@@ -43,6 +43,20 @@ checkspelling: sphinx_setup
 	@echo
 	@echo "Check finished. Report is in $(LINKCHECKDIR)."
 
+# --- Unit tests -------------------------------------------------------------------------
+# colcon is what CI runs; the pytest targets are the same suites without the build, for a
+# tree that is already built and sourced.
+TEST_PACKAGES = scenario_execution scenario_execution_ros
+
+test:
+	colcon test --packages-select $(TEST_PACKAGES) --event-handlers console_direct+ --return-code-on-test-failure
+
+test_core:
+	python3 -m pytest scenario_execution/test
+
+test_ros:
+	python3 -m pytest scenario_execution_ros/test
+
 test_scenario_execution_nav2_test:
 	scenario_batch_execution -i test/scenario_execution_nav2_test/scenarios/ -o test_scenario_execution_nav2 --ignore-process-return-value -- ros2 run scenario_execution_ros scenario_execution_ros {SCENARIO} -o {OUTPUT_DIR} -t
 

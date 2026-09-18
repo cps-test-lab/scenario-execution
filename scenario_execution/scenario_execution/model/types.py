@@ -811,6 +811,32 @@ class ScenarioInherits(Inheritance):
             return visitor.visit_children(self)
 
 
+def declarations_named(declaration, name: str) -> set:
+    """Source files of every ``ActionDeclaration`` called *name* that is in scope.
+
+    More than one means two imported libraries declare the same action, which
+    :meth:`ModelElement.find_reference_by_name` resolves by taking the first it walks past -- so
+    without this the scenario silently gets one of them. Returns paths rather than nodes because
+    what a caller has to be told is WHERE the competing declarations are.
+    """
+    root = declaration
+    while root.get_parent() is not None:
+        root = root.get_parent()
+
+    found = set()
+
+    def _walk(node):
+        if isinstance(node, ActionDeclaration) and node.name == name:
+            ctx = node.get_ctx()
+            source = ctx[3] if isinstance(ctx, (tuple, list)) and len(ctx) > 3 else None
+            found.add(str(source) if source else "<unknown>")
+        for child in node.get_children():
+            _walk(child)
+
+    _walk(root)
+    return found
+
+
 class ActionDeclaration(StructuredDeclaration):
 
     def __init__(self, qualified_behavior_name):
@@ -2235,6 +2261,9 @@ class VariableReference(object):
 class IdentifierReference(ModelElement):
 
     def __init__(self, ref):
+        #: Set while this reference's value is being computed, so a resolution that arrives
+        #: back here is reported as a cycle instead of recursing (see get_resolved_value).
+        self._resolving = False
         super().__init__()
         self.ref = ref
 
@@ -2307,7 +2336,28 @@ class IdentifierReference(ModelElement):
                     val = val[sub_elem.name]
                 return val
         else:
-            result = self.ref.get_resolved_value(blackboard)
+            # A reference whose resolution leads back to itself. It happens when a name is
+            # visible in two scopes and the inner one wins: `spot(x: x)` binds the argument's
+            # value to the struct's own field `x` rather than to the enclosing scenario's `x`,
+            # so the field becomes its own default. Without this the resolution simply
+            # recursed until Python gave out, and a RecursionError names no parameter, no
+            # file and no line -- the one construct in a scenario that produced a traceback
+            # instead of a diagnostic.
+            if self._resolving:
+                name = getattr(self.ref, 'name', None) or 'unknown'
+                raise OSC2ParsingError(
+                    msg=f'Parameter "{name}" is its own value: the reference here resolves back '
+                        f'to the declaration it is the value of, so it can never be computed. '
+                        f'This happens when an argument\'s value repeats a field name that is '
+                        f'also in scope -- give one of them a different name, or qualify it.',
+                    context=self.get_ctx())
+            self._resolving = True
+            try:
+                result = self.ref.get_resolved_value(blackboard)
+            finally:
+                # Cleared however the call ended: resolution is re-entered for every cell of a
+                # sweep, so a flag left set by one failure would refuse the next, valid one.
+                self._resolving = False
             # Check if this is an unresolved parameter (empty dict for primitive types)
             if isinstance(result, dict) and len(result) == 0:
                 # Get type to check if this should be a primitive value

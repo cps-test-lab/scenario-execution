@@ -720,6 +720,31 @@ scenario test:
         self.assertEqual(
             self.logger.logs_info[2], "{'position': {'x': 0.0, 'y': 0.0, 'z': 0.0}, 'orientation': {'roll': 0.0, 'pitch': 1.23, 'yaw': 0.0}}")
 
+    def test_pose3d_positional_default_partial_sub_struct_override(self):
+        # Regression test: `position_3d inherits position`, and its default here is given
+        # POSITIONALLY (`pose_3d(position_3d(4.0, 2.0, 0.0))`), not with named arguments.
+        # A struct's own get_children() also carries the `inherits` link as an unnamed
+        # leading entry, which used to be counted as positional argument 0 -- shifting
+        # every real field's override by one position for any partially-overridden struct
+        # that inherits from a base. `x` must stay 4.0 (unchanged) and `y` must become 2.0
+        # (not 4.0), with `z` untouched at its own default (0.0, not 2.0).
+        scenario_content = """
+import osc.helpers
+
+scenario test:
+    goal_pose: pose_3d = pose_3d(position_3d(4.0m, 2.0m, 0.0m))
+    do serial:
+        log(goal_pose)
+"""
+        override_parameters = {"test": {
+            "goal_pose": {
+                "position": {"x": 4.0, "y": 2.0}
+            }}}
+        self.execute(scenario_content, override_parameters)
+        self.assertEqual(
+            self.logger.logs_info[2],
+            "{'position': {'x': 4.0, 'y': 2.0, 'z': 0.0}, 'orientation': {'roll': 0.0, 'pitch': 0.0, 'yaw': 0.0}}")
+
     def test_string_empty(self):
         scenario_content = """
 action log:

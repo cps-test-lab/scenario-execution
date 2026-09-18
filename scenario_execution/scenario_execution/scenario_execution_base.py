@@ -20,6 +20,7 @@ import inspect
 import os
 import sys
 import time
+import traceback
 import argparse
 import signal
 from datetime import datetime, timedelta
@@ -30,7 +31,7 @@ from scenario_execution.utils import bt_logger
 from scenario_execution.utils import tick_recorder
 from scenario_execution import tick_report
 from scenario_execution.model.model_file_loader import ModelFileLoader
-from scenario_execution.simulation import SimulationClock
+from scenario_execution.simulation import HostClock, SimulationClock
 from scenario_execution.actions.process_registry import ProcessRegistry
 from dataclasses import dataclass
 from xml.sax.saxutils import escape  # nosec B406 # escape is only used on an internally generated error string
@@ -278,6 +279,10 @@ class ScenarioExecution(object):
             input_dir = os.path.dirname(self.scenario_file)
         setup_kwargs = dict(kwargs)
         setup_kwargs['process_registry'] = self.process_registry
+        # Host time, beside the scenario clock: the domain a deadline lives in when it has to
+        # expire even though a simulated clock has stopped. Created per scenario so it is
+        # zero-based like every other clock the framework hands out.
+        setup_kwargs.setdefault('host_clock', HostClock())
         self.behaviour_tree.setup(timeout=self.setup_timeout,
                                   logger=self.logger,
                                   input_dir=input_dir,
@@ -290,16 +295,15 @@ class ScenarioExecution(object):
         """Attach the behaviour-tree status log for this scenario, if --bt-log is set.
 
         Middleware-independent: the ROS runner inherits this untouched and contributes
-        only the clock. ``sim_clock`` is preferred over ``clock`` so a runner can supply
-        a time source for the log alone -- passing ``clock`` would also retarget
-        ClockTimer/ClockTimeout, changing when timeouts fire.
+        only the clock. There is one scenario clock and the log is stamped on it, so a
+        recorded status change and the timer that caused it are on the same timeline.
         """
         self.close_bt_logger()
         if not self.bt_log:
             return
         if not output_dir:
             raise ValueError("--bt-log requires --output-dir.")
-        clock = setup_kwargs.get('sim_clock') or setup_kwargs.get('clock')
+        clock = setup_kwargs.get('clock')
         path = os.path.join(output_dir, bt_logger.DEFAULT_FILENAME)
         meta = bt_logger.build_meta(
             scenario_name=self.current_scenario.name,
@@ -329,8 +333,8 @@ class ScenarioExecution(object):
 
         Middleware-independent, like the behaviour-tree log beside it: the ROS
         runner inherits this untouched and contributes only its clock and its
-        driver name. The clock is chosen the same way, ``sim_clock`` over
-        ``clock``, so ``timestamp`` means the same thing in both files.
+        driver name. It is the same scenario clock, so ``timestamp`` means the
+        same thing in both files.
 
         Ordering: the recorder's post-tick handler is registered here, i.e. before
         :meth:`post_tick_handler`, because that one detects the end of the scenario
@@ -342,7 +346,7 @@ class ScenarioExecution(object):
             return
         if not output_dir:
             raise ValueError("--tick-log requires --output-dir.")
-        clock = setup_kwargs.get('sim_clock') or setup_kwargs.get('clock')
+        clock = setup_kwargs.get('clock')
         self.tick_recorder = tick_recorder.TickRecorder(
             output_dir, self.tick_period, self.tick_driver, clock=clock)
         # Before the tree is set up, so each action's own setup() cost is recorded.
@@ -461,7 +465,7 @@ class ScenarioExecution(object):
             try:
                 self.setup(tree, current_output_dir=effective_output_dir)
             except Exception as e:  # pylint: disable=broad-except
-                self.on_scenario_shutdown(False, "Setup failed", f"{e}")
+                self.fail_from_exception("Setup failed", e)
                 return
 
             while not self.shutdown_requested:
@@ -510,7 +514,7 @@ class ScenarioExecution(object):
                 tick_period=self.tick_period,
             )
         except Exception as e:  # pylint: disable=broad-except
-            self.on_scenario_shutdown(False, "Simulation setup failed", f"{e}")
+            self.fail_from_exception("Simulation setup failed", e)
             return
 
         multiple_scenarios = len(self.scenarios_list) > 1
@@ -535,7 +539,7 @@ class ScenarioExecution(object):
                     reset_kwargs = _build_reset_kwargs(simulation, params)
                     simulation.reset(**reset_kwargs)
                 except Exception as e:  # pylint: disable=broad-except
-                    self.on_scenario_shutdown(False, "Simulation reset failed", f"{e}")
+                    self.fail_from_exception("Simulation reset failed", e)
                     return
 
                 clock.reset()
@@ -543,7 +547,7 @@ class ScenarioExecution(object):
                 try:
                     self.setup(tree, current_output_dir=effective_output_dir, simulation=simulation, clock=clock)
                 except Exception as e:  # pylint: disable=broad-except
-                    self.on_scenario_shutdown(False, "Setup failed", f"{e}")
+                    self.fail_from_exception("Setup failed", e)
                     return
 
                 try:
@@ -712,6 +716,19 @@ class ScenarioExecution(object):
                 result = False
             if not self.shutdown_requested:
                 self.on_scenario_shutdown(result)
+
+    def fail_from_exception(self, failure_message, e):
+        """
+        Report a scenario failure caused by an exception, keeping the traceback.
+
+        The verdict carries only ``str(e)``, and for a whole class of errors that string names no
+        location: a RecursionError reports "maximum recursion depth exceeded" and nothing more, so
+        every run that dies that way produces an identical, unactionable verdict. Log the traceback
+        first, then report the message as before -- the recorded verdict is unchanged, what is added
+        is the one artifact that says where it happened.
+        """
+        self.logger.error(f"{failure_message}: {type(e).__name__}:\n{traceback.format_exc()}")
+        self.on_scenario_shutdown(False, failure_message, f"{e}")
 
     def on_scenario_shutdown(self, result, failure_message="", failure_output=""):
         self.shutdown_requested = True
