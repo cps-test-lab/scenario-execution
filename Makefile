@@ -125,6 +125,18 @@ release-prepare:
 release-list:
 	@python3 tools/release_prepare.py --list
 
+# Once the release pull request is merged: the candidate, then -- after it was tried by hand --
+# the tag. Both refuse on a commit that is not on main, on red CI, on a tree whose version is
+# not VERSION, and on a package that is neither released nor ignored by bloom; the final also
+# refuses without a candidate on TestPyPI. Each prints what to do next.
+release-rc:
+	@test -n "$(VERSION)" || { echo "Usage: make release-rc VERSION=X.Y.Z [COMMIT=<sha on main>]"; exit 1; }
+	python3 tools/release.py rc "$(VERSION)" $(if $(COMMIT),--commit "$(COMMIT)",)
+
+release-final:
+	@test -n "$(VERSION)" || { echo "Usage: make release-final VERSION=X.Y.Z [COMMIT=<sha on main>]"; exit 1; }
+	python3 tools/release.py final "$(VERSION)" $(if $(COMMIT),--commit "$(COMMIT)",)
+
 # What the publish workflow builds and checks, runnable here: the sdist and the wheel of the
 # one PyPI distribution, validated by twine, at the version package.xml says.
 release_check:
