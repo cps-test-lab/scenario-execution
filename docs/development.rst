@@ -70,7 +70,8 @@ Releasing
 
 A release goes to two places from one version: PyPI (the core ``scenario-execution``
 distribution, published by CI from the tag) and the ROS build farm (the ROS packages, via
-``bloom``, by hand after the tag). It is one generated pull request, one tag, and bloom.
+``bloom``, by hand after the tag). It is one generated pull request, one candidate tried by
+hand, one tag, and bloom — four ``make`` targets, each printing the next.
 
 1. **Prepare.** On a branch from a clean ``main``:
 
@@ -84,32 +85,36 @@ distribution, published by CI from the tag) and the ROS build farm (the ROS pack
    subjects; edit them where a subject says less than a reader needs), then commit and open
    the pull request. It needs ``catkin_pkg`` (``pip install catkin_pkg``).
 
-2. **Try it on TestPyPI.** Once the pull request is merged, publish a release candidate of the
-   wheel without tagging anything:
+2. **Try it.** Once the pull request is merged:
 
    .. code-block:: bash
 
-      gh workflow run publish.yml -f version=1.6.0rc1
-      pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ \
-          scenario-execution==1.6.0rc1
+      make release-rc VERSION=1.6.0
 
-   The same workflow, the same wheel, an index nothing depends on. Something wrong is a fix on
-   ``main`` and ``rc2``; nothing has been consumed. (``1.6.0rc1`` is not a version
-   ``package.xml`` may hold; the workflow passes it to that one build in the environment.)
+   This checks the commit (on ``main``, CI green, ``package.xml`` at 1.6.0, every package
+   either released or in the release repository's ``jazzy.ignored``), publishes the wheel as
+   ``1.6.0rcN`` to TestPyPI through the publish workflow, and lays out a **bloom rehearsal**:
+   a scratch clone of the release repository pointed at a clean clone of the commit, with
+   bloom and rosdep in a venv of their own. It prints two things to run by hand — a
+   ``pip install`` of the candidate from TestPyPI, and one ``bloom-release --pretend`` line
+   that performs the entire build-farm release and pushes nothing. Something wrong is a fix
+   on ``main`` and the next candidate; nothing has been consumed.
 
-3. **Tag.** Two tags on the merged release commit, both lightweight — bloom exports from the
-   distro-prefixed one, and ``git describe`` must keep answering with the bare one:
+3. **Tag.** When both hold:
 
    .. code-block:: bash
 
-      git tag 1.6.0 && git tag jazzy-1.6.0 1.6.0 && git push origin 1.6.0 jazzy-1.6.0
+      make release-final VERSION=1.6.0 COMMIT=<the commit the candidate was built from>
 
-   The push of ``1.6.0`` is what publishes to PyPI: ``.github/workflows/publish.yml`` builds
-   the wheel at the version ``package.xml`` says (and refuses if the tag disagrees), uploads it
-   with trusted publishing, and installs it back from the index. ``make release_check`` builds
-   and validates the same artifacts locally.
+   The same checks, plus a candidate on TestPyPI, then the two tags on that commit, both
+   lightweight — bloom exports from ``jazzy-1.6.0``, and ``git describe`` must keep answering
+   with the bare ``1.6.0`` (it prefers an annotated tag, and the changelog generator refuses
+   one of the other shape). The push of ``1.6.0`` is what publishes to PyPI:
+   ``.github/workflows/publish.yml`` builds the wheel at the version ``package.xml`` says,
+   uploads it with trusted publishing, and installs it back from the index.
 
-4. **The ROS build farm.** With both tags on the upstream and ``main`` still at this version:
+4. **The ROS build farm.** Printed by the previous step; with both tags on the upstream and
+   ``main`` still at this version:
 
    .. code-block:: bash
 
@@ -118,10 +123,8 @@ distribution, published by CI from the tag) and the ROS build farm (the ROS pack
    ``bloom-release`` is interactive, needs a current bloom and the release repository, reads
    the version from the tip of ``main``, and opens the ``rosdistro`` pull request. It releases
    every package it finds in the upstream **except** those named in the release repository's
-   ``jazzy.ignored``, and then insists the rest share one version — so the ``0.0.0`` set and
-   ``jazzy.ignored`` must agree, and a package in neither fails loudly rather than being
-   released by accident. The same run can be rehearsed first with ``bloom-release --pretend``,
-   which does everything but push.
+   ``jazzy.ignored``, and then insists the rest share one version — which is why the ``0.0.0``
+   set and ``jazzy.ignored`` must agree, and why the rehearsal in step 2 exists.
 
 Notes:
 

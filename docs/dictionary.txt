@@ -49,6 +49,7 @@ Changelog
 changelog
 changelogs
 sdist
+rosdep
 rosdistro
 kubernetes
 pybullet
