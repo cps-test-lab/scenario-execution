@@ -19,8 +19,8 @@ import subprocess  # nosec B404
 from threading import Thread, Lock
 from collections import deque
 import signal
-import time
 from scenario_execution.actions.base_action import BaseAction
+from scenario_execution.simulation import HostClock
 import os
 
 
@@ -62,8 +62,13 @@ class RunProcess(BaseAction):
         self.cancel_requested = False
         self.cancel_signal_sent = False
         self.cancel_kill_deadline = None
+        self.host_clock = HostClock()
 
     def setup(self, **kwargs):
+        # Host time: this deadline bounds an OS process, which knows nothing of a simulated
+        # clock, and it runs during teardown -- often with the simulator as the very process
+        # being killed. Measured against that simulator's clock it could never expire.
+        self.host_clock = kwargs.get('host_clock', HostClock())
         self.process_registry = kwargs.get('process_registry')
         has_label = self._model is not None and self._model.name
         if self.process_registry is not None and has_label:
@@ -107,8 +112,8 @@ class RunProcess(BaseAction):
                 self.logger.info(f'Cancel requested, sending {signal.Signals(self.shutdown_signal).name} to process...')
                 os.killpg(pgid, self.shutdown_signal)
                 self.cancel_signal_sent = True
-                self.cancel_kill_deadline = time.time() + (self.shutdown_timeout or 0)
-            elif self.cancel_kill_deadline is not None and time.time() >= self.cancel_kill_deadline:
+                self.cancel_kill_deadline = self.host_clock.now() + (self.shutdown_timeout or 0)
+            elif self.cancel_kill_deadline is not None and self.host_clock.now() >= self.cancel_kill_deadline:
                 self.logger.info('Process ignored the shutdown signal, sending SIGKILL...')
                 os.killpg(pgid, signal.SIGKILL)
                 self.cancel_kill_deadline = None

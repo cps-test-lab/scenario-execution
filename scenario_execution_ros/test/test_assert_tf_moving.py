@@ -125,7 +125,7 @@ class TestAssertTfMoving(unittest.TestCase):
     # threshold_rotation: 0.01 radps (radians per second)
     # wait_for_first_transform: True
     # tf_topic_namespace: (optional)
-    # use_sim_time: (optional)
+    # latest_transform: (optional)
 
 # TESTS PERFORMED
 

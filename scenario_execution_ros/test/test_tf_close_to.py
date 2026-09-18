@@ -128,7 +128,6 @@ class TestTfCloseTo(unittest.TestCase):
             namespace_override="",
             reference_point={"x": 1.0, "y": 2.0},
             threshold=0.4,
-            sim=False,
             robot_frame_id="base_link",
             parent_frame_id="odom",
         )
