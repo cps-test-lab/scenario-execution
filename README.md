@@ -35,13 +35,7 @@ If you use Scenario Execution for Robotics in your scientific work, please cite 
 
 ### Installation from source as ROS 2 workspace
 
-Clone this repository, update its submodules by running:
-
-```bash
-git submodule update --init
-```
-
-install the necessary dependencies:
+Clone this repository and install the necessary dependencies:
 
 ```bash
 rosdep install  --from-paths . --ignore-src

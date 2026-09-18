@@ -16,13 +16,20 @@
 
 from glob import glob
 import os
+import re
+from pathlib import Path
 from setuptools import find_packages, setup
 
 PACKAGE_NAME = 'tf_to_pose_publisher'
 
+# The version lives in package.xml alone: the ROS tooling reads it there and nowhere else,
+# so a release bumps one file per package and this can never disagree with it.
+VERSION = re.search(r"<version>\s*([^<\s]+)\s*</version>",
+                    (Path(__file__).resolve().parent / "package.xml").read_text(encoding="utf-8")).group(1)
+
 setup(
     name=PACKAGE_NAME,
-    version='1.5.0',
+    version=VERSION,
     packages=find_packages(exclude=['test']),
     data_files=[
         ('share/ament_index/resource_index/packages',
