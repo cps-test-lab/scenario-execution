@@ -103,9 +103,8 @@ action bag_play:
 
 action bag_record:
     # Record a ros bag, stored in output_dir defined by command-line parameter (default: '.')
-    topics: list of string               # topics to records, if empty all topics are recorded
+    topics: list of string               # topics to record (a hidden topic, e.g. an action's /_action/ ones, is recorded too); if empty all non-hidden topics are recorded
     timestamp_suffix: bool = true        # add a timestamp suffix to output directory name
-    hidden_topics: bool = false          # whether to record hidden topics (a name segment starting with '_', e.g. an action's /_action/ topics); listing one without this is an error
     storage: string = ''                 # storage type to use (empty string: use default)
     use_sim_time: bool = false           # stamp messages with simulation time even when the scenario execution node runs on host time
 
