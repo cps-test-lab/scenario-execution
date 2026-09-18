@@ -46,7 +46,7 @@ literal ``version='X.Y.Z'`` in every ``setup.py``.
 import datetime
 import os
 import re
-import subprocess
+import subprocess  # nosec B404
 import sys
 
 from catkin_pkg.changelog import CHANGELOG_FILENAME
