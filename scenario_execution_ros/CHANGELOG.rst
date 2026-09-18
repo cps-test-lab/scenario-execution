@@ -2,8 +2,21 @@
 Changelog for package scenario_execution_ros
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.6.0 (2026-09-18)
+------------------
+* bag_record: record a listed hidden topic without a flag (`#102 <https://github.com/cps-test-lab/scenario-execution/issues/102>`_)
+* Measure a scenario's durations on simulated time under use_sim_time (`#104 <https://github.com/cps-test-lab/scenario-execution/issues/104>`_)
+* Give an adjusted QoS preset a profile of its own (`#100 <https://github.com/cps-test-lab/scenario-execution/issues/100>`_)
+* Keep the traceback when a scenario run fails (`#92 <https://github.com/cps-test-lab/scenario-execution/issues/92>`_)
+* Skip an empty launch-argument value instead of aborting the whole launch (`#90 <https://github.com/cps-test-lab/scenario-execution/issues/90>`_)
+* Cancel a long-running action mid-scenario, not only at teardown (`#85 <https://github.com/cps-test-lab/scenario-execution/issues/85>`_)
+* Record how fast the tree ticked, and which behavior spent the time (`#84 <https://github.com/cps-test-lab/scenario-execution/issues/84>`_)
+* Add assert_realtime_factor() to compare the ROS clock against wall time (`#83 <https://github.com/cps-test-lab/scenario-execution/issues/83>`_)
+* Fix check_data comparing messages received before the action starts (`#80 <https://github.com/cps-test-lab/scenario-execution/issues/80>`_)
+* Tracing (`#76 <https://github.com/cps-test-lab/scenario-execution/issues/76>`_)
+* variable parent frame in tf_close_to action (`#72 <https://github.com/cps-test-lab/scenario-execution/issues/72>`_)
+* Contributors: Florian Mirus, fred-labs
+
 * Fix ``--step-duration`` being ignored: the tick period was always the 0.1s default
 
 1.5.0 (2026-06-14)
