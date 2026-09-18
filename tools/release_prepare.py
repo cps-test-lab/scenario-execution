@@ -58,6 +58,7 @@ from catkin_pkg.packages import find_packages
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CANONICAL = os.path.join("scenario_execution", "package.xml")
 UNRELEASED = "0.0.0"
+PACKAGING_FILES = {"package.xml", "setup.py", "setup.cfg", CHANGELOG_FILENAME}
 VERSION_PATTERN = re.compile(r"^\d+\.\d+\.\d+$")
 
 
@@ -134,10 +135,16 @@ def main():
     # 1. Forthcoming entries from the history since the last tag, released packages only. One
     #    line per commit: its subject. The body is what git is for, and a changelog of pasted
     #    paragraphs is one nobody reads.
+    #    A commit that reached a package only through its packaging files -- the previous
+    #    release's bump, a change to how versions are read -- did not change the package, and
+    #    is not listed for it.
     changes = get_forthcoming_changes(vcs)
     for entries in changes.values():
         for entry in entries or ():
             entry.msg = entry.msg.strip().splitlines()[0] if entry.msg.strip() else entry.msg
+            entry._affected_paths = [  # pylint: disable=protected-access
+                path for path in entry._affected_paths  # pylint: disable=protected-access
+                if os.path.basename(path) not in PACKAGING_FILES]
     update_changelogs(".", released, changes, vcs_client=vcs)
 
     # 2. The heading. The generator only adds a Forthcoming section where there are entries, so a
