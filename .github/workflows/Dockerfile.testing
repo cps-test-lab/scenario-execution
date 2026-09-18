@@ -25,7 +25,10 @@ RUN --mount=type=bind,source=.,target=/scenario_execution \
     rm -rf /var/lib/apt/lists/*
 
 # install dependencies for license check
+# A dependency of the toolkit still imports pkg_resources, which setuptools 81 dropped; the
+# venv pipx makes gets whatever setuptools is current, so pin one that still has it.
 RUN PIPX_HOME="" PIPX_BIN_DIR="/python_bin" pipx install -v ros-license-toolkit==1.2.2 && \
+    PIPX_HOME="" pipx inject ros-license-toolkit "setuptools<81" && \
     GOPATH=/go go install github.com/google/addlicense@v1.1.1
 
 # install pybullet dependencies
