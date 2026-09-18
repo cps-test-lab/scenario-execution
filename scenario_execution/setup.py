@@ -19,9 +19,18 @@
 from pathlib import Path
 from glob import glob
 import os
+import re
 from setuptools import find_namespace_packages, setup
 
 PACKAGE_NAME = 'scenario_execution'
+
+# The version lives in package.xml alone: the ROS tooling reads it there and nowhere else,
+# so a release bumps one file per package and this can never disagree with it. The one
+# exception is a TestPyPI release candidate, whose 1.2.3rc1 is not a version package.xml
+# may hold: the publish workflow passes it in the environment for that build only.
+VERSION = os.environ.get("SCENARIO_EXECUTION_VERSION") or re.search(
+    r"<version>\s*([^<\s]+)\s*</version>",
+    (Path(__file__).resolve().parent / "package.xml").read_text(encoding="utf-8")).group(1)
 
 # read the contents of the README file
 this_directory = Path(__file__).parent
@@ -34,7 +43,7 @@ except:  # pylint: disable=W0702
 
 setup(
     name=PACKAGE_NAME,
-    version='1.5.0',
+    version=VERSION,
     packages=find_namespace_packages(exclude=['test*']),
     data_files=[
         ('share/ament_index/resource_index/packages',

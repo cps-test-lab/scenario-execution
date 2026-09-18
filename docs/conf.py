@@ -9,13 +9,16 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 import os
 import datetime
+import re
 
 project = "Scenario Execution"
 copyright = f"{datetime.datetime.now()}, Intel"
 author = "Intel"
 
-version = '1.2.0'
-release = '1.2.0'
+# The version is package.xml's, like everything else that carries one.
+with open(os.path.join(os.path.dirname(__file__), "..", "scenario_execution", "package.xml"), encoding="utf-8") as _f:
+    release = re.search(r"<version>\s*([^<\s]+)\s*</version>", _f.read()).group(1)
+version = release
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
