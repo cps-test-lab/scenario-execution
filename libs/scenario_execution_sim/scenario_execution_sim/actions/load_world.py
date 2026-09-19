@@ -16,8 +16,10 @@
 
 
 from scenario_execution_ros.actions.ros_service_call import RosServiceCall
+from .common import resource_field
 try:
     from simulation_interfaces.msg import Result
+    from simulation_interfaces.srv import LoadWorld as LoadWorldService
 except ImportError as e:
     raise ImportError("simulation_interfaces package not found. Please make sure ros-<ROS_DISTRO>-simulation-interfaces is installed and sourced.") from e
 
@@ -29,7 +31,7 @@ class LoadWorld(RosServiceCall):
                          service_type='simulation_interfaces.srv.LoadWorld')
 
     def execute(self):   # pylint: disable=arguments-differ,arguments-renamed
-        super().execute(data={ "uri": self.uri })
+        super().execute(data=resource_field(LoadWorldService.Request, "uri", "world_resource", self.uri))
 
     def check_response(self, msg):
         """

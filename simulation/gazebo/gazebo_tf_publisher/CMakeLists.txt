@@ -27,14 +27,12 @@ find_package(gz-transport REQUIRED)
 
 add_executable(gazebo_tf_publisher_node src/gazebo_tf_publisher_node.cpp)
 
-ament_target_dependencies(gazebo_tf_publisher_node
-  rclcpp
-  geometry_msgs
-  tf2_msgs
-)
-
+# Linked through the packages' exported CMake targets.
 target_link_libraries(gazebo_tf_publisher_node
   gz-transport::core
+  rclcpp::rclcpp
+  ${geometry_msgs_TARGETS}
+  ${tf2_msgs_TARGETS}
 )
 
 install(DIRECTORY 
