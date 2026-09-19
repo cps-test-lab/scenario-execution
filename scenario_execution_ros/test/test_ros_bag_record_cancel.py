@@ -16,7 +16,7 @@
 
 import os
 import signal
-import subprocess
+import subprocess  # nosec B404
 import unittest
 
 from scenario_execution.utils.logging import BaseLogger

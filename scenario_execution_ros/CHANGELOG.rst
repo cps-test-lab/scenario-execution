@@ -4,6 +4,7 @@ Changelog for package scenario_execution_ros
 
 1.6.0 (2026-09-18)
 ------------------
+* A cancelled recording is closed, not killed (`#111 <https://github.com/cps-test-lab/scenario-execution/issues/111>`_)
 * bag_record: record a listed hidden topic without a flag (`#102 <https://github.com/cps-test-lab/scenario-execution/issues/102>`_)
 * Measure a scenario's durations on simulated time under use_sim_time (`#104 <https://github.com/cps-test-lab/scenario-execution/issues/104>`_)
 * Give an adjusted QoS preset a profile of its own (`#100 <https://github.com/cps-test-lab/scenario-execution/issues/100>`_)
