@@ -97,7 +97,11 @@ class RosBagRecord(RunProcess):
         # the same way without having to say so, and the parameter forces it either way.
         if use_sim_time or (self.node is not None and self.node.get_parameter('use_sim_time').value):
             self.command.append("--use-sim-time")
-        self.command.extend(["-o", self.bag_dir] + self.topics)
+        self.command.extend(["-o", self.bag_dir])
+        # Named with --topics: rosbag2 dropped positional topics after Jazzy, and the option is
+        # accepted by every supported distro.
+        if self.topics:
+            self.command.extend(["--topics"] + self.topics)
 
     def get_logger_stderr(self):
         """
