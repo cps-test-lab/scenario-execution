@@ -366,9 +366,16 @@ jobs:
           # shellcheck source=/dev/null
           source "/opt/ros/${ROS_DISTRO}/setup.bash"
           source install/setup.bash
-          find . -name "*.osc" | grep -Ev "lib_osc/*|examples/example_scenario_variation|scenario_execution_coverage|fail*|install|build" | while read -r file; do 
-            echo "$file"; 
-            ros2 run scenario_execution scenario_execution "$file" -n; 
+          find . -name "*.osc" | grep -Ev "lib_osc/*|examples/example_scenario_variation|scenario_execution_coverage|fail*|install|build" | while read -r file; do
+            # A scenario of a package that is not built on this distro imports a library nothing
+            # installed provides; the package is left out on purpose (test_distro.yml, build).
+            pkg_dir=$(dirname "$file"); while [ "$pkg_dir" != "." ] && [ ! -f "$pkg_dir/package.xml" ]; do pkg_dir=$(dirname "$pkg_dir"); done
+            if [ -f "$pkg_dir/package.xml" ]; then
+              pkg=$(sed -n 's:.*<name>\(.*\)</name>.*:\1:p' "$pkg_dir/package.xml" | head -1)
+              if [ ! -d "install/$pkg" ]; then echo "skipped, $pkg is not built here: $file"; continue; fi
+            fi
+            echo "$file";
+            ros2 run scenario_execution scenario_execution "$file" -n;
           done
   test-example-ros-examples:
     needs: [build, build-and-push-testing]
