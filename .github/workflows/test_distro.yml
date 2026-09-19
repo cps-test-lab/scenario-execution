@@ -9,7 +9,10 @@ on:
       ros_distro:
         required: true
         type: string
-permissions: read-all
+# A called workflow can only narrow what its caller grants, never add to it: read-all would ask
+# for scopes the caller's job does not have, and the run would fail to start.
+permissions:
+  contents: read
 env:
   ROS_DISTRO: ${{ inputs.ros_distro }}
 jobs:
