@@ -4,6 +4,7 @@ Changelog for package scenario_execution
 
 1.6.0 (2026-09-18)
 ------------------
+* run_process: stop a process at shutdown whose action never called execute()
 * The version lives in package.xml alone, and a release is one command, one PR and one tag (`#107 <https://github.com/cps-test-lab/scenario-execution/issues/107>`_)
 * Measure a scenario's durations on simulated time under use_sim_time (`#104 <https://github.com/cps-test-lab/scenario-execution/issues/104>`_)
 * Keep the traceback when a scenario run fails (`#92 <https://github.com/cps-test-lab/scenario-execution/issues/92>`_)
