@@ -10,7 +10,7 @@ Prerequisites
 
 Install ROS2 following the `installation instructions <https://docs.ros.org/en/jazzy/Installation.html>`_ for your distribution `$ROS_DISTRO`.
 
-Scenario execution currently supports the ROS 2 distributions `Humble <https://docs.ros.org/en/humble/index.html>`_ and `Jazzy <https://docs.ros.org/en/jazzy/index.html>`_.
+Scenario execution supports the ROS 2 distributions `Jazzy <https://docs.ros.org/en/jazzy/index.html>`_ and `Lyrical <https://docs.ros.org/en/lyrical/index.html>`_, both built and tested from the same source. `Humble <https://docs.ros.org/en/humble/index.html>`_ is supported by the 1.2 releases on the ``humble`` branch.
 
 Installation as Debian package (recommended)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
