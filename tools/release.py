@@ -20,11 +20,12 @@
 Usage::
 
     release.py rc    X.Y.Z [--commit SHA]   # 1.6.0rcN to TestPyPI, and the bloom rehearsal
-    release.py final X.Y.Z [--commit SHA]   # the X.Y.Z and jazzy-X.Y.Z tags -> PyPI; then bloom
+    release.py final X.Y.Z [--commit SHA]   # X.Y.Z and <distro>-X.Y.Z tags -> PyPI; then bloom
 
 A release has two halves: the ``scenario-execution`` wheel, which the publish workflow uploads
-from the ``X.Y.Z`` tag, and the ROS packages, which bloom takes to the build farm from the
-``jazzy-X.Y.Z`` tag beside it. Neither can be taken back -- an upload can be yanked, never
+from the ``X.Y.Z`` tag, and the ROS packages, which bloom takes to each distro's build farm from
+a ``<distro>-X.Y.Z`` tag beside it -- one per supported distro, all on the same commit, since
+the same source builds on every one of them. Neither can be taken back -- an upload can be yanked, never
 replaced, and a tag is never moved -- so both are tried first: the wheel as a release
 candidate on TestPyPI, and bloom as a rehearsal that does everything but push.
 
@@ -36,9 +37,10 @@ work of its own. The gates, each refusing on its own:
 3. ``scenario_execution/package.xml`` says ``X.Y.Z`` -- otherwise the release is not prepared
    (``make release-prepare``), and a tag that disagrees with the tree would fail its build
    after it exists;
-4. every ``package.xml`` is at ``X.Y.Z`` or at ``0.0.0``, and the ``0.0.0`` set is exactly what
-   the release repository's ignore list names: bloom drops those, then insists the rest share
-   one version, so a package in neither is released by accident or fails the check;
+4. every ``package.xml`` is at ``X.Y.Z`` or at ``0.0.0``, and for each distro the ``0.0.0`` set is
+   what the release repository's ``<distro>.ignored`` names, and that distro has a bloom track:
+   bloom drops the ignored packages, then insists the rest share one version, so a package in
+   neither is released by accident or fails the check;
 5. ``final`` only: a candidate of ``X.Y.Z`` is on TestPyPI, and the tag does not exist yet.
 
 Needs ``gh`` (logged in) and, for the rehearsal, network access to the release repository.
@@ -64,10 +66,11 @@ UNRELEASED = "0.0.0"
 #: Workflows that must be green on the commit, by their ``name:``.
 REQUIRED_WORKFLOWS = ("test-build", "Scan")
 
-ROS_DISTRO = "jazzy"
+#: Every distro main is released for; each has a track in the release repository.
+ROS_DISTROS = ("jazzy", "lyrical")
 ROSDISTRO_KEY = "scenario_execution"
 RELEASE_REPOSITORY = "https://github.com/ros2-gbp/scenario_execution-release.git"
-IGNORED_URL = f"https://raw.githubusercontent.com/ros2-gbp/scenario_execution-release/master/{ROS_DISTRO}.ignored"
+RELEASE_REPOSITORY_RAW = "https://raw.githubusercontent.com/ros2-gbp/scenario_execution-release/master"
 ROSDEP_SOURCES_URL = "https://raw.githubusercontent.com/ros/rosdistro/master/rosdep/sources.list.d/20-default.list"
 
 VERSION = re.compile(r"^\d+\.\d+\.\d+$")
@@ -158,16 +161,28 @@ def tree_agrees(clone, version):
     if other:
         return not fail("a package is at neither the release version nor 0.0.0: "
                         + ", ".join(f"{n} ({v})" for n, v in sorted(other.items())))
-    ignored = set(fetch_text(IGNORED_URL).split())
-    unignored = fixed - ignored
-    if unignored:
-        return not fail(f"at 0.0.0 but not in the release repository's {ROS_DISTRO}.ignored, so bloom would "
-                        f"release or refuse them: {', '.join(sorted(unignored))} -- add them there first "
-                        f"({RELEASE_REPOSITORY})")
-    stale = ignored & released
-    if stale:
-        return not fail(f"in {ROS_DISTRO}.ignored but at the release version: {', '.join(sorted(stale))}")
-    ok(f"{len(released)} packages at {version}, {len(fixed)} at {UNRELEASED} and ignored by bloom")
+    tracks = fetch_text(f"{RELEASE_REPOSITORY_RAW}/tracks.yaml")
+    for distro in ROS_DISTROS:
+        if not re.search(rf"(?m)^  {distro}:$", tracks):
+            return not fail(f"the release repository has no {distro} track; create it once with "
+                            f"`bloom-release --rosdistro {distro} --track {distro} --new-track {ROSDISTRO_KEY}` "
+                            f"(devel branch main, release tag {distro}-:{{version}})")
+        try:
+            ignored = set(fetch_text(f"{RELEASE_REPOSITORY_RAW}/{distro}.ignored").split())
+        except urllib.error.HTTPError as error:
+            if error.code != 404:
+                raise
+            ignored = set()
+        unignored = fixed - ignored
+        if unignored:
+            return not fail(f"at 0.0.0 but not in the release repository's {distro}.ignored, so bloom would "
+                            f"release or refuse them: {', '.join(sorted(unignored))} -- add them there first "
+                            f"({RELEASE_REPOSITORY})")
+        stale = ignored & released
+        if stale:
+            return not fail(f"in {distro}.ignored but at the release version: {', '.join(sorted(stale))}")
+    ok(f"{len(released)} packages at {version}, {len(fixed)} at {UNRELEASED} and ignored by bloom "
+       f"on {', '.join(ROS_DISTROS)}")
     return True
 
 
@@ -228,7 +243,7 @@ def lay_out_bloom_rehearsal(clone, version):
             run("git", "branch", "--track", name, ref, cwd=release_repo)
 
     run("git", "branch", "-f", "main", "HEAD", cwd=clone)
-    for tag in (version, f"{ROS_DISTRO}-{version}"):
+    for tag in release_tags(version):
         run("git", "tag", "-f", tag, cwd=clone)
     tracks = release_repo / "tracks.yaml"
     text, count = re.subn(r"(?m)^(\s*vcs_uri:\s*).*$", lambda m: m.group(1) + str(clone), tracks.read_text(encoding="utf-8"))
@@ -243,17 +258,25 @@ def lay_out_bloom_rehearsal(clone, version):
     sources = root / "rosdep" / "sources.list.d"
     sources.mkdir(parents=True)
     (sources / "20-default.list").write_text(fetch_text(ROSDEP_SOURCES_URL), encoding="utf-8")
-    subprocess.run([str(venv / "bin" / "rosdep"), "update", "--rosdistro", ROS_DISTRO],  # nosec B603
-                   env={**os.environ, "ROSDEP_SOURCE_PATH": str(sources)}, check=True,
-                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    for distro in ROS_DISTROS:
+        subprocess.run([str(venv / "bin" / "rosdep"), "update", "--rosdistro", distro],  # nosec B603
+                       env={**os.environ, "ROSDEP_SOURCE_PATH": str(sources)}, check=True,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     ok(f"bloom rehearsal laid out at {root.relative_to(ROOT)}")
     return root
 
 
-def bloom_rehearsal_line(root):
-    return (f"cd {root} && . venv/bin/activate && export ROSDEP_SOURCE_PATH={root}/rosdep/sources.list.d && \\\n"
-            f"    bloom-release --pretend --no-web --rosdistro {ROS_DISTRO} --track {ROS_DISTRO} \\\n"
-            f"        --override-release-repository-url {root}/release-repository {ROSDISTRO_KEY}")
+def release_tags(version):
+    """The version tag and, beside it, the one each distro's bloom track exports from."""
+    return [version, *(f"{distro}-{version}" for distro in ROS_DISTROS)]
+
+
+def bloom_rehearsal_lines(root):
+    return "\n\n".join(
+        f"cd {root} && . venv/bin/activate && export ROSDEP_SOURCE_PATH={root}/rosdep/sources.list.d && \\\n"
+        f"    bloom-release --pretend --no-web --rosdistro {distro} --track {distro} \\\n"
+        f"        --override-release-repository-url {root}/release-repository {ROSDISTRO_KEY}"
+        for distro in ROS_DISTROS)
 
 
 # -- the two commands ---------------------------------------------------------------------
@@ -282,10 +305,10 @@ Then test by hand, from a machine with nothing of ours on it:
         {DISTRIBUTION}=={rc}
     scenario_execution --help          # and a scenario of yours
 
-And rehearse the build farm -- the whole bloom release, pushing nothing (it asks what the
-real one will ask; answer as you would then):
+And rehearse the build farm, once per distro -- the whole bloom release, pushing nothing (it
+asks what the real one will ask; answer as you would then):
 
-{bloom_rehearsal_line(root)}
+{bloom_rehearsal_lines(root)}
 
 When both hold:  make release-final VERSION={version} COMMIT={sha[:12]}
 """)
@@ -301,23 +324,26 @@ def command_final(version, commit):
         return 1
     if run("git", "ls-remote", "--tags", "origin", version, cwd=clone):
         return fail(f"{version} already exists on {REPO}; a release is never re-tagged, the next one is the next number")
-    # Lightweight, both: `git describe` prefers an annotated tag, and an annotated jazzy-X.Y.Z
-    # would become "the latest tag", which the changelog generator refuses.
-    tags = [version, f"{ROS_DISTRO}-{version}"]
+    # Lightweight, all of them: `git describe` prefers an annotated tag, and an annotated
+    # <distro>-X.Y.Z would become "the latest tag", which the changelog generator refuses.
+    tags = release_tags(version)
     for tag in tags:
         run("git", "tag", "-f", tag, cwd=clone)
     run("git", "push", "-q", "origin", *tags, cwd=clone)
     ok(f"pushed {', '.join(tags)} on {sha[:8]}; publish.yml -> PyPI runs now")
+    bloom_lines = "\n".join(f"    cd {ROOT} && bloom-release --rosdistro {d} --track {d} {ROSDISTRO_KEY}"
+                            for d in ROS_DISTROS)
     print(f"""
 Watch it:   gh run list -R {REPO} -L3
 
-Then the build farm, by hand, before any further version bump lands on main (bloom reads the
-version there). Needs a current bloom (pip install -U bloom) and access to the release repository:
+Then the build farm, by hand, once per distro, before any further version bump lands on main
+(bloom reads the version there). Needs a current bloom (pip install -U bloom) and access to the
+release repository:
 
-    cd {ROOT} && bloom-release --rosdistro {ROS_DISTRO} --track {ROS_DISTRO} {ROSDISTRO_KEY}
+{bloom_lines}
 
-It opens the rosdistro pull request; in it, also point `source` at https://github.com/{REPO}.git
-@ main if it still names another repository. Afterwards: the GitHub Release for {version}.
+Each opens a rosdistro pull request; in it, `source` should read https://github.com/{REPO}.git
+@ main. Afterwards: the GitHub Release for {version}.
 """)
     return 0
 
