@@ -1,0 +1,12 @@
+# Keep the Docker build context (and the bind-mounted /scenario_execution) limited to
+# sources. Excluding the colcon artifacts also avoids rosdep scanning stale/dangling
+# package.xml under build/ and install/ during the image build.
+build/
+install/
+log/
+venv/
+.git/
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/*.egg-info/

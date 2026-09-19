@@ -58,3 +58,21 @@ def get_spawn_pose(action, pose):
     except KeyError as e:
         raise ActionError("Could not get values", action=action) from e
     return pose
+
+
+def resource_field(request_type, flat_name, resource_name, uri):
+    """The request fields that carry a resource URI, in the shape the installed interface has.
+
+    simulation_interfaces 1.x (Jazzy) has a flat ``uri`` string; 2.x (Lyrical onward) moved it
+    into a ``Resource`` sub-message. Asked of the installed request type, so the same action
+    works against either -- this is the one place that knows both shapes.
+    """
+    if resource_name in request_type.get_fields_and_field_types():
+        return {resource_name: {"uri": uri}}
+    return {flat_name: uri}
+
+
+def state_flags(request_type):
+    """The flags simulation_interfaces 2.x needs to apply a whole entity state; none in 1.x."""
+    fields = request_type.get_fields_and_field_types()
+    return {flag: True for flag in ("set_pose", "set_twist", "set_acceleration") if flag in fields}
