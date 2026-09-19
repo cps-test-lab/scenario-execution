@@ -36,6 +36,8 @@ def generate_launch_description():
 
     example_nav2_dir = get_package_share_directory('example_nav2')
     nav2_bringup_dir = get_package_share_directory('nav2_bringup')
+    # A map of our own: nav2_bringup's sample maps move between releases (the depot's origin did).
+    maze_map = os.path.join(get_package_share_directory('tb4_sim_scenario'), 'maps', 'maze.yaml')
     scenario_execution_ros_dir = get_package_share_directory('scenario_execution_ros')
 
     scenario = LaunchConfiguration('scenario')
@@ -47,7 +49,8 @@ def generate_launch_description():
                               description='Tick the tree and measure the scenario durations on /clock instead of host time'),
 
         IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(loopback_simulation_launch_file(nav2_bringup_dir))
+            PythonLaunchDescriptionSource(loopback_simulation_launch_file(nav2_bringup_dir)),
+            launch_arguments={'map': maze_map}.items()
         ),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([PathJoinSubstitution([scenario_execution_ros_dir, 'launch', 'scenario_launch.py'])]),
