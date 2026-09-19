@@ -2,8 +2,27 @@
 Changelog for package scenario_execution
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.6.0 (2026-09-18)
+------------------
+* The version lives in package.xml alone, and a release is one command, one PR and one tag (`#107 <https://github.com/cps-test-lab/scenario-execution/issues/107>`_)
+* Measure a scenario's durations on simulated time under use_sim_time (`#104 <https://github.com/cps-test-lab/scenario-execution/issues/104>`_)
+* Keep the traceback when a scenario run fails (`#92 <https://github.com/cps-test-lab/scenario-execution/issues/92>`_)
+* Report an action declared by two libraries whichever is imported first (`#98 <https://github.com/cps-test-lab/scenario-execution/issues/98>`_)
+* Read a duration as a duration, and an action name as its library's (`#95 <https://github.com/cps-test-lab/scenario-execution/issues/95>`_)
+* Refuse a parameter that is its own value, instead of recursing until Python stops (`#96 <https://github.com/cps-test-lab/scenario-execution/issues/96>`_)
+* Read a scenario file as UTF-8, and place a decode failure in it (`#94 <https://github.com/cps-test-lab/scenario-execution/issues/94>`_)
+* Fix positional override binding for structs declared with inherits (`#91 <https://github.com/cps-test-lab/scenario-execution/issues/91>`_)
+* Support the until directive, and the if guard on an event reference (`#88 <https://github.com/cps-test-lab/scenario-execution/issues/88>`_)
+* Cancel a long-running action mid-scenario, not only at teardown (`#85 <https://github.com/cps-test-lab/scenario-execution/issues/85>`_)
+* Keep a bool parameter override true when the parameter has a default (`#86 <https://github.com/cps-test-lab/scenario-execution/issues/86>`_)
+* Record how fast the tree ticked, and which behavior spent the time (`#84 <https://github.com/cps-test-lab/scenario-execution/issues/84>`_)
+* Drop the lexer predicate that defeats ANTLR's DFA cache (`#82 <https://github.com/cps-test-lab/scenario-execution/issues/82>`_)
+* Get latest scenario state (`#81 <https://github.com/cps-test-lab/scenario-execution/issues/81>`_)
+* Extend the introspection interface: get_action_details, describe_scenario, and a standalone MCP server (`#79 <https://github.com/cps-test-lab/scenario-execution/issues/79>`_)
+* add introspection interface (`#75 <https://github.com/cps-test-lab/scenario-execution/issues/75>`_)
+* Tracing (`#76 <https://github.com/cps-test-lab/scenario-execution/issues/76>`_)
+* Feature/process log check (`#74 <https://github.com/cps-test-lab/scenario-execution/issues/74>`_)
+* Contributors: Florian Mirus, fred-labs
 
 1.5.0 (2026-06-14)
 ------------------

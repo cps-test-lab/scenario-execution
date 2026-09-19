@@ -2,8 +2,10 @@
 Changelog for package scenario_execution_nav2
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.6.0 (2026-09-18)
+------------------
+* Measure a scenario's durations on simulated time under use_sim_time (`#104 <https://github.com/cps-test-lab/scenario-execution/issues/104>`_)
+* Contributors: fred-labs
 
 1.5.0 (2026-06-14)
 ------------------
