@@ -45,8 +45,10 @@ class RunProcess(BaseAction):
         super().__init__()
         self.command = None
         self.wait_for_shutdown = None
-        self.shutdown_timeout = None
-        self.shutdown_signal = None
+        # The same defaults execute() has: a subclass that overrides execute() to set its command
+        # never calls it, and its process still has to be stopped at shutdown.
+        self.shutdown_timeout = 10
+        self.shutdown_signal = signal.SIGTERM
         self.executed = False
         self.process = None
         #: The command the currently running process was actually started with. Kept separately from

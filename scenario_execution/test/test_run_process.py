@@ -202,6 +202,20 @@ class TestRunProcessReinitialise(unittest.TestCase):
         self.assertIsNotNone(started.poll(),
                              "shutdown() must signal the process that is actually running")
 
+    def test_shutdown_stops_a_process_started_without_execute(self):
+        """A subclass that sets its command itself and never calls execute() -- as the library
+        actions that wrap one fixed tool do -- still has a process to stop at shutdown."""
+        self.action.set_command(['sleep', '30'])
+        self.assertEqual(self.action.update(), py_trees.common.Status.SUCCESS)
+        started = self.action.process
+        self.spawned_pids.append(started.pid)
+        self.assertIsNone(started.poll(), "the process under test should still be running")
+
+        self.action.shutdown()
+
+        started.wait(10)
+        self.assertIsNotNone(started.poll(), "shutdown() must stop a process whose action never called execute()")
+
     def test_reinitialise_after_exit_starts_a_new_process(self):
         # The guard must not turn into "an action can only ever run once".
         self._reinitialise('true')
