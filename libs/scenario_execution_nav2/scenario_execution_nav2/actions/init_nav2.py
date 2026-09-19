@@ -28,7 +28,7 @@ from rclpy.duration import Duration
 from tf2_ros import Buffer
 import py_trees
 
-from .nav2_common import NamespaceAwareBasicNavigator
+from nav2_simple_commander.robot_navigator import BasicNavigator  # pylint: disable=import-error
 from scenario_execution_ros.actions.common import get_pose_stamped, NamespacedTransformListener
 from scenario_execution.actions.base_action import BaseAction, ActionError
 from scenario_execution.simulation import HostClock
@@ -99,7 +99,7 @@ class InitNav2(BaseAction):
         self.tf_listener = NamespacedTransformListener(
             node=self.node, buffer=self.tf_buffer, tf_topic=self.namespace + "/tf", tf_static_topic=self.namespace + "/tf_static")
 
-        self.nav = NamespaceAwareBasicNavigator(
+        self.nav = BasicNavigator(
             node_name="basic_nav_init_nav2", namespace=self.namespace)
         self.bt_navigator_state_client = self.node.create_client(
             GetState, self.namespace + '/bt_navigator/get_state',
