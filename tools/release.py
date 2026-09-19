@@ -221,9 +221,11 @@ def lay_out_bloom_rehearsal(clone, version):
     run("git", "clone", "-q", RELEASE_REPOSITORY, str(release_repo))
     # bloom clones this again, and a clone carries only local branches: every release/ and
     # debian/ branch it builds on has to be one here.
+    local = set(run("git", "branch", "--format=%(refname:short)", cwd=release_repo).split())
     for ref in run("git", "branch", "-r", cwd=release_repo).split():
-        if ref.startswith("origin/") and not ref.startswith("origin/HEAD"):
-            run("git", "branch", "--track", ref.removeprefix("origin/"), ref, cwd=release_repo)
+        name = ref.removeprefix("origin/")
+        if ref.startswith("origin/") and not ref.startswith("origin/HEAD") and name not in local:
+            run("git", "branch", "--track", name, ref, cwd=release_repo)
 
     run("git", "branch", "-f", "main", "HEAD", cwd=clone)
     for tag in (version, f"{ROS_DISTRO}-{version}"):
