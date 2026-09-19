@@ -29,6 +29,10 @@ from scenario_execution.utils.logging import Logger
 from antlr4.InputStream import InputStream
 
 CLOCK_PERIOD = 0.05  # wall seconds between /clock messages
+#: What a case means by a clock that keeps up. Above the 0.5 the assertions use, and not by a
+#: hair: the factor is measured from when the messages arrive, so a loaded machine that delays
+#: them measures less than was published, and a healthy clock published at exactly 1.0 fails.
+HEALTHY_RTF = 2.0
 
 
 class TestAssertRealtimeFactor(unittest.TestCase):
@@ -45,7 +49,7 @@ class TestAssertRealtimeFactor(unittest.TestCase):
         # the ROS timer fires late under a loaded executor.
         self.sim_time = 0.
         self.last_publish_wall = None
-        self.rtf = 1.
+        self.rtf = HEALTHY_RTF
         self.stall_next = 0  # number of upcoming ticks that publish no sim-time progress
         self.publish_clock = True
         self.start_wall = time.monotonic()
@@ -97,7 +101,7 @@ class TestAssertRealtimeFactor(unittest.TestCase):
 
     def test_case_1(self):
         # healthy clock, assertion holds -> the scenario ends on its own timeout arm
-        self.rtf = 1.0
+        self.rtf = HEALTHY_RTF
         scenario_content = """
 import osc.ros
 import osc.helpers
@@ -143,7 +147,7 @@ scenario test_assert_realtime_factor:
 
         def recover():
             if self.elapsed() > 3.0:
-                self.rtf = 1.0
+                self.rtf = HEALTHY_RTF
         self.node.create_timer(0.1, recover)
 
         scenario_content = """
@@ -172,7 +176,7 @@ scenario test_assert_realtime_factor:
 
         def recover():
             if self.elapsed() > 3.0:
-                self.rtf = 1.0
+                self.rtf = HEALTHY_RTF
         self.node.create_timer(0.1, recover)
 
         scenario_content = """
@@ -194,7 +198,7 @@ scenario test_assert_realtime_factor:
 
     def test_case_5(self):
         # a single stalled sample among healthy ones is smoothed away by the rolling average
-        self.rtf = 1.0
+        self.rtf = HEALTHY_RTF
 
         def stall_once():
             self.stall_next = 1
@@ -222,7 +226,7 @@ scenario test_assert_realtime_factor:
 
     def test_case_6(self):
         # the same single stalled sample trips the check when the window is a single sample
-        self.rtf = 1.0
+        self.rtf = HEALTHY_RTF
 
         def stall_once():
             self.stall_next = 1
