@@ -53,7 +53,8 @@ package. Which packages a release touches is decided by that version, too — a 
 release version is released, one at ``0.0.0`` never is (the examples, the ``*_test``
 packages, the simulation helpers, the tools, and the libraries kept out of the ROS build
 farm). ``make release-list`` prints both sets. A new package goes to one or the other on
-purpose, and to the release repository's ``jazzy.ignored`` if it is the latter (see below).
+purpose, and to the release repository's ``<distro>.ignored`` for every supported distro if it
+is the latter (see below).
 
 Changelog
 ---------
@@ -92,12 +93,13 @@ hand, one tag, and bloom — four ``make`` targets, each printing the next.
       make release-rc VERSION=1.6.0
 
    This checks the commit (on ``main``, CI green, ``package.xml`` at 1.6.0, every package
-   either released or in the release repository's ``jazzy.ignored``), publishes the wheel as
+   either released or in each distro's ``<distro>.ignored``), publishes the wheel as
    ``1.6.0rcN`` to TestPyPI through the publish workflow, and lays out a **bloom rehearsal**:
    a scratch clone of the release repository pointed at a clean clone of the commit, with
    bloom and rosdep in a venv of their own. It prints two things to run by hand — a
    ``pip install`` of the candidate from TestPyPI, and one ``bloom-release --pretend`` line
-   that performs the entire build-farm release and pushes nothing. Something wrong is a fix
+   per supported distro (Jazzy and Lyrical), each performing that distro's entire build-farm
+   release and pushing nothing. Something wrong is a fix
    on ``main`` and the next candidate; nothing has been consumed.
 
 3. **Tag.** When both hold:
@@ -106,25 +108,31 @@ hand, one tag, and bloom — four ``make`` targets, each printing the next.
 
       make release-final VERSION=1.6.0 COMMIT=<the commit the candidate was built from>
 
-   The same checks, plus a candidate on TestPyPI, then the two tags on that commit, both
-   lightweight — bloom exports from ``jazzy-1.6.0``, and ``git describe`` must keep answering
+   The same checks, plus a candidate on TestPyPI, then the tags on that commit, all
+   lightweight: ``1.6.0``, and ``jazzy-1.6.0`` and ``lyrical-1.6.0`` — one per distro, which
+   bloom exports from, all on the same source. ``git describe`` must keep answering
    with the bare ``1.6.0`` (it prefers an annotated tag, and the changelog generator refuses
    one of the other shape). The push of ``1.6.0`` is what publishes to PyPI:
    ``.github/workflows/publish.yml`` builds the wheel at the version ``package.xml`` says,
    uploads it with trusted publishing, and installs it back from the index.
 
-4. **The ROS build farm.** Printed by the previous step; with both tags on the upstream and
-   ``main`` still at this version:
+4. **The ROS build farm.** Printed by the previous step, once per distro; with the tags on the
+   upstream and ``main`` still at this version:
 
    .. code-block:: bash
 
       make ros_release ROS_DISTRO=jazzy
+      make ros_release ROS_DISTRO=lyrical
 
    ``bloom-release`` is interactive, needs a current bloom and the release repository, reads
    the version from the tip of ``main``, and opens the ``rosdistro`` pull request. It releases
    every package it finds in the upstream **except** those named in the release repository's
-   ``jazzy.ignored``, and then insists the rest share one version — which is why the ``0.0.0``
-   set and ``jazzy.ignored`` must agree, and why the rehearsal in step 2 exists.
+   ``<distro>.ignored``, and then insists the rest share one version — which is why the
+   ``0.0.0`` set and each ``<distro>.ignored`` must agree, and why the rehearsal in step 2
+   exists. A distro is added once, by creating its track in the release repository
+   (``bloom-release --rosdistro <distro> --track <distro> --new-track scenario_execution``,
+   devel branch ``main``, release tag ``<distro>-:{version}``) and adding it to
+   ``ROS_DISTROS`` in ``tools/release.py``; the release gate refuses until the track exists.
 
 Notes:
 

@@ -158,6 +158,6 @@ ROS_REPO   ?= scenario_execution
 # Interactive; needs a current bloom, the release repository, and both tags (X.Y.Z and
 # <distro>-X.Y.Z, the one bloom exports from) on the upstream. It reads the version from the
 # tip of main, so run it before the next bump lands there. Opens the rosdistro pull request.
-# Usage: make ros_release [ROS_DISTRO=jazzy]
+# Usage: make ros_release ROS_DISTRO=<jazzy|lyrical> -- once per distro main is released for
 ros_release:
 	bloom-release --rosdistro $(ROS_DISTRO) --track $(ROS_DISTRO) $(ROS_REPO)
