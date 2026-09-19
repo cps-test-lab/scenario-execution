@@ -237,3 +237,26 @@ class TestRunProcessReinitialise(unittest.TestCase):
         self.assertIs(self.action.process, first, "the running process must be kept")
         self.assertTrue(any('sleep 31' in msg for msg in self.logger.messages['warning']),
                         "ignoring a different command must be said out loud, not silently")
+
+    def test_an_action_that_builds_its_own_command_can_still_be_cancelled(self):
+        """A subclass may override execute() to build its command and never call super().
+
+        ros_bag_record is one. Its process is then started and stopped through the base class all
+        the same, so the stop defaults have to hold from construction: on an invalidated branch the
+        cancel used to raise on a signal number of None, which killed the whole run with a
+        traceback and left the process it was asked to stop running.
+        """
+        class BuildsItsOwnCommand(RunProcess):
+            def execute(self):  # pylint: disable=arguments-differ
+                self.command = ['sleep', '30']
+
+        action = BuildsItsOwnCommand()
+        action._set_base_properities('builds_its_own', None, self.logger)  # pylint: disable=protected-access
+        action.execute()
+        action.update()
+        self.spawned_pids.append(action.process.pid)
+
+        self.assertTrue(action.request_cancel())
+
+        action.process.wait(10)
+        self.assertIsNotNone(action.process.poll(), "a cancelled action left its process running")

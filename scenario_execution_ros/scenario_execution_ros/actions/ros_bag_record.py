@@ -48,6 +48,10 @@ class RosBagRecord(RunProcess):
         self.output_dir = None
         self.topics = None
         self.missing_topics = None
+        # A cancel stops the recording the way shutdown() does: ros2 bag needs SIGINT to flush its
+        # cache and close the bag, and SIGKILL only once it has had SHUTDOWN_TIMEOUT to do so.
+        self.shutdown_signal = signal.SIGINT
+        self.shutdown_timeout = self.SHUTDOWN_TIMEOUT
 
     def setup(self, **kwargs):
         """
