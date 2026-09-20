@@ -170,6 +170,16 @@ class ScenarioExecution(object):
         if register_signal:
             signal.signal(signal.SIGHUP, signal_handler)
             signal.signal(signal.SIGTERM, signal_handler)
+            # SIGINT too, and set unconditionally rather than left alone where it arrives
+            # ignored. A runner started as a background job by a shell without job control
+            # inherits SIGINT and SIGQUIT as SIG_IGN, and an ignored disposition is inherited
+            # through every exec below it -- so the actions' own children inherit it as well.
+            # A child that ignores SIGINT cannot be stopped by the one signal that asks it to
+            # finish what it is writing: `ros2 bag record` closes its bag on SIGINT and on
+            # nothing else, and a bag that was never closed has no metadata.yaml and can be
+            # opened by no reader. Taking the signal here restores it for every process this
+            # one spawns, because exec resets a HANDLED signal to its default.
+            signal.signal(signal.SIGINT, signal_handler)
 
         self.current_scenario_start = None
         self.current_scenario = None
