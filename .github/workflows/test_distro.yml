@@ -816,7 +816,7 @@ jobs:
         with:
           name: test-scenario-execution-x11-video-${{ inputs.ros_distro }}
           path: test_scenario_execution_x11/capture.mp4
-  tests:
+  publish-test-results:
     needs: 
     - test-scenario-execution
     - test-scenario-execution-ros

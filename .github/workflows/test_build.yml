@@ -31,3 +31,20 @@ jobs:
     with:
       ros_distro: ${{ matrix.ros_distro }}
     secrets: inherit
+
+  # The branch rule requires one check by name. A matrix leg reports under its own name, so
+  # this job is that name: it is green only when every distro's leg is, and it runs even when
+  # one did not, because a skipped required check counts as passed.
+  tests:
+    needs: test
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every distro passed
+        env:
+          RESULT: ${{ needs.test.result }}
+        run: |
+          if [ "$RESULT" != "success" ]; then
+            echo "a distro did not pass: $RESULT"
+            exit 1
+          fi
