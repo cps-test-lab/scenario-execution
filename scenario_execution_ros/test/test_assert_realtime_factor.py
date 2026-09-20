@@ -51,6 +51,10 @@ class TestAssertRealtimeFactor(unittest.TestCase):
         self.last_publish_wall = None
         self.rtf = HEALTHY_RTF
         self.stall_next = 0  # number of upcoming ticks that publish no sim-time progress
+        #: Whether to fall silent once the stalled samples are published. A window of one sample holds
+        #: the stall only until the next message replaces it, which is shorter than a tree tick, so a
+        #: case asserting on that verdict has to leave it standing long enough to be ticked on.
+        self.quiet_after_stall = False
         self.publish_clock = True
         self.start_wall = time.monotonic()
         self.publish_timer = self.node.create_timer(CLOCK_PERIOD, self.publish_messages)
@@ -73,7 +77,8 @@ class TestAssertRealtimeFactor(unittest.TestCase):
         now = time.monotonic()
         delta_wall = 0. if self.last_publish_wall is None else now - self.last_publish_wall
         self.last_publish_wall = now
-        if self.stall_next > 0:
+        stalled = self.stall_next > 0
+        if stalled:
             self.stall_next -= 1  # publish the same sim time again: one sample at realtime factor 0
         else:
             self.sim_time += self.rtf * delta_wall
@@ -81,6 +86,8 @@ class TestAssertRealtimeFactor(unittest.TestCase):
         msg.clock.sec = int(self.sim_time)
         msg.clock.nanosec = int((self.sim_time - int(self.sim_time)) * 1e9)
         self.publisher.publish(msg)
+        if stalled and self.stall_next == 0 and self.quiet_after_stall:
+            self.publish_clock = False
 
     def elapsed(self):
         return time.monotonic() - self.start_wall
@@ -227,6 +234,7 @@ scenario test_assert_realtime_factor:
     def test_case_6(self):
         # the same single stalled sample trips the check when the window is a single sample
         self.rtf = HEALTHY_RTF
+        self.quiet_after_stall = True
 
         def stall_once():
             self.stall_next = 1
