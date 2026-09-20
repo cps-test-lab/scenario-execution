@@ -148,6 +148,10 @@ class RosBagRecord(RunProcess):
     # recorder cannot block the whole (multi-)scenario run indefinitely.
     SHUTDOWN_TIMEOUT = 30.0
 
+    #: rosbag2 writes this when it closes the bag, and every reader needs it: without it
+    #: ``rosbag2_storage`` cannot open the directory at all.
+    BAG_METADATA = 'metadata.yaml'
+
     def shutdown(self):
         if self.current_state != RosBagRecordActionState.FAILURE:
             self.logger.info('Waiting for process to quit...')
@@ -166,10 +170,33 @@ class RosBagRecord(RunProcess):
                         pass
                     self.process.wait()
             self.logger.info('Process finished.')
+            if self.current_state == RosBagRecordActionState.RECORDING:
+                # Only a recording that started can be lost. One still waiting for its topics
+                # has a bag directory too, and the branch below removes it on purpose.
+                self.report_unclosed_bag()
         if self.current_state == RosBagRecordActionState.WAITING_FOR_TOPICS and self.bag_dir and os.path.exists(self.bag_dir):
             self.logger.info(
                 f'Shutdown while waiting for topics. Removing incomplete bag {self.bag_dir}...')
             shutil.rmtree(self.bag_dir)
+
+    def report_unclosed_bag(self):
+        """Say so when the recorder left a bag it never closed.
+
+        A recorder that does not act on SIGINT is killed after ``SHUTDOWN_TIMEOUT``, and what
+        it leaves is an mcap with no sidecar: ``rosbag2_storage`` refuses to open the directory,
+        so every reader of that recording fails while the scenario itself reports success. The
+        recording is the evidence a run exists for, so its loss is stated here rather than
+        discovered by whatever tries to read it next.
+        """
+        if not self.bag_dir or not os.path.isdir(self.bag_dir):
+            return
+        if os.path.exists(os.path.join(self.bag_dir, self.BAG_METADATA)):
+            return
+        self.logger.error(
+            f"The recording in {self.bag_dir} was never closed: it has no {self.BAG_METADATA}, "
+            f"so no reader can open it. The recorder did not act on SIGINT -- check that it was "
+            f"not started with that signal ignored, which a background job in a shell without "
+            f"job control does to every process below it.")
 
     def on_process_finished(self, ret):
         """
