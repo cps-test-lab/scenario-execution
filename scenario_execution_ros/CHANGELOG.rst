@@ -2,6 +2,12 @@
 Changelog for package scenario_execution_ros
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.7.0 (2026-09-21)
+------------------
+* ``bag_record`` names its topics with ``--topics``, which every supported rosbag2 accepts; positional topics were dropped after Jazzy (`#116 <https://github.com/cps-test-lab/scenario-execution/issues/116>`_)
+* A recording that could not be closed is stoppable, and says so if it was not (`#119 <https://github.com/cps-test-lab/scenario-execution/issues/119>`_)
+* Contributors: fred-labs
+
 1.6.0 (2026-09-18)
 ------------------
 * A cancelled recording is closed, not killed (`#111 <https://github.com/cps-test-lab/scenario-execution/issues/111>`_)
