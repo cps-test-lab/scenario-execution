@@ -21,7 +21,10 @@ RUN --mount=type=bind,source=.,target=/scenario_execution \
     xargs -a /scenario_execution/deb_requirements.txt apt-get install -y --no-install-recommends && \
     xargs -a /scenario_execution/libs/scenario_execution_kubernetes/deb_requirements.txt apt-get install -y --no-install-recommends && \
     rosdep update --rosdistro=${ROS_DISTRO} && \
-    rosdep install --rosdistro=${ROS_DISTRO} --from-paths /scenario_execution/ --ignore-src -r -y && \
+    # arm_sim_scenario (never released) needs gripper_controllers, which is not released for
+    # every distro; the key is skipped where it does not exist and the package is not built there.
+    SKIP_KEYS=$(rosdep resolve --rosdistro=${ROS_DISTRO} gripper_controllers >/dev/null 2>&1 || echo gripper_controllers) && \
+    rosdep install --rosdistro=${ROS_DISTRO} --from-paths /scenario_execution/ --ignore-src -r -y ${SKIP_KEYS:+--skip-keys "$SKIP_KEYS"} && \
     rm -rf /var/lib/apt/lists/*
 
 # install dependencies for license check
@@ -31,9 +34,12 @@ RUN PIPX_HOME="" PIPX_BIN_DIR="/python_bin" pipx install -v ros-license-toolkit=
     PIPX_HOME="" pipx inject ros-license-toolkit "setuptools<81" && \
     GOPATH=/go go install github.com/google/addlicense@v1.1.1
 
-# install pybullet dependencies
+# install pybullet dependencies -- where pybullet builds: its release does not on Python 3.14,
+# and scenario_execution_pybullet is left out of the build there.
 RUN --mount=type=bind,source=.,target=/scenario_execution \
-    pip3 install  --no-cache-dir -r /scenario_execution/libs/scenario_execution_pybullet/requirements.txt --break-system-packages
+    if python3 -c 'import sys; sys.exit(sys.version_info >= (3, 14))'; then \
+        pip3 install  --no-cache-dir -r /scenario_execution/libs/scenario_execution_pybullet/requirements.txt --break-system-packages; \
+    fi
 
 # install rosbag2_to_video used within github actions
 WORKDIR /rosbag2_to_video/src

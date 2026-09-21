@@ -155,8 +155,9 @@ Use this code to see a launch of this tutorial:
 Create Navigation Scenario
 --------------------------
 
-A simple example scenario for spawning a simulated Turtlebot4 in Gazebo
-and control it with Nav2, can be found in :repo_link:`examples/example_nav2/example_nav2.osc`.
+A simple example scenario that drives a simulated TurtleBot 4 with Nav2 -- in Nav2's loopback
+simulator, on the maze map from ``tb4_sim_scenario`` -- can be found in
+:repo_link:`examples/example_nav2/example_nav2.osc`.
 
 This scenario files looks as follows:
 
@@ -171,7 +172,7 @@ This scenario files looks as follows:
         robot: differential_drive_robot
         do serial:
             robot.init_nav2(pose_3d(position_3d(x: 0.0m, y: 0.0m)))
-            robot.nav_to_pose(pose_3d(position_3d(x: 3.0m, y: -3.0m)))
+            robot.nav_to_pose(pose_3d(position_3d(x: 1.5m, y: -1.5m)))
 
 Let’s break down the individual components of the scenario. The
 following snippet defines the turtlebot4 amr-object.
@@ -198,7 +199,7 @@ starting position
 
 .. code-block::
 
-    robot.nav_to_pose(pose_3d(position_3d(x: 3.0m, y: -3.0m)))
+    robot.nav_to_pose(pose_3d(position_3d(x: 1.5m, y: -1.5m)))
 
 Once the robot reached the final goal pose the scenario is marked as successful and the execution ends.
 
@@ -223,7 +224,7 @@ the above described scenario by setting the ``use_initial_pose`` to ``False``:
         robot: differential_drive_robot
         do serial:
             robot.init_nav2(pose_3d(position_3d(x: 0.0m, y: 0.0m)), use_initial_pose: false)
-            robot.nav_to_pose(pose_3d(position_3d(x: 3.0m, y: -3.0m)))
+            robot.nav_to_pose(pose_3d(position_3d(x: 1.5m, y: -1.5m)))
 
 Then, run:
 

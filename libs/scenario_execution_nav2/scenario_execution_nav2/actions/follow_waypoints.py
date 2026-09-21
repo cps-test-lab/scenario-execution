@@ -18,6 +18,8 @@
 from nav2_msgs.action import FollowWaypoints as FollowWaypointsAction
 
 from scenario_execution_ros.actions.common import get_pose_stamped
+
+from .common import set_goal_poses
 from scenario_execution_ros.actions.ros_action_call import RosActionCall, ActionCallActionState
 
 
@@ -42,8 +44,8 @@ class FollowWaypoints(RosActionCall):
 
     def get_goal_msg(self):
         goal_msg = FollowWaypointsAction.Goal()
-        for pose in self.goal_poses:
-            goal_msg.poses.append(get_pose_stamped(self.node.get_clock().now().to_msg(), pose))
+        now = self.node.get_clock().now().to_msg()
+        set_goal_poses(goal_msg, [get_pose_stamped(now, pose) for pose in self.goal_poses])
         if hasattr(goal_msg, "number_of_loops"):
             goal_msg.number_of_loops = max(0, int(self.loop_count))
         return goal_msg

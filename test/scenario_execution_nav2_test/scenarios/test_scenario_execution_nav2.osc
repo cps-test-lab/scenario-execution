@@ -6,7 +6,7 @@ scenario example_nav2:
     timeout(900s)
     robot: differential_drive_robot
     do serial:
-        ros_launch("nav2_bringup", "tb4_loopback_simulation.launch.py", [
+        ros_launch("scenario_execution_nav2_test", "tb4_loopback_simulation_launch.py", [
                     key_value('map', ament.get_package_share_directory("tb4_sim_scenario") + "/maps/maze.yaml")
                 ], wait_for_shutdown: false)
         bag_record(['/tf', '/tf_static', '/map', '/local_costmap/costmap'], use_sim_time: true)

@@ -14,6 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+import time
 from enum import Enum
 
 
@@ -28,7 +29,7 @@ from rclpy.duration import Duration
 from tf2_ros import Buffer
 import py_trees
 
-from .nav2_common import NamespaceAwareBasicNavigator
+from nav2_simple_commander.robot_navigator import BasicNavigator  # pylint: disable=import-error
 from scenario_execution_ros.actions.common import get_pose_stamped, NamespacedTransformListener
 from scenario_execution.actions.base_action import BaseAction, ActionError
 from scenario_execution.simulation import HostClock
@@ -68,6 +69,7 @@ class InitNav2(BaseAction):
         self.node = None
         self.future = None
         self.current_state = InitNav2State.IDLE
+        self.last_initial_pose_publish = None
         self.nav = None
         self.bt_navigator_state_client = None
         self.amcl_state_client = None
@@ -99,7 +101,7 @@ class InitNav2(BaseAction):
         self.tf_listener = NamespacedTransformListener(
             node=self.node, buffer=self.tf_buffer, tf_topic=self.namespace + "/tf", tf_static_topic=self.namespace + "/tf_static")
 
-        self.nav = NamespaceAwareBasicNavigator(
+        self.nav = BasicNavigator(
             node_name="basic_nav_init_nav2", namespace=self.namespace)
         self.bt_navigator_state_client = self.node.create_client(
             GetState, self.namespace + '/bt_navigator/get_state',
@@ -127,6 +129,18 @@ class InitNav2(BaseAction):
         self.wait_for_amcl = wait_for_amcl
         self.use_initial_pose = use_initial_pose
         self.namespace = associated_actor["namespace"]
+
+    #: Host seconds between re-publications of the initial pose while the transform is missing.
+    INITIAL_POSE_REPUBLISH_PERIOD = 2.0
+
+    def publish_initial_pose(self):
+        """Offer the initial pose, at most every INITIAL_POSE_REPUBLISH_PERIOD."""
+        now = time.monotonic()
+        if self.last_initial_pose_publish is not None and \
+                now - self.last_initial_pose_publish < self.INITIAL_POSE_REPUBLISH_PERIOD:
+            return
+        self.last_initial_pose_publish = now
+        self.nav.setInitialPose(get_pose_stamped(self.nav.get_clock().now().to_msg(), self.initial_pose))
 
     def update(self) -> py_trees.common.Status:
         """
@@ -176,10 +190,8 @@ class InitNav2(BaseAction):
                 self.feedback_message = f"Waiting for externally set initial pose."  # pylint: disable= attribute-defined-outside-init
                 self.current_state = InitNav2State.WAIT_FOR_INITIAL_POSE
             elif self.use_initial_pose:
-                initial_pose = get_pose_stamped(
-                    self.nav.get_clock().now().to_msg(), self.initial_pose)
                 self.feedback_message = f"Set initial pose."  # pylint: disable= attribute-defined-outside-init
-                self.nav.setInitialPose(initial_pose)
+                self.publish_initial_pose()
 
                 if self.wait_for_amcl:
                     self.current_state = InitNav2State.WAIT_FOR_INITIAL_POSE
@@ -191,6 +203,12 @@ class InitNav2(BaseAction):
                 self.feedback_message = f"Transform map -> {self.base_frame_id} got available."  # pylint: disable= attribute-defined-outside-init
                 self.current_state = InitNav2State.MAP_BASELINK_TF_RECEIVED
             else:
+                # The pose is published again while the transform is missing: whoever provides it
+                # -- a simulator that places the robot where the pose says, a localizer -- may not
+                # have had a subscription yet when it was first sent, and a lost pose is a wait
+                # without end.
+                if self.use_initial_pose and not self.wait_for_initial_pose:
+                    self.publish_initial_pose()
                 self.feedback_message = f"Waiting for transform map -> {self.base_frame_id} to get available..."  # pylint: disable= attribute-defined-outside-init
             result = py_trees.common.Status.RUNNING
         elif self.current_state == InitNav2State.MAP_BASELINK_TF_RECEIVED:
