@@ -2,6 +2,11 @@
 Changelog for package scenario_execution_rviz
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.7.0 (2026-09-21)
+------------------
+* The same source builds on Jazzy and Lyrical (`#115 <https://github.com/cps-test-lab/scenario-execution/issues/115>`_)
+* Contributors: fred-labs
+
 1.6.0 (2026-09-18)
 ------------------
 

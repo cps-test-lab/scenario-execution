@@ -2,6 +2,9 @@
 Changelog for package scenario_execution_gazebo
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.7.0 (2026-09-21)
+------------------
+
 1.6.0 (2026-09-18)
 ------------------
 * Measure a scenario's durations on simulated time under use_sim_time (`#104 <https://github.com/cps-test-lab/scenario-execution/issues/104>`_)

@@ -2,6 +2,11 @@
 Changelog for package scenario_execution
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.7.0 (2026-09-21)
+------------------
+* A recording that could not be closed is stoppable, and says so if it was not (`#119 <https://github.com/cps-test-lab/scenario-execution/issues/119>`_)
+* Contributors: fred-labs
+
 1.6.0 (2026-09-18)
 ------------------
 * run_process: stop a process at shutdown whose action never called execute()

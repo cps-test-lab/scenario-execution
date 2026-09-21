@@ -2,6 +2,9 @@
 Changelog for package scenario_execution_dataops
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.7.0 (2026-09-21)
+------------------
+
 1.6.0 (2026-09-18)
 ------------------
 * fix dataops (`#71 <https://github.com/cps-test-lab/scenario-execution/issues/71>`_)
