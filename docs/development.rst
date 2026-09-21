@@ -129,10 +129,22 @@ hand, one tag, and bloom — four ``make`` targets, each printing the next.
    every package it finds in the upstream **except** those named in the release repository's
    ``<distro>.ignored``, and then insists the rest share one version — which is why the
    ``0.0.0`` set and each ``<distro>.ignored`` must agree, and why the rehearsal in step 2
-   exists. A distro is added once, by creating its track in the release repository
-   (``bloom-release --rosdistro <distro> --track <distro> --new-track scenario_execution``,
-   devel branch ``main``, release tag ``<distro>-:{version}``) and adding it to
-   ``ROS_DISTROS`` in ``tools/release.py``; the release gate refuses until the track exists.
+   exists. A distro is added once, by adding it to ``ROS_DISTROS`` in ``tools/release.py`` and
+   creating its track in the release repository; the release gate refuses until the track
+   exists. The track is copied from an existing one, with only its distro and release tag
+   changed:
+
+   .. code-block:: bash
+
+      git clone https://github.com/ros2-gbp/scenario_execution-release.git
+      cd scenario_execution-release
+      git-bloom-config copy jazzy <distro>
+      git-bloom-config edit <distro>   # ROS Distro: <distro>, Release Tag: <distro>-:{version}
+      git push origin master
+
+   Not ``bloom-release --new-track``: after creating the track it releases the version on
+   ``main`` straight away, and the ``<distro>-<version>`` tag it exports from does not exist
+   until that distro's first release is tagged.
 
 Notes:
 
