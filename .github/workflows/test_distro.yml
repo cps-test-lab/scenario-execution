@@ -306,6 +306,7 @@ jobs:
         if: always()
         with:
           name: test-scenario-execution-${{ inputs.ros_distro }}
+          overwrite: true
           path: ./**/TEST.xml
   test-scenario-execution-ros:
     needs: [build, build-and-push-testing]
@@ -344,6 +345,7 @@ jobs:
         if: always()
         with:
           name: test-scenario-execution-ros-${{ inputs.ros_distro }}
+          overwrite: true
           path: ./**/TEST.xml
   scenario-files-validation:
     needs: [build, build-and-push-testing]
@@ -405,6 +407,7 @@ jobs:
         if: always()
         with:
           name: test-example-ros-examples-result-${{ inputs.ros_distro }}
+          overwrite: true
           path: test_example_ros-examples/test.xml
   test-example-scenario:
     needs: [build, build-and-push-testing]
@@ -434,6 +437,7 @@ jobs:
         if: always()
         with:
           name: test-example-scenario-result-${{ inputs.ros_distro }}
+          overwrite: true
           path: test_example_scenario/test.xml
   test-example-library:
     needs: [build, build-and-push-testing]
@@ -463,6 +467,7 @@ jobs:
         if: always()
         with:
           name: test-example-library-result-${{ inputs.ros_distro }}
+          overwrite: true
           path: test_example_library/test.xml
   test-example-variation:
     needs: [build, build-and-push-testing]
@@ -493,6 +498,7 @@ jobs:
         if: always()
         with:
           name: test-example-variation-result-${{ inputs.ros_distro }}
+          overwrite: true
           path: test_example_variation/test.xml
   test-example-nav2:
     needs: [build, build-and-push-testing]
@@ -528,6 +534,7 @@ jobs:
         if: always()
         with:
           name: test-example-nav2-result-${{ inputs.ros_distro }}
+          overwrite: true
           path: test_example_nav2/test.xml
   # test-example-simulation:
   #   needs: [build, build-and-push-testing]
@@ -645,6 +652,7 @@ jobs:
         if: always()
         with:
           name: test-example-external-method-result-${{ inputs.ros_distro }}
+          overwrite: true
           path: test_example_external_method/test.xml
 #  test-example-moveit2:
 #    needs: [build, build-and-push-testing]
@@ -711,6 +719,7 @@ jobs:
         if: always()
         with:
           name: test-scenario-execution-gazebo-${{ inputs.ros_distro }}
+          overwrite: true
           path: test_scenario_execution_gazebo/test.xml
   test-scenario-execution-nav2:
     needs: [build, build-and-push-testing]
@@ -744,6 +753,7 @@ jobs:
         if: always()
         with:
           name: test-scenario-execution-nav2-${{ inputs.ros_distro }}
+          overwrite: true
           path: test_scenario_execution_nav2/test.xml
   test-scenario-execution-pybullet:
     needs: [build, build-and-push-testing]
@@ -777,6 +787,7 @@ jobs:
         if: always()
         with:
           name: test-scenario-execution-pybullet-${{ inputs.ros_distro }}
+          overwrite: true
           path: test_scenario_execution_pybullet/test.xml
   test-scenario-execution-x11:
     needs: [build, build-and-push-testing]
@@ -809,12 +820,14 @@ jobs:
         if: always()
         with:
           name: test-scenario-execution-x11-${{ inputs.ros_distro }}
+          overwrite: true
           path: test_scenario_execution_x11/test.xml
       - name: Upload video
         uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
         if: always()
         with:
           name: test-scenario-execution-x11-video-${{ inputs.ros_distro }}
+          overwrite: true
           path: test_scenario_execution_x11/capture.mp4
   publish-test-results:
     needs: 
