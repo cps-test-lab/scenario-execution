@@ -164,9 +164,12 @@ def tree_agrees(clone, version):
     tracks = fetch_text(f"{RELEASE_REPOSITORY_RAW}/tracks.yaml")
     for distro in ROS_DISTROS:
         if not re.search(rf"(?m)^  {distro}:$", tracks):
-            return not fail(f"the release repository has no {distro} track; create it once with "
-                            f"`bloom-release --rosdistro {distro} --track {distro} --new-track {ROSDISTRO_KEY}` "
-                            f"(devel branch main, release tag {distro}-:{{version}})")
+            # Not `bloom-release --new-track`: it goes on to release the version on main, whose
+            # `<distro>-<version>` tag does not exist before this distro's first release.
+            return not fail(f"the release repository has no {distro} track; create it once, in a clone of "
+                            f"{RELEASE_REPOSITORY} on master: `git-bloom-config copy {ROS_DISTROS[0]} {distro}`, "
+                            f"then `git-bloom-config edit {distro}` answering ROS Distro `{distro}` and "
+                            f"Release Tag `{distro}-:{{version}}` (keep the rest), then `git push origin master`")
         try:
             ignored = set(fetch_text(f"{RELEASE_REPOSITORY_RAW}/{distro}.ignored").split())
         except urllib.error.HTTPError as error:
