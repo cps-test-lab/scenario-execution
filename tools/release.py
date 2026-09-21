@@ -20,7 +20,9 @@
 Usage::
 
     release.py rc    X.Y.Z [--commit SHA]   # 1.6.0rcN to TestPyPI, and the bloom rehearsal
-    release.py final X.Y.Z [--commit SHA]   # X.Y.Z and <distro>-X.Y.Z tags -> PyPI; then bloom
+    release.py final X.Y.Z [--commit SHA]   # X.Y.Z and <distro>-X.Y.Z tags -> PyPI, the GitHub
+                                            # Release; then bloom
+    release.py github-release X.Y.Z         # the GitHub Release alone, for an existing tag
 
 A release has two halves: the ``scenario-execution`` wheel, which the publish workflow uploads
 from the ``X.Y.Z`` tag, and the ROS packages, which bloom takes to each distro's build farm from
@@ -226,7 +228,7 @@ def lay_out_bloom_rehearsal(clone, version):
 
     A clone of the release repository with every branch local and its track pointed at the
     clean clone; the clone given a `main` branch and the two tags bloom looks for, locally
-    only; bloom and rosdep in a venv of their own with a user-level rosdep cache. `--pretend`
+    only; bloom and rosdep in an environment of their own (lay_out_bloom_environment). `--pretend`
     does the whole release -- export at the tag, import, the version check after the ignore
     list, every release and debian branch with every rosdep key resolved -- and dry-runs the
     pushes.
@@ -255,6 +257,19 @@ def lay_out_bloom_rehearsal(clone, version):
     tracks.write_text(text, encoding="utf-8")
     run("git", "commit", "-q", "-am", "rehearsal: the upstream is the local clone", cwd=release_repo)
 
+    lay_out_bloom_environment(root)
+    ok(f"bloom rehearsal laid out at {root.relative_to(ROOT)}")
+    return root
+
+
+def lay_out_bloom_environment(root):
+    """bloom and rosdep of their own under ``root``: a venv, the default rosdep sources, a cache.
+
+    Nothing of the machine's takes part -- not its bloom, not /etc/ros/rosdep, not ~/.ros. A
+    source list there may redefine ROS keys for some platforms only, and every distro on another
+    platform then fails to resolve them; bloom also runs `rosdep update` itself, rewriting
+    whatever cache it is given. The rehearsal and the real release run in the same environment.
+    """
     venv = root / "venv"
     run(sys.executable, "-m", "venv", str(venv))
     run(str(venv / "bin" / "pip"), "install", "-q", "bloom", "rosdep", "rosdistro")
@@ -263,10 +278,19 @@ def lay_out_bloom_rehearsal(clone, version):
     (sources / "20-default.list").write_text(fetch_text(ROSDEP_SOURCES_URL), encoding="utf-8")
     for distro in ROS_DISTROS:
         subprocess.run([str(venv / "bin" / "rosdep"), "update", "--rosdistro", distro],  # nosec B603
-                       env={**os.environ, "ROSDEP_SOURCE_PATH": str(sources)}, check=True,
+                       env={**os.environ, **bloom_environment(root)}, check=True,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    ok(f"bloom rehearsal laid out at {root.relative_to(ROOT)}")
-    return root
+
+
+def bloom_environment(root):
+    """The variables that point rosdep at ``root``'s sources and cache (the cache follows ROS_HOME)."""
+    return {"ROSDEP_SOURCE_PATH": str(root / "rosdep" / "sources.list.d"), "ROS_HOME": str(root / "ros_home")}
+
+
+def in_bloom_environment(root, command):
+    """``command`` as one pasteable line inside that environment, refusing if it is not there."""
+    exports = " ".join(f"{name}={value}" for name, value in bloom_environment(root).items())
+    return f"test -d {root}/rosdep/sources.list.d && . {root}/venv/bin/activate && export {exports} && \\\n    {command}"
 
 
 def release_tags(version):
@@ -276,10 +300,96 @@ def release_tags(version):
 
 def bloom_rehearsal_lines(root):
     return "\n\n".join(
-        f"cd {root} && . venv/bin/activate && export ROSDEP_SOURCE_PATH={root}/rosdep/sources.list.d && \\\n"
-        f"    bloom-release --pretend --no-web --rosdistro {distro} --track {distro} \\\n"
-        f"        --override-release-repository-url {root}/release-repository {ROSDISTRO_KEY}"
+        in_bloom_environment(root, f"bloom-release --pretend --no-web --rosdistro {distro} --track {distro} "
+                                   f"--override-release-repository-url {root}/release-repository {ROSDISTRO_KEY}")
         for distro in ROS_DISTROS)
+
+
+def bloom_release_lines(root):
+    return "\n\n".join(
+        in_bloom_environment(root, f"bloom-release --rosdistro {distro} --track {distro} {ROSDISTRO_KEY}")
+        for distro in ROS_DISTROS)
+
+
+# -- the GitHub Release -------------------------------------------------------------------
+
+SECTION = re.compile(r"^(\d+\.\d+\.\d+ \(|Forthcoming$)")
+
+
+def changelog_entries(path, version):
+    """The entries of one CHANGELOG.rst section, wrapped lines joined, the contributor line dropped."""
+    lines = path.read_text(encoding="utf-8").splitlines()
+    starts = [i for i, line in enumerate(lines) if line.startswith(f"{version} (")]
+    if not starts:
+        return []
+    entries = []
+    for line in lines[starts[0] + 2:]:
+        if SECTION.match(line):
+            break
+        if line.startswith("* "):
+            entries.append(line[2:].strip())
+        elif line.startswith("  ") and entries:
+            entries[-1] += " " + line.strip()
+    return [entry for entry in entries if not entry.startswith("Contributors:")]
+
+
+def rst_to_markdown(text):
+    """The inline reST a generated changelog carries: pull request links, links, literals."""
+    text = re.sub(r"`#(\d+) <[^>]*>`_", r"#\1", text)
+    text = re.sub(r"`([^`<]+?) <([^>]+)>`_", r"[\1](\2)", text)
+    return text.replace("``", "`")
+
+
+def release_notes(clone, version):
+    """Every released package's entries for ``version``, each once, and how to install it."""
+    paths = sorted(run("git", "ls-files", "*package.xml", cwd=clone).split(), key=lambda p: (p != PACKAGE_XML, p))
+    entries = []
+    for path in paths:
+        if package_xml_field(clone / path, "version") != version:
+            continue
+        for entry in changelog_entries((clone / path).parent / "CHANGELOG.rst", version):
+            if entry not in entries:
+                entries.append(entry)
+    if not entries:
+        return None
+    owner, name = REPO.split("/")
+    ros_packages = ", ".join(f"`ros-{distro}-{DISTRIBUTION}*`" for distro in ROS_DISTROS)
+    changes = "\n".join(f"- {rst_to_markdown(entry)}" for entry in entries)
+    return f"""## Changes
+
+{changes}
+
+## Install
+
+```bash
+pip install {DISTRIBUTION}=={version}        # the core, ROS-free
+```
+
+The ROS packages ({ros_packages}) follow through the ROS build farm. Per-package changelogs are in
+each package's `CHANGELOG.rst`; documentation at https://{owner}.github.io/{name}/.
+"""
+
+
+def github_release(clone, version):
+    """The GitHub Release of the ``version`` tag, its notes from the changelogs; left alone if it exists."""
+    exists = subprocess.run(["gh", "release", "view", version, "-R", REPO],  # nosec B603 B607
+                            capture_output=True, check=False).returncode == 0
+    if exists:
+        ok(f"GitHub Release {version} exists; left as it is")
+        return True
+    notes = release_notes(clone, version)
+    if notes is None:
+        return not fail(f"no released package has a {version} changelog entry; nothing to announce")
+    notes_file = CLONES / f"release-notes-{version}.md"
+    notes_file.write_text(notes, encoding="utf-8")
+    result = subprocess.run(["gh", "release", "create", version, "-R", REPO, "--verify-tag",  # nosec B603 B607
+                             "--title", f"{DISTRIBUTION} {version}", "--notes-file", str(notes_file)],
+                            capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        return not fail(f"GitHub Release {version} not created: {result.stderr.strip()} "
+                        f"(retry: make release-github VERSION={version})")
+    ok(f"GitHub Release {version}: {result.stdout.strip()}")
+    return True
 
 
 # -- the two commands ---------------------------------------------------------------------
@@ -334,26 +444,46 @@ def command_final(version, commit):
         run("git", "tag", "-f", tag, cwd=clone)
     run("git", "push", "-q", "origin", *tags, cwd=clone)
     ok(f"pushed {', '.join(tags)} on {sha[:8]}; publish.yml -> PyPI runs now")
-    bloom_lines = "\n".join(f"    cd {ROOT} && bloom-release --rosdistro {d} --track {d} {ROSDISTRO_KEY}"
-                            for d in ROS_DISTROS)
+    announced = github_release(clone, version)
+    root = CLONES / f"bloom-{version}"
+    if root.exists():
+        subprocess.run(["rm", "-rf", str(root)], check=True)  # nosec B603 B607
+    root.mkdir(parents=True)
+    lay_out_bloom_environment(root)
+    ok(f"bloom environment laid out at {root.relative_to(ROOT)}")
+    url = f"https://github.com/{REPO}.git"
     print(f"""
 Watch it:   gh run list -R {REPO} -L3
 
 Then the build farm, by hand, once per distro, before any further version bump lands on main
-(bloom reads the version there). Needs a current bloom (pip install -U bloom) and access to the
+(bloom reads the version there) -- in the environment the rehearsal ran in, with access to the
 release repository:
 
-{bloom_lines}
+{bloom_release_lines(root)}
 
-Each opens a rosdistro pull request; in it, `source` should read https://github.com/{REPO}.git
-@ main. Afterwards: the GitHub Release for {version}.
+What bloom asks:
+  - "Your track's 'actions' configuration is not the same as the default" -> n
+  - "push to release repository?" -> y
+  - a distro new to rosdistro: documentation and source -> git {url} @ main; status developed
+Each run then opens a rosdistro pull request. Where bloom cannot (a token it is refused with),
+open it by hand from a fork: each distro's `version:` line, and for a new distro its whole entry.
 """)
-    return 0
+    return 0 if announced else 1
+
+
+def command_github_release(version):
+    """The GitHub Release of an existing tag -- the step ``final`` ends with, on its own."""
+    run("git", "fetch", "-q", "origin", "--tags", cwd=ROOT)
+    found = subprocess.run(["git", "rev-parse", "-q", "--verify", f"refs/tags/{version}^{{commit}}"],  # nosec B603 B607
+                           cwd=ROOT, capture_output=True, text=True, check=False)
+    if found.returncode != 0:
+        return fail(f"no tag {version} on {REPO}; `final` creates it")
+    return 0 if github_release(clean_clone(found.stdout.strip()), version) else 1
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
-    parser.add_argument("command", choices=("rc", "final"))
+    parser.add_argument("command", choices=("rc", "final", "github-release"))
     parser.add_argument("version", help="X.Y.Z -- the release, never a candidate number")
     parser.add_argument("--commit", help="a sha on main (default: origin/main's tip)")
     args = parser.parse_args()
@@ -361,6 +491,8 @@ def main():
         return fail(f"{args.version!r} is not X.Y.Z; the candidate number is chosen here")
     if args.command == "rc":
         return command_rc(args.version, args.commit)
+    if args.command == "github-release":
+        return command_github_release(args.version)
     return command_final(args.version, args.commit)
 
 

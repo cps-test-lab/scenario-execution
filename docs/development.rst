@@ -72,7 +72,8 @@ Releasing
 A release goes to two places from one version: PyPI (the core ``scenario-execution``
 distribution, published by CI from the tag) and the ROS build farm (the ROS packages, via
 ``bloom``, by hand after the tag). It is one generated pull request, one candidate tried by
-hand, one tag, and bloom — four ``make`` targets, each printing the next.
+hand, one tag, and bloom — three ``make`` targets, each printing the next, the last printing
+the bloom lines.
 
 1. **Prepare.** On a branch from a clean ``main``:
 
@@ -96,7 +97,7 @@ hand, one tag, and bloom — four ``make`` targets, each printing the next.
    either released or in each distro's ``<distro>.ignored``), publishes the wheel as
    ``1.6.0rcN`` to TestPyPI through the publish workflow, and lays out a **bloom rehearsal**:
    a scratch clone of the release repository pointed at a clean clone of the commit, with
-   bloom and rosdep in a venv of their own. It prints two things to run by hand — a
+   bloom and rosdep in an environment of their own (step 4). It prints two things to run by hand — a
    ``pip install`` of the candidate from TestPyPI, and one ``bloom-release --pretend`` line
    per supported distro (Jazzy and Lyrical), each performing that distro's entire build-farm
    release and pushing nothing. Something wrong is a fix
@@ -116,16 +117,23 @@ hand, one tag, and bloom — four ``make`` targets, each printing the next.
    ``.github/workflows/publish.yml`` builds the wheel at the version ``package.xml`` says,
    uploads it with trusted publishing, and installs it back from the index.
 
-4. **The ROS build farm.** Printed by the previous step, once per distro; with the tags on the
-   upstream and ``main`` still at this version:
+   It then creates the GitHub Release of ``1.6.0``, its notes every released package's entries
+   for the version, each once, and how to install it. An existing release is left as it is;
+   ``make release-github VERSION=1.6.0`` is the same step on its own, for a retry.
 
-   .. code-block:: bash
+4. **The ROS build farm.** Printed by the previous step, once per distro, with the tags on the
+   upstream and ``main`` still at this version. Each line runs ``bloom-release`` in the
+   environment the rehearsal ran in, which the previous step lays out again: bloom and rosdep
+   in a venv, the default rosdep sources, and a rosdep cache of its own (``ROS_HOME``). Not the
+   machine's bloom: a file in ``/etc/ros/rosdep/sources.list.d`` can redefine ROS keys for some
+   Ubuntu releases only, and every key then fails to resolve for a distro built on another one;
+   and bloom runs ``rosdep update`` itself, rewriting whatever cache it is pointed at.
 
-      make ros_release ROS_DISTRO=jazzy
-      make ros_release ROS_DISTRO=lyrical
-
-   ``bloom-release`` is interactive, needs a current bloom and the release repository, reads
-   the version from the tip of ``main``, and opens the ``rosdistro`` pull request. It releases
+   ``bloom-release`` is interactive, needs access to the release repository, reads
+   the version from the tip of ``main``, and opens the ``rosdistro`` pull request. Its
+   questions and their answers are printed with the lines; for a distro new to ``rosdistro``
+   it asks for the repository's documentation and source, which are this repository at
+   ``main``. Where bloom cannot open the pull request, it is opened by hand from a fork. It releases
    every package it finds in the upstream **except** those named in the release repository's
    ``<distro>.ignored``, and then insists the rest share one version — which is why the
    ``0.0.0`` set and each ``<distro>.ignored`` must agree, and why the rehearsal in step 2

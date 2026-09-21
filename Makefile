@@ -144,20 +144,12 @@ release_check:
 	cd $(RELEASE_PKG_DIR) && python3 -m build
 	python3 -m twine check $(RELEASE_PKG_DIR)/dist/*
 
-# --- The ROS build farm, after the tag -----------------------------------------------------
-ROS_DISTRO ?= jazzy
-ROS_REPO   ?= scenario_execution
+# The GitHub Release of an existing tag, its notes from the released packages' changelogs.
+# release-final ends with it; this is the same step on its own, for a retry.
+release-github:
+	@test -n "$(VERSION)" || { echo "Usage: make release-github VERSION=X.Y.Z"; exit 1; }
+	python3 tools/release.py github-release "$(VERSION)"
 
-# Which packages bloom releases is decided by their version: a package at the release
-# version is released, one at 0.0.0 is not (`make release-list`). bloom itself drops the
-# packages named in the release repository's <distro>.ignored before it checks that the rest
-# share one version, so that file and the 0.0.0 set have to agree, and rosdistro's
-# release/packages list is what bloom produces from the rest. A package that is in neither
-# fails bloom loudly rather than being released by accident.
-#
-# Interactive; needs a current bloom, the release repository, and both tags (X.Y.Z and
-# <distro>-X.Y.Z, the one bloom exports from) on the upstream. It reads the version from the
-# tip of main, so run it before the next bump lands there. Opens the rosdistro pull request.
-# Usage: make ros_release ROS_DISTRO=<jazzy|lyrical> -- once per distro main is released for
-ros_release:
-	bloom-release --rosdistro $(ROS_DISTRO) --track $(ROS_DISTRO) $(ROS_REPO)
+# The ROS build farm comes after the tag, by hand: release-final lays out bloom and rosdep of
+# their own and prints the bloom-release line per distro to run in them. Not the machine's
+# bloom, whose rosdep sources and cache are its own business (docs/development.rst).
