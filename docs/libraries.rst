@@ -2317,16 +2317,16 @@ Spawn an entity in the simulation.
      - Description
    * - ``entity_name``
      - ``string``
-     -
-     - Name to give to the spawned entity
+     - ``''``
+     - Name to give to the spawned entity; empty takes the resource's own
    * - ``uri``
      - ``string``
      -
      - URI of the resource to spawn
    * - ``initial_pose``
      - ``pose_3d``
-     -
-     - Initial pose for the entity
+     - ``pose_3d()``
+     - Initial pose for the entity, in the world frame
    * - ``allow_renaming``
      - ``bool``
      - ``false``
