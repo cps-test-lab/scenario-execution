@@ -220,7 +220,14 @@ class RosActionCall(BaseAction):
         self.logger.debug(f"Received state {status}")
         if self.current_state in (ActionCallActionState.ACTION_ACCEPTED, ActionCallActionState.ACTION_CANCELING):
             self.goal_handle = None
-            if status == self.expected_status:
+            result_failure = None
+            if status == self.expected_status == GoalStatus.STATUS_SUCCEEDED:
+                result_failure = self.check_result(future.result().result)  # pylint: disable=assignment-from-none
+            if result_failure:
+                self.current_state = ActionCallActionState.ERROR
+                self.feedback_message = result_failure  # pylint: disable= attribute-defined-outside-init
+                self.logger.error(result_failure)
+            elif status == self.expected_status:
                 self.current_state = ActionCallActionState.DONE
                 if status == GoalStatus.STATUS_SUCCEEDED:
                     set_variable_if_available(future.result().result, self.result_variable, self.result_variable_member_name)
@@ -232,6 +239,16 @@ class RosActionCall(BaseAction):
         else:
             if not self.success_on_acceptance:
                 self.current_state = ActionCallActionState.ERROR
+
+    def check_result(self, result):  # pylint: disable=unused-argument
+        """Why a goal that succeeded still fails the action, or None if it does not.
+
+        Called with the result of a goal the server reported as succeeded, when that is the status
+        the scenario expects. The status is the server's verdict: a server may succeed a goal whose
+        result says part of it was not done. A subclass that knows its action's result overrides
+        this and returns a message naming what was not done; the action then fails with it.
+        """
+        return None
 
     def request_cancel(self) -> bool:
         self.cancel_requested = True
