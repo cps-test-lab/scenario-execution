@@ -35,13 +35,17 @@ class ModelFileLoader(object):
         return [(tree, {}, None)]
 
     def load_file(self, file_name, log_tree):
+        """Load a serialized internal model.
+
+        Raises ValueError naming the file if it cannot be read or is not a serialized
+        model, as OpenScenario2Parser.parse_file does for an unreadable .osc.
+        """
         try:
             with open(file_name, 'rb') as input_file:
                 serialize_data = yaml.safe_load(input_file)  # nosec B301 TODO
-                model = deserialize(serialize_data)
+            model = deserialize(serialize_data)
         except Exception as e:  # pylint: disable=broad-except
-            self.logger.error(f"Error while loading model from {file_name}: {e}")
-            return None
+            raise ValueError(f"Unable to load scenario model from '{file_name}': {e}") from e
 
         if log_tree:
             self.logger.info("----Internal model-----")

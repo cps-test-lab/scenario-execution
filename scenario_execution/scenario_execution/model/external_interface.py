@@ -55,14 +55,53 @@ def get_scenario_parameters(scenario_file: str, logger=None):
     Raises:
         ValueError: If the file does not exist, has unknown extension, or parsing fails
     """
-    if logger is None:
-        logger = Logger('get_scenario_parameters', False)
+    model, _ = _load_model(scenario_file, logger or Logger('get_scenario_parameters', False))
+    return _scenario_parameters(model)
 
-    # Check file exists
+
+def get_scenario_inputs(scenario_file: str, logger=None) -> list[str]:
+    """
+    List the files that parsing a scenario reads, for a caller that caches on a scenario.
+
+    The parse is the one get_scenario_parameters performs: external libraries other than
+    the core ones (helpers, robotics, standard, types) are not followed, so their files are
+    not listed.
+
+    Args:
+        scenario_file: Path to the .osc or .sce scenario file
+        logger: Optional logger instance. If None, a default logger will be created.
+
+    Returns:
+        Absolute paths of the scenario file and every file it imports, directly or
+        transitively, in the order they are parsed, each once.
+
+    Raises:
+        ValueError: If the file does not exist, has unknown extension, or parsing fails
+    """
+    _, inputs = _load_model(scenario_file, logger or Logger('get_scenario_inputs', False))
+    return inputs
+
+
+def get_scenario_parameters_and_inputs(scenario_file: str, logger=None) -> tuple[dict, list[str]]:
+    """
+    get_scenario_parameters and get_scenario_inputs from a single parse.
+
+    Returns:
+        A tuple (parameters, inputs) as the two functions return them.
+
+    Raises:
+        ValueError: If the file does not exist, has unknown extension, or parsing fails,
+            or if it defines no scenario
+    """
+    model, inputs = _load_model(scenario_file, logger or Logger('get_scenario_parameters_and_inputs', False))
+    return _scenario_parameters(model), inputs
+
+
+def _load_model(scenario_file: str, logger):
+    """The internal model of a scenario file without its external imports, and the files read."""
     if not os.path.isfile(scenario_file):
         raise ValueError(f"Scenario file does not exist: {scenario_file}")
 
-    # Check file extension
     file_extension = os.path.splitext(scenario_file)[1]
     if file_extension == '.osc':
         parser = OpenScenario2Parser(logger)
@@ -71,14 +110,16 @@ def get_scenario_parameters(scenario_file: str, logger=None):
     else:
         raise ValueError(f"File has unknown extension '{file_extension}'. Allowed [.osc, .sce]")
 
-    # Parse and load internal model (no dependency resolution)
     try:
         parsed_model = parser.parse_file(scenario_file, log_model=False)
         model = parser.load_internal_model(parsed_model, scenario_file, log_model=False, debug=False, skip_imports=True)
     except Exception as e:
         raise ValueError(f"Failed to parse scenario file: {e}") from e
 
-    # Extract parameters from all scenarios
+    return model, list(parser.parsed_files)
+
+
+def _scenario_parameters(model):
     result = {}
     scenarios = model.find_children_of_type(ScenarioDeclaration)
 
