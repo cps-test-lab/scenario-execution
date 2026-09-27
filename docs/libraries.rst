@@ -1199,7 +1199,7 @@ Use nav2 to navigate to goal pose.
 
 Use nav2 to follow waypoints.
 
-The action fails when nav2's waypoint follower reports missed waypoints, even if it succeeded the goal: with ``stop_on_failure: false`` it moves on past a waypoint it could not reach and succeeds at the end of the list. The failure names how many waypoints were missed, their indices (counted from 0, as nav2 does) and the error code and message nav2 gave for each, where the installed ``nav2_msgs`` carries them. Set ``allow_missed_waypoints`` for a scenario that tolerates missed waypoints on purpose.
+The action fails when nav2 reports missed waypoints, even if it succeeded the goal (as its waypoint follower does with ``stop_on_failure: false``). The failure names each missed waypoint by nav2's index, counted from 0, with the error code and message where the installed ``nav2_msgs`` carries them. Set ``allow_missed_waypoints`` for a scenario that tolerates missed waypoints on purpose.
 
 .. list-table:: 
    :widths: 15 15 5 65

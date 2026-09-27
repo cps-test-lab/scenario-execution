@@ -91,9 +91,8 @@ class FollowWaypoints(RosActionCall):
     def check_result(self, result):
         """Fail a goal nav2 succeeded although waypoints were missed.
 
-        With ``stop_on_failure: false`` the waypoint follower moves on past a waypoint it could not
-        reach and succeeds the goal at the end of the list; the failures are only in the result's
-        ``missed_waypoints``. A stack that reaches none of them still reports success that way.
+        With ``stop_on_failure: false`` the waypoint follower succeeds the goal at the end of the
+        list; unreachable waypoints appear only in ``missed_waypoints``.
         """
         summary = describe_missed_waypoints(result)
         if summary is None:

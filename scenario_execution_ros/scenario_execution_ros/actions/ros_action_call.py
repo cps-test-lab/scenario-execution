@@ -243,10 +243,9 @@ class RosActionCall(BaseAction):
     def check_result(self, result):  # pylint: disable=unused-argument
         """Why a goal that succeeded still fails the action, or None if it does not.
 
-        Called with the result of a goal the server reported as succeeded, when that is the status
-        the scenario expects. The status is the server's verdict: a server may succeed a goal whose
-        result says part of it was not done. A subclass that knows its action's result overrides
-        this and returns a message naming what was not done; the action then fails with it.
+        Called with the result of a goal that succeeded as expected. A server may succeed a goal
+        whose result says part of it was not done; a subclass that knows its action's result
+        returns a message naming that part, and the action fails with it.
         """
         return None
 
