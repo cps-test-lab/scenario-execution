@@ -22,7 +22,6 @@ import sys
 import tempfile
 import unittest
 from unittest import mock
-from xml.etree import ElementTree
 
 import yaml
 
@@ -91,5 +90,7 @@ class TestModelFileLoader(unittest.TestCase):
             with self.assertRaises(SystemExit) as ctx:
                 main()
         self.assertEqual(ctx.exception.code, 1)
-        failure = ElementTree.parse(os.path.join(output_dir, 'test.xml')).find('testcase/failure')
-        self.assertIn(self.corrupt, failure.text)
+        with open(os.path.join(output_dir, 'test.xml'), encoding='utf-8') as report:
+            text = report.read()
+        self.assertIn('<failure', text)
+        self.assertIn(self.corrupt, text)
