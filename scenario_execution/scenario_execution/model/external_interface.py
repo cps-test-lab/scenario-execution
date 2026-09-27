@@ -35,7 +35,8 @@ from scenario_execution.utils.logging import Logger
 
 def get_scenario_parameters(scenario_file: str, logger=None):
     """
-    Extract scenario parameters from an OpenSCENARIO 2 file without resolving dependencies.
+    Extract scenario parameters from an OpenSCENARIO 2 file without resolving dependencies,
+    or from a scenario model file (.sce) as scenario_variation writes it.
 
     This function parses the scenario file and loads the internal model to extract parameter
     information. It does not require external dependencies to be loaded, making it suitable
@@ -66,17 +67,19 @@ def get_scenario_parameters(scenario_file: str, logger=None):
     file_extension = os.path.splitext(scenario_file)[1]
     if file_extension == '.osc':
         parser = OpenScenario2Parser(logger)
+        # Parse and load internal model (no dependency resolution)
+        try:
+            parsed_model = parser.parse_file(scenario_file, log_model=False)
+            model = parser.load_internal_model(parsed_model, scenario_file, log_model=False, debug=False, skip_imports=True)
+        except Exception as e:
+            raise ValueError(f"Failed to parse scenario file: {e}") from e
     elif file_extension == '.sce':
-        parser = ModelFileLoader(logger)
+        # a serialized model, which already contains everything its scenario imported
+        model = ModelFileLoader(logger).load_file(scenario_file, False)
+        if model is None:
+            raise ValueError(f"Failed to load scenario model file: {scenario_file}")
     else:
         raise ValueError(f"File has unknown extension '{file_extension}'. Allowed [.osc, .sce]")
-
-    # Parse and load internal model (no dependency resolution)
-    try:
-        parsed_model = parser.parse_file(scenario_file, log_model=False)
-        model = parser.load_internal_model(parsed_model, scenario_file, log_model=False, debug=False, skip_imports=True)
-    except Exception as e:
-        raise ValueError(f"Failed to parse scenario file: {e}") from e
 
     # Extract parameters from all scenarios
     result = {}
