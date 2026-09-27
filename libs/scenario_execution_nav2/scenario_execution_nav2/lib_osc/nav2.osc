@@ -4,10 +4,11 @@ import osc.robotics
 action differential_drive_robot.follow_waypoints:
     # Nav2 to follow waypoints.
     goal_poses: list of pose_3d          # goal poses to navigate through
-    loop_count: int = 0                  # number of times to loop through the waypoints
+    loop_count: int = 0                  # number of additional passes through the waypoints (nav2's number_of_loops)
     namespace_override: string = ''      # if set, it's used as namespace (instead of the associated actor's name)
     action_topic: string = 'follow_waypoints' # Name of action
     success_on_acceptance: bool = false  # succeed on goal acceptance
+    allow_missed_waypoints: bool = false # if true, succeed although nav2 reports missed waypoints (logged as a warning)
 
 action differential_drive_robot.init_nav2:
     # Initialize nav2
