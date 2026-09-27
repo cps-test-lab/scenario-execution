@@ -88,6 +88,10 @@ class ModelBuilder(OpenSCENARIO2Listener):  # pylint: disable=too-many-public-me
             # of the token, so the path was opened WITH them and no file import could ever
             # resolve ('"/tmp/lib.osc"': No such file or directory).
             file = ctx.StringLiteral().getText().strip('"\'')
+            if not os.path.isabs(file):
+                # relative to the importing file, so the result does not depend on the working directory
+                file = os.path.join(os.path.dirname(os.path.abspath(self.current_file)), file)
+            file = os.path.normpath(file)
         if ctx.structuredIdentifier():
             import_reference_string = ""
             for child in ctx.structuredIdentifier().getChildren():
