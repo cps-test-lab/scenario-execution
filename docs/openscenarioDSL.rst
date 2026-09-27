@@ -73,7 +73,7 @@ Element Tag             Support              Notes
 ``global``              :raw-html:`&#9989;`
 ``hard``                :raw-html:`&#10060;`
 ``if``                  :raw-html:`&#9989;`  guards an event reference, see below
-``import``              :raw-html:`&#9989;`
+``import``              :raw-html:`&#9989;`  ``osc.<library>``, or a file path; a relative path resolves against the importing file's directory
 ``inherits``            :raw-html:`&#9989;`
 ``int``                 :raw-html:`&#9989;`
 ``is``                  :raw-html:`&#9989;`
