@@ -6,6 +6,12 @@ H_FILES = $(call file_finder,-name "*.h")
 
 LINKCHECKDIR  = build/linkcheck
 
+# Every target is a command, not a file. Without this, a target named like a directory in the
+# tree -- `test` -- is taken as up to date and runs nothing, while make still exits 0.
+.PHONY: check format check_format pylint sphinx_setup doc view_doc checklinks checkspelling \
+	test test_core test_ros test_scenario_execution_nav2_test test_scenario_execution_gazebo_test \
+	parser release-prepare release-list release-rc release-final release_check ros_release
+
 check: check_format pylint
 
 format:
