@@ -43,6 +43,7 @@ libx
 codec
 libvpx
 waypoints
+waypoint
 Struct
 lifecycle
 Changelog

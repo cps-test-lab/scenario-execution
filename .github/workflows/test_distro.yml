@@ -335,6 +335,7 @@ jobs:
           scenario_execution_ros \
           scenario_execution_ros_test \
           scenario_execution_sim \
+          scenario_execution_nav2 \
           --event-handlers console_direct+ \
           --return-code-on-test-failure \
           --pytest-args \
