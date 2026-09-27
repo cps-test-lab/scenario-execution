@@ -35,7 +35,8 @@ from scenario_execution.utils.logging import Logger
 
 def get_scenario_parameters(scenario_file: str, logger=None):
     """
-    Extract scenario parameters from an OpenSCENARIO 2 file without resolving dependencies.
+    Extract scenario parameters from an OpenSCENARIO 2 file without resolving dependencies,
+    or from a scenario model file (.sce) as scenario_variation writes it.
 
     This function parses the scenario file and loads the internal model to extract parameter
     information. It does not require external dependencies to be loaded, making it suitable
@@ -103,13 +104,13 @@ def _load_model(scenario_file: str, logger):
         raise ValueError(f"Scenario file does not exist: {scenario_file}")
 
     file_extension = os.path.splitext(scenario_file)[1]
-    if file_extension == '.osc':
-        parser = OpenScenario2Parser(logger)
-    elif file_extension == '.sce':
-        parser = ModelFileLoader(logger)
-    else:
+    if file_extension == '.sce':
+        # A serialized model already contains everything its scenario imported.
+        return ModelFileLoader(logger).load_file(scenario_file, False), [os.path.abspath(scenario_file)]
+    if file_extension != '.osc':
         raise ValueError(f"File has unknown extension '{file_extension}'. Allowed [.osc, .sce]")
 
+    parser = OpenScenario2Parser(logger)
     try:
         parsed_model = parser.parse_file(scenario_file, log_model=False)
         model = parser.load_internal_model(parsed_model, scenario_file, log_model=False, debug=False, skip_imports=True)
