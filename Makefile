@@ -10,7 +10,7 @@ LINKCHECKDIR  = build/linkcheck
 # tree -- `test` -- is taken as up to date and runs nothing, while make still exits 0.
 .PHONY: check format check_format pylint sphinx_setup doc view_doc checklinks checkspelling \
 	test test_core test_ros test_scenario_execution_nav2_test test_scenario_execution_gazebo_test \
-	parser release-prepare release-list release-rc release-final release_check ros_release
+	parser release-prepare release-list release-rc release-final release-github release_check
 
 check: check_format pylint
 
