@@ -59,6 +59,7 @@ class OpenScenario2Parser(object):
 
     def __init__(self, logger) -> None:
         self.logger = logger
+        # absolute path of every file parse_file read, entry file first, each once
         self.parsed_files = []
         self.scenario_params = {}
 
@@ -552,9 +553,10 @@ class OpenScenario2Parser(object):
 
     def parse_file(self, file: str, log_model: bool = False, error_prefix=""):
         """ Execute the parsing """
-        if file in self.parsed_files:  # skip already parsed/imported files
+        path = os.path.abspath(file)
+        if path in self.parsed_files:  # skip already parsed/imported files
             return None
-        self.parsed_files.append(file)
+        self.parsed_files.append(path)
         try:
             # UTF-8 explicitly: ANTLR's FileStream defaults to ASCII, and an .osc is source
             # text. A dash, a degree sign or an accented name -- in a comment, a string, or
