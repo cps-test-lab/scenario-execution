@@ -265,10 +265,8 @@ def lay_out_bloom_rehearsal(clone, version):
 def lay_out_bloom_environment(root):
     """bloom and rosdep of their own under ``root``: a venv, the default rosdep sources, a cache.
 
-    Nothing of the machine's takes part -- not its bloom, not /etc/ros/rosdep, not ~/.ros. A
-    source list there may redefine ROS keys for some platforms only, and every distro on another
-    platform then fails to resolve them; bloom also runs `rosdep update` itself, rewriting
-    whatever cache it is given. The rehearsal and the real release run in the same environment.
+    Nothing of the machine's takes part -- not its bloom, not /etc/ros/rosdep, not ~/.ros --
+    so the rehearsal and the release resolve rosdep keys the same way.
     """
     venv = root / "venv"
     run(sys.executable, "-m", "venv", str(venv))

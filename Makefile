@@ -150,6 +150,5 @@ release-github:
 	@test -n "$(VERSION)" || { echo "Usage: make release-github VERSION=X.Y.Z"; exit 1; }
 	python3 tools/release.py github-release "$(VERSION)"
 
-# The ROS build farm comes after the tag, by hand: release-final lays out bloom and rosdep of
-# their own and prints the bloom-release line per distro to run in them. Not the machine's
-# bloom, whose rosdep sources and cache are its own business (docs/development.rst).
+# The ROS build farm follows by hand, with the bloom-release lines release-final prints
+# (docs/development.rst).
