@@ -21,7 +21,7 @@ import unittest
 
 import yaml
 
-from scenario_execution import get_scenario_parameters
+from scenario_execution import get_scenario_inputs, get_scenario_parameters
 from scenario_execution.model.osc2_parser import OpenScenario2Parser
 from scenario_execution.model.types import serialize
 
@@ -79,6 +79,10 @@ class TestExternalInterfaceSce(unittest.TestCase):
             {"name": "names", "type": "listofstring", "is_list": True},
             {"name": "start", "type": "position", "is_list": False},
         ]})
+
+    def test_sce_inputs_are_the_model_file(self):
+        sce = self._write_sce(self._serialized())
+        self.assertEqual(get_scenario_inputs(sce, self.logger), [os.path.abspath(sce)])
 
     def test_unreadable_sce_names_the_file(self):
         sce = self._write_sce("not: [a, model")
