@@ -29,6 +29,9 @@ import os
 from importlib.metadata import entry_points
 from importlib.resources import files
 
+# libraries of this package, read even when external imports are skipped
+CORE_LIBRARIES = ('helpers', 'robotics', 'standard', 'types')
+
 
 class ModelBuilder(OpenSCENARIO2Listener):  # pylint: disable=too-many-public-methods
 
@@ -83,6 +86,10 @@ class ModelBuilder(OpenSCENARIO2Listener):  # pylint: disable=too-many-public-me
         if ctx.StringLiteral():
             # getText() includes the literal's quotes, which are not part of the path
             file = ctx.StringLiteral().getText().strip('"\'')
+            if not os.path.isabs(file):
+                # relative to the importing file, so the result does not depend on the working directory
+                file = os.path.join(os.path.dirname(os.path.abspath(self.current_file)), file)
+            file = os.path.normpath(file)
         if ctx.structuredIdentifier():
             import_reference_string = ""
             for child in ctx.structuredIdentifier().getChildren():
@@ -94,17 +101,14 @@ class ModelBuilder(OpenSCENARIO2Listener):  # pylint: disable=too-many-public-me
                     msg=f'import_reference can only be of format osc.<library-name>, found "{import_reference}', context=ctx)
 
             library_name = ".".join(import_reference[1:])
-            if self.skip_external_imports and library_name not in  ['helpers', 'robotics', 'standard', 'types']:
-                self.logger.debug(f'Skipping external import library: {library_name}')
-                return
-            # iterate through all packages
-            libraries_found = []
-            # Get entry points using importlib.metadata
-            library_eps = entry_points(group='scenario_execution.osc_libraries')
-
-            for entry_point in library_eps:
-                if entry_point.name == library_name:
-                    libraries_found.append(entry_point)
+            libraries_found = [entry_point for entry_point in entry_points(group='scenario_execution.osc_libraries')
+                               if entry_point.name == library_name]
+            if self.skip_external_imports and library_name not in CORE_LIBRARIES:
+                # An external library is skipped whether or not it is installed, so only a name
+                # that is under a core library and registered by no package is known to be wrong.
+                if libraries_found or library_name.split('.', maxsplit=1)[0] not in CORE_LIBRARIES:
+                    self.logger.debug(f'Skipping external import library: {library_name}')
+                    return
             if not libraries_found:
                 raise OSC2ParsingError(
                     msg=f'No import library "{library_name}" found.', context=ctx)
