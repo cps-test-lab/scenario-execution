@@ -22,7 +22,7 @@ PACKAGE_NAME = 'example_library'
 
 setup(
     name=PACKAGE_NAME,
-    version='1.5.0',
+    version='0.0.0',  # never released; nothing bumps this
     packages=find_namespace_packages(),
     data_files=[
         ('share/ament_index/resource_index/packages',
@@ -35,7 +35,7 @@ setup(
     maintainer_email='fred-labs@mailbox.org',
     description='Scenario Execution Example Lirary',
     license='Apache License 2.0',
-    tests_require=['pytest'],
+    extras_require={'test': ['pytest']},
     include_package_data=True,
     entry_points={
         'scenario_execution.actions': [

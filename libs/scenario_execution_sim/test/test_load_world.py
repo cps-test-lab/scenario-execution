@@ -84,4 +84,7 @@ scenario test_load_world:
 """
         self.execute(scenario_content)
         self.assertTrue(self.scenario_execution_ros.process_results())
-        self.assertEqual(self.request_received.uri, 'file:///path/to/world.sdf')
+        # simulation_interfaces 2.x carries the URI in a Resource sub-message, 1.x flat.
+        received = self.request_received
+        uri = received.world_resource.uri if hasattr(received, 'world_resource') else received.uri
+        self.assertEqual(uri, 'file:///path/to/world.sdf')

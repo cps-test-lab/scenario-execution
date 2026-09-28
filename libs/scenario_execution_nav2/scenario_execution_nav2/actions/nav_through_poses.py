@@ -18,6 +18,8 @@
 from rclpy.duration import Duration
 from nav2_msgs.action import NavigateThroughPoses
 from scenario_execution_ros.actions.common import get_pose_stamped
+
+from .common import set_goal_poses
 from scenario_execution_ros.actions.ros_action_call import RosActionCall, ActionCallActionState
 
 
@@ -40,8 +42,8 @@ class NavThroughPoses(RosActionCall):
 
     def get_goal_msg(self):
         goal_msg = NavigateThroughPoses.Goal()
-        for pose in self.goal_poses:
-            goal_msg.poses.append(get_pose_stamped(self.node.get_clock().now().to_msg(), pose))
+        now = self.node.get_clock().now().to_msg()
+        set_goal_poses(goal_msg, [get_pose_stamped(now, pose) for pose in self.goal_poses])
         return goal_msg
 
     def get_feedback_message(self, current_state):

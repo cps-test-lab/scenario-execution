@@ -1,0 +1,161 @@
+name: Publish to PyPI
+
+# The one PyPI distribution, scenario-execution, from a version tag: `X.Y.Z` pushed to this
+# repository publishes it to PyPI, and `workflow_dispatch` publishes the same wheel as a
+# release candidate to TestPyPI, which is where every release is tried by hand before it is
+# real. Nothing but the tag reaches PyPI.
+#
+# The wheel is built and checked before anything is uploaded, because an upload cannot be
+# taken back -- a version can be yanked, never replaced. The version is package.xml's: on a
+# tag the job refuses unless the two agree, and a release candidate's `X.Y.ZrcN`, which is
+# not a version package.xml may hold, is passed to the build in the environment and never
+# committed. The ROS packages are not published here; the build farm is a separate, manual
+# step after the tag (docs/development.rst, "Releasing").
+
+on:
+  push:
+    tags:
+      - '[0-9]*.[0-9]*.[0-9]*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release candidate to publish to TestPyPI, e.g. 1.6.0rc1 (PEP 440)'
+        required: true
+        type: string
+
+permissions: read-all
+
+jobs:
+  build:
+    name: Build and check the wheel
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      target: ${{ steps.version.outputs.target }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 #v4.1.1
+        with:
+          persist-credentials: false
+
+      # One place for the version and the index. A tag publishes what package.xml says, to
+      # PyPI, and refuses if the tag disagrees with it -- a wheel at the wrong number is
+      # found here, before the upload. A dispatched candidate goes to TestPyPI.
+      - name: Resolve the version and the index
+        id: version
+        env:
+          TAG: ${{ github.ref_name }}
+          REQUESTED: ${{ inputs.version }}
+        run: |
+          in_tree=$(sed -n 's/.*<version>\s*\([^<]*\)<\/version>.*/\1/p' scenario_execution/package.xml | head -1)
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "$TAG" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { echo "::error::tag '$TAG' is not X.Y.Z"; exit 1; }
+            if [ "$TAG" != "$in_tree" ]; then
+              echo "::error::tag $TAG but scenario_execution/package.xml says $in_tree"; exit 1
+            fi
+            echo "version=$TAG" >> "$GITHUB_OUTPUT"
+            echo "target=pypi" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=$REQUESTED" >> "$GITHUB_OUTPUT"
+            echo "target=testpypi" >> "$GITHUB_OUTPUT"
+          fi
+          cat "$GITHUB_OUTPUT"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install the build tools
+        run: pip install --quiet build twine
+
+      - name: Build the sdist and the wheel
+        env:
+          SCENARIO_EXECUTION_VERSION: ${{ steps.version.outputs.target == 'testpypi' && steps.version.outputs.version || '' }}
+        run: cd scenario_execution && python -m build
+
+      - name: The artifacts are valid, at the version being published
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          python -m twine check scenario_execution/dist/*
+          python - <<'EOF'
+          import glob, os, zipfile
+          (wheel,) = glob.glob("scenario_execution/dist/*.whl")
+          archive = zipfile.ZipFile(wheel)
+          metadata = archive.read(next(n for n in archive.namelist()
+                                       if n.endswith(".dist-info/METADATA"))).decode()
+          version = next(l.split(": ", 1)[1] for l in metadata.splitlines() if l.startswith("Version: "))
+          assert version == os.environ["VERSION"], f"wheel is {version}, publishing {os.environ['VERSION']}"
+          assert "scenario_execution/lib_osc/standard.osc" in archive.namelist(), "the OSC libraries are missing"
+          print(f"{wheel}: version {version}, libraries present")
+          EOF
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: scenario_execution/dist/
+
+  # Authenticates by OpenID Connect (trusted publishing): each index holds a publisher for
+  # `scenario-execution` naming this repository, this workflow and the environment, and no
+  # API token exists anywhere. `id-token: write` is granted to this job alone, since a job's
+  # permissions replace the workflow's read-only default. `skip-existing` lets a re-run of the
+  # same tag after a transient failure continue instead of failing on the file already there.
+  publish:
+    name: Publish scenario-execution
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ needs.build.outputs.target }}
+      url: ${{ needs.build.outputs.target == 'pypi' && 'https://pypi.org/p/scenario-execution' || 'https://test.pypi.org/p/scenario-execution' }}
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: ${{ needs.build.outputs.target == 'pypi' && 'https://upload.pypi.org/legacy/' || 'https://test.pypi.org/legacy/' }}
+          skip-existing: true
+
+  # Installs what was just published from the index it went to, in a venv that holds nothing
+  # else, so that a break which reached the index is named here rather than by a user.
+  # Third-party dependencies come from PyPI either way; TestPyPI does not carry them.
+  verify-installs:
+    name: The published wheel installs from the index
+    needs: [build, publish]
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.build.outputs.version }}
+      INDEX: ${{ needs.build.outputs.target == 'pypi' && 'https://pypi.org/simple/' || 'https://test.pypi.org/simple/' }}
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install from the index
+        run: |
+          python -m venv venv
+          # The index's CDN can serve the listing from before the upload for a short while;
+          # --no-cache-dir so a retry asks again instead of reading pip's copy of that listing.
+          for attempt in 1 2 3 4 5 6; do
+            if venv/bin/pip install --no-cache-dir \
+                --index-url "$INDEX" --extra-index-url https://pypi.org/simple/ \
+                "scenario-execution==$VERSION"; then
+              break
+            fi
+            test "$attempt" -lt 6 || exit 1
+            echo "not yet on the index; retrying in 30s"; sleep 30
+          done
+      - name: What was installed is what was published
+        run: |
+          venv/bin/python - <<'EOF'
+          import importlib.metadata as m, os
+          assert m.version("scenario-execution") == os.environ["VERSION"], m.version("scenario-execution")
+          groups = m.entry_points()
+          libraries = {e.name for e in groups.select(group="scenario_execution.osc_libraries")}
+          assert {"standard", "types", "helpers", "robotics"} <= libraries, libraries
+          print(f"scenario-execution {os.environ['VERSION']}: entry points present")
+          EOF
+          venv/bin/scenario_execution --help > /dev/null

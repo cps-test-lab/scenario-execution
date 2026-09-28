@@ -20,12 +20,19 @@ Setup for scenario_execution_control
 import os
 from glob import glob
 
+import re
+from pathlib import Path
 from setuptools import setup
 
 PACKAGE_NAME = 'scenario_execution_control'
+
+# The version lives in package.xml alone: the ROS tooling reads it there and nowhere else,
+# so a release bumps one file per package and this can never disagree with it.
+VERSION = re.search(r"<version>\s*([^<\s]+)\s*</version>",
+                    (Path(__file__).resolve().parent / "package.xml").read_text(encoding="utf-8")).group(1)
 setup(
     name=PACKAGE_NAME,
-    version='1.5.0',
+    version=VERSION,
     packages=[PACKAGE_NAME],
     data_files=[
         ('share/ament_index/resource_index/packages',

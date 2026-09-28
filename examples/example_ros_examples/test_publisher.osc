@@ -11,7 +11,7 @@ scenario test_publisher:
             serial:
                 check_data(topic_name: "/topic",
                            topic_type: "std_msgs.msg.String",
-                           expected_value: "Hello World: 3",
+                           expected_value: "Hello World: 10",  # a message after the subscription is up; the first few can precede it
                            eval_expected_value: false,
                            member_name: "data")
                 emit end

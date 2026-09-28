@@ -1199,6 +1199,8 @@ Use nav2 to navigate to goal pose.
 
 Use nav2 to follow waypoints.
 
+The action fails when nav2 reports missed waypoints, even if it succeeded the goal (as its waypoint follower does with ``stop_on_failure: false``). The failure names each missed waypoint by nav2's index, counted from 0, with the error code and message where the installed ``nav2_msgs`` carries them. Set ``allow_missed_waypoints`` for a scenario that tolerates missed waypoints on purpose.
+
 .. list-table:: 
    :widths: 15 15 5 65
    :header-rows: 1
@@ -1208,14 +1210,14 @@ Use nav2 to follow waypoints.
      - Type
      - Default
      - Description
-   * - ``goal_pose``
-     - ``pose_3d``
+   * - ``goal_poses``
+     - ``list of pose_3d``
      - 
-     - Goal pose to navigate to
+     - Goal poses to navigate through
    * - ``loop_count``
      - ``int``
-     - ``1``
-     - Loop count
+     - ``0``
+     - Number of additional passes through the waypoints (nav2's ``number_of_loops``)
    * - ``namespace_override``
      - ``string``
      -
@@ -1228,6 +1230,10 @@ Use nav2 to follow waypoints.
      - ``bool``
      - ``false``
      -  succeed on goal acceptance
+   * - ``allow_missed_waypoints``
+     - ``bool``
+     - ``false``
+     - If true, succeed although nav2 reports missed waypoints; they are logged as a warning and named in the feedback message
 
 Network
 -------
@@ -1544,10 +1550,10 @@ The action never succeeds: it keeps monitoring until it fails or the scenario en
      - ``string``
      - ``''``
      - namespace of `tf` and `tf_static` topic.
-   * - ``use_sim_time``
+   * - ``latest_transform``
      - ``bool``
      - ``false``
-     - In simulation, we need to look up the transform at a different time as the scenario execution node is not allowed to use the sim time
+     - Look the transform up at the latest available stamp, instead of at the node's current time
 
 ``assert_topic_latency()``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1651,7 +1657,7 @@ To capture only what the behavior tree did, use ``--bt-log`` instead (see :ref:`
    * - ``topics``
      - ``list of string``
      - 
-     - List of topics to capture
+     - List of topics to capture. A hidden topic (a name segment starting with ``_``, e.g. an action's ``/_action/`` topics) is captured too; an empty list captures all topics
    * - ``timestamp_suffix``
      - ``bool``
      - ``true``
@@ -1659,7 +1665,7 @@ To capture only what the behavior tree did, use ``--bt-log`` instead (see :ref:`
    * - ``hidden_topics``
      - ``bool``
      - ``false``
-     - Whether to record hidden topics
+     - Whether to record hidden topics when all topics are recorded
    * - ``storage``
      - ``string``
      - ``''``
@@ -1667,7 +1673,7 @@ To capture only what the behavior tree did, use ``--bt-log`` instead (see :ref:`
    * - ``use_sim_time``
      - ``bool``
      - ``false``
-     - Use simulation time for message timestamps by subscribing to the /clock topic
+     - Stamp messages with simulation time even when the scenario execution node runs on host time
 
 
 ``check_data()``
@@ -1827,10 +1833,6 @@ Wait until a TF frame is close to a defined reference point.
      - ``string``
      - ``base_link``
      - Defines the TF frame id of the robot
-   * - ``sim``
-     - ``bool``
-     - ``false``
-     - In simulation, we need to look up the transform parent_frame_id --> robot_frame_id at a different time as the scenario execution node is not allowed to use the sim time
    * - ``namespace_override``
      - ``string``
      - ``''``
@@ -2321,16 +2323,16 @@ Spawn an entity in the simulation.
      - Description
    * - ``entity_name``
      - ``string``
-     -
-     - Name to give to the spawned entity
+     - ``''``
+     - Name to give to the spawned entity; empty takes the resource's own
    * - ``uri``
      - ``string``
      -
      - URI of the resource to spawn
    * - ``initial_pose``
      - ``pose_3d``
-     -
-     - Initial pose for the entity
+     - ``pose_3d()``
+     - Initial pose for the entity, in the world frame
    * - ``allow_renaming``
      - ``bool``
      - ``false``

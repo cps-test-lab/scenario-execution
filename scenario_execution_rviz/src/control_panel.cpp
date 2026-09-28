@@ -1,4 +1,5 @@
 //  Copyright (C) 2024 Intel Corporation
+//  Copyright (C) 2026 Frederik Pasch
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
 //  you may not use this file except in compliance with the License.
@@ -37,7 +38,7 @@
 #include <cstdio>
 #include <iomanip>
 
-#include <tf2/utils.h>
+#include <tf2/utils.hpp>
 
 #include "rviz_common/display_context.hpp"
 #include <Ogre.h>

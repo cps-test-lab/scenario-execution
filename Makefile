@@ -6,6 +6,12 @@ H_FILES = $(call file_finder,-name "*.h")
 
 LINKCHECKDIR  = build/linkcheck
 
+# Every target is a command, not a file. Without this, a target named like a directory in the
+# tree -- `test` -- is taken as up to date and runs nothing, while make still exits 0.
+.PHONY: check format check_format pylint sphinx_setup doc view_doc checklinks checkspelling \
+	test test_core test_ros test_scenario_execution_nav2_test test_scenario_execution_gazebo_test \
+	parser release-prepare release-list release-rc release-final release-github release_check
+
 check: check_format pylint
 
 format:
@@ -42,6 +48,20 @@ checkspelling: sphinx_setup
 	. venv/bin/activate && GITHUB_REF_NAME=local GITHUB_REPOSITORY=intellabs/scenario_execution python -m sphinx -b html -b spelling -W docs $(ALLSPHINXOPTS) $(LINKCHECKDIR)
 	@echo
 	@echo "Check finished. Report is in $(LINKCHECKDIR)."
+
+# --- Unit tests -------------------------------------------------------------------------
+# colcon is what CI runs; the pytest targets are the same suites without the build, for a
+# tree that is already built and sourced.
+TEST_PACKAGES = scenario_execution scenario_execution_ros
+
+test:
+	colcon test --packages-select $(TEST_PACKAGES) --event-handlers console_direct+ --return-code-on-test-failure
+
+test_core:
+	python3 -m pytest scenario_execution/test
+
+test_ros:
+	python3 -m pytest scenario_execution_ros/test
 
 test_scenario_execution_nav2_test:
 	scenario_batch_execution -i test/scenario_execution_nav2_test/scenarios/ -o test_scenario_execution_nav2 --ignore-process-return-value -- ros2 run scenario_execution_ros scenario_execution_ros {SCENARIO} -o {OUTPUT_DIR} -t
@@ -91,92 +111,50 @@ parser: $(ANTLR_JAR)
 	@echo "the lexer should leave Parser/Listener/Visitor and the .tokens files untouched."
 
 
-release_tools:
-	python3 -m pip install --upgrade build twine
+# --- The release, from here to the tag ---------------------------------------------------
+#
+# A release is prepared here and published by CI: `make release-prepare VERSION=X.Y.Z` writes
+# the changelogs and the version, that goes up as a pull request, and the tag pushed after the
+# merge is what .github/workflows/publish.yml builds and uploads (to TestPyPI first, from a
+# workflow dispatch; to PyPI from the tag). Nothing is uploaded from a developer machine.
+#
+# The version lives in package.xml alone and every setup.py reads it from there, so the only
+# files a release changes are the released packages' package.xml and CHANGELOG.rst; every
+# package that is never released is fixed at 0.0.0 (`make release-list` shows both sets).
+# docs/development.rst, "Releasing", is the whole sequence.
 
-release_version_check:
-	@se_ver=$$(grep -oP "version='\K[^']+" $(RELEASE_PKG_DIR)/setup.py); \
-	xml_ver=$$(grep -oP '<version>\K[^<]+' $(RELEASE_PKG_DIR)/package.xml); \
-	if [ "$$se_ver" != "$$xml_ver" ]; then \
-		echo "Version mismatch: setup.py=$$se_ver, package.xml=$$xml_ver. Sync them before releasing."; \
-		exit 1; \
-	fi; \
-	echo "Releasing scenario_execution version $$se_ver"
+release-prepare:
+	@test -n "$(VERSION)" || { echo "Usage: make release-prepare VERSION=<X.Y.Z|major|minor|patch>"; exit 1; }
+	@python3 -c "import catkin_pkg" 2>/dev/null || { echo "catkin_pkg is not installed. Install with: python3 -m pip install catkin_pkg"; exit 1; }
+	python3 tools/release_prepare.py "$(VERSION)"
 
-release_clean:
+release-list:
+	@python3 tools/release_prepare.py --list
+
+# Once the release pull request is merged: the candidate, then -- after it was tried by hand --
+# the tag. Both refuse on a commit that is not on main, on red CI, on a tree whose version is
+# not VERSION, and on a package that is neither released nor ignored by bloom; the final also
+# refuses without a candidate on TestPyPI. Each prints what to do next.
+release-rc:
+	@test -n "$(VERSION)" || { echo "Usage: make release-rc VERSION=X.Y.Z [COMMIT=<sha on main>]"; exit 1; }
+	python3 tools/release.py rc "$(VERSION)" $(if $(COMMIT),--commit "$(COMMIT)",)
+
+release-final:
+	@test -n "$(VERSION)" || { echo "Usage: make release-final VERSION=X.Y.Z [COMMIT=<sha on main>]"; exit 1; }
+	python3 tools/release.py final "$(VERSION)" $(if $(COMMIT),--commit "$(COMMIT)",)
+
+# What the publish workflow builds and checks, runnable here: the sdist and the wheel of the
+# one PyPI distribution, validated by twine, at the version package.xml says.
+release_check:
 	rm -rf $(RELEASE_PKG_DIR)/dist $(RELEASE_PKG_DIR)/build $(RELEASE_PKG_DIR)/*.egg-info
-
-release_build: release_version_check release_clean
 	cd $(RELEASE_PKG_DIR) && python3 -m build
-
-# Validate the built artifacts (does not upload)
-release_check: release_build
 	python3 -m twine check $(RELEASE_PKG_DIR)/dist/*
 
-# Upload to TestPyPI for a dry run (recommended before 'make release')
-release_test: release_check
-	python3 -m twine upload --repository testpypi $(RELEASE_PKG_DIR)/dist/*
+# The GitHub Release of an existing tag, its notes from the released packages' changelogs.
+# release-final ends with it; this is the same step on its own, for a retry.
+release-github:
+	@test -n "$(VERSION)" || { echo "Usage: make release-github VERSION=X.Y.Z"; exit 1; }
+	python3 tools/release.py github-release "$(VERSION)"
 
-# Publish to PyPI
-release: release_check
-	python3 -m twine upload $(RELEASE_PKG_DIR)/dist/*
-
-# --- ROS release (managed together via catkin tooling + bloom) ---
-ROS_DISTRO ?= jazzy
-ROS_REPO   ?= scenario_execution
-
-# Packages released to the ROS build farm. This MUST mirror the release/packages list
-# for this repository in rosdistro (https://github.com/ros/rosdistro/blob/master/$(ROS_DISTRO)/distribution.yaml).
-# Every other package in the workspace is intentionally NOT released and must stay
-# disabled: the examples, the *_test packages, the simulation helpers
-# (arm_sim_scenario, gazebo_static_camera, gazebo_tf_publisher, tb4_sim_scenario,
-# message_modification, scenario_status, tf_to_pose_publisher), and the
-# scenario_execution_{docker,kubernetes,moveit2,pybullet,floorplan_dsl} libraries.
-# Do not add them here or to the rosdistro list.
-ROS_RELEASE_PACKAGES = \
-	scenario_execution \
-	scenario_execution_control \
-	scenario_execution_coverage \
-	scenario_execution_dataops \
-	scenario_execution_gazebo \
-	scenario_execution_interfaces \
-	scenario_execution_nav2 \
-	scenario_execution_network \
-	scenario_execution_os \
-	scenario_execution_ros \
-	scenario_execution_rviz \
-	scenario_execution_sim \
-	scenario_execution_x11
-
-# Fill the "Forthcoming" section of every CHANGELOG.rst from the git history.
-# (No --all: every package already has a CHANGELOG.rst.) Review/edit the result,
-# then bump the version (make set_version) and tag.
-ros_changelog:
-	catkin_generate_changelog
-
-# Set the version across every source package.xml and setup.py (ROS + PyPI).
-# Usage: make set_version VERSION=1.6.0      (explicit)
-#        make set_version VERSION=minor      (bump major|minor|patch from current)
-# Afterwards review the diff, update the CHANGELOG.rst headings, then commit and tag:
-#        git commit -am "<version>" && git tag <version>
-set_version:
-	@test -n "$(VERSION)" || { echo "Usage: make set_version VERSION=<X.Y.Z|major|minor|patch>"; exit 1; }
-	python3 tools/set_version.py "$(VERSION)"
-
-# Print the packages that are released vs. intentionally disabled, so the rosdistro
-# pull request can be reviewed before publishing.
-ros_release_packages:
-	@echo "Released to ROS ($(ROS_DISTRO)):"; for p in $(ROS_RELEASE_PACKAGES); do echo "  + $$p"; done
-	@echo "Disabled (kept out of the release):"; \
-	for f in $$(find . -name package.xml -not -path '*/install/*' -not -path '*/build/*'); do \
-		basename $$(dirname $$f); \
-	done | sort -u | grep -vxF "$$(printf '%s\n' $(ROS_RELEASE_PACKAGES))" | sed 's/^/  - /'
-
-# Publish the repository to the ROS build farm via bloom. Interactive; requires a
-# configured release repository and opens a rosdistro pull request. bloom takes the
-# rosdistro *repository* key ($(ROS_REPO)), not individual package names. The set of
-# released packages is governed by rosdistro's release/packages list (mirrored in
-# ROS_RELEASE_PACKAGES) — keep the disabled packages out of it.
-# Usage: make ros_release [ROS_DISTRO=jazzy]
-ros_release:
-	bloom-release --rosdistro $(ROS_DISTRO) --track $(ROS_DISTRO) $(ROS_REPO)
+# The ROS build farm follows by hand, with the bloom-release lines release-final prints
+# (docs/development.rst).

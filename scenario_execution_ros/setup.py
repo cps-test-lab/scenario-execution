@@ -17,13 +17,20 @@
 """ Setup python package """
 from glob import glob
 import os
+import re
+from pathlib import Path
 from setuptools import find_namespace_packages, setup
 
 PACKAGE_NAME = 'scenario_execution_ros'
 
+# The version lives in package.xml alone: the ROS tooling reads it there and nowhere else,
+# so a release bumps one file per package and this can never disagree with it.
+VERSION = re.search(r"<version>\s*([^<\s]+)\s*</version>",
+                    (Path(__file__).resolve().parent / "package.xml").read_text(encoding="utf-8")).group(1)
+
 setup(
     name=PACKAGE_NAME,
-    version='1.5.0',
+    version=VERSION,
     packages=find_namespace_packages(),
     data_files=[
         ('share/ament_index/resource_index/packages',
@@ -44,7 +51,7 @@ setup(
     maintainer_email='fred-labs@mailbox.org',
     description='Scenario Execution for ROS',
     license='Apache License 2.0',
-    tests_require=['pytest'],
+    extras_require={'test': ['pytest']},
     include_package_data=True,
     entry_points={
         'console_scripts': [

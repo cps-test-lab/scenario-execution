@@ -732,10 +732,66 @@ so existing scenarios continue to work unchanged.
   ``simulation.step()``, so a step-based simulation runs **alongside** the ROS
   behaviors that drive it. This lets a scenario bring up and drive a ROS stack
   while the simulation advances time. A simulation that publishes ``/clock``
-  becomes the time source (other nodes run ``use_sim_time``), and stepping is
+  becomes the time source for every node, including this one, and stepping is
   paced to real time (the pace can be removed for faster-than-real-time runs).
 
   With the ROS runner, ``setup()``/``reset()``/``step()``/``shutdown()`` are
   called **per scenario** (each scenario runs on its own ROS node), rather than
   ``setup``/``shutdown`` once for the whole file as with the non-ROS runner.
 
+.. _ros_simulated_time_usage:
+
+Running a scenario against simulated time
+-----------------------------------------
+
+With the ROS runner, ``use_sim_time`` makes the scenario's own durations simulated seconds. It is
+off by default, so a scenario that does not ask for it counts host seconds exactly as before.
+
+.. code-block:: bash
+
+   ros2 launch scenario_execution_ros scenario_launch.py scenario:=example.osc use_sim_time:=True
+
+   # or, running the executable directly
+   ros2 run scenario_execution_ros scenario_execution_ros example.osc --ros-args -p use_sim_time:=true
+
+Under it the behavior tree ticks on ``/clock`` as well, so the same scenario produces the same ticks
+at the same points however fast the host happens to be. This is what a duration means in each case:
+
+.. list-table::
+   :widths: 40 60
+   :header-rows: 1
+   :class: tight-table
+
+   * - What
+     - Which clock
+   * - ``wait elapsed()``, ``until elapsed()``, ``timeout()``
+     - The scenario's. Simulated seconds under ``use_sim_time``.
+   * - ``action_call(cancel_after:)``
+     - The scenario's.
+   * - ``assert_tf_moving(timeout:)``
+     - The scenario's -- it is an assertion about the robot.
+   * - ``run_process``/``ros_launch``/``ros_run`` ``shutdown_timeout``
+     - Host. It bounds an OS process, and it runs during teardown.
+   * - ``assert_realtime_factor()``, ``assert_topic_latency()``
+     - Host. Both measure the host against something else, which is the point of them.
+   * - ``bag_record(use_sim_time:)``
+     - Sets ``--use-sim-time`` on ``ros2 bag record``. It follows this node, and the parameter
+       forces it on regardless.
+
+Something has to publish ``/clock``. If nothing does, the scenario fails at startup rather than
+measuring every duration from zero:
+
+.. code-block::
+
+   use_sim_time is set but /clock did not advance within 30.0s of host time.
+   Every duration in the scenario would be measured from zero.
+
+And because the tree ticks on ``/clock``, a simulator that stops or is reset mid-run stops the tree.
+That is reported rather than waited out:
+
+.. code-block::
+
+   /clock did not advance for 30.1s of host time. The behaviour tree ticks on ROS time
+   and has stopped ticking.
+
+   /clock stepped back by 5.000s: the simulation was reset underneath the running scenario.

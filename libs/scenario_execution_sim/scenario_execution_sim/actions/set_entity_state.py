@@ -14,12 +14,13 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from .common import get_spawn_pose
+from .common import get_spawn_pose, state_flags
 from scenario_execution_ros.actions.ros_service_call import RosServiceCall
 from scenario_execution.actions.base_action import ActionError
 
 try:
     from simulation_interfaces.msg import Result
+    from simulation_interfaces.srv import SetEntityState as SetEntityStateService
 except ImportError as e:
     raise ImportError("simulation_interfaces package not found. Please make sure ros-<ROS_DISTRO>-simulation-interfaces is installed and sourced.") from e
 
@@ -52,7 +53,15 @@ class SetEntityState(RosServiceCall):
         return result
 
     def execute(self):   # pylint: disable=arguments-differ,arguments-renamed
-        super().execute(data={ "entity": self.entity, "state": { "pose": get_spawn_pose(self, self.pose), "twist": self.convert_value(self.twist), "acceleration": self.convert_value(self.acceleration) }})
+        super().execute(data={
+            "entity": self.entity,
+            "state": {
+                "pose": get_spawn_pose(self, self.pose),
+                "twist": self.convert_value(self.twist),
+                "acceleration": self.convert_value(self.acceleration),
+            },
+            **state_flags(SetEntityStateService.Request),
+        })
 
     def check_response(self, msg):
         """

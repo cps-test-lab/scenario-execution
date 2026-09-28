@@ -14,10 +14,11 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from .common import get_spawn_pose
+from .common import get_spawn_pose, resource_field
 from scenario_execution_ros.actions.ros_service_call import RosServiceCall
 try:
     from simulation_interfaces.msg import Result
+    from simulation_interfaces.srv import SpawnEntity as SpawnEntityService
 except ImportError as e:
     raise ImportError("simulation_interfaces package not found. Please make sure ros-<ROS_DISTRO>-simulation-interfaces is installed and sourced.") from e
 
@@ -36,7 +37,7 @@ class SpawnEntity(RosServiceCall):
         data = {
             "name": self.entity_name,
             "allow_renaming": self.allow_renaming,
-            "uri": self.uri,
+            **resource_field(SpawnEntityService.Request, "uri", "entity_resource", self.uri),
             "entity_namespace": self.entity_namespace,
             "initial_pose": { 
                 "pose": get_spawn_pose(self, self.initial_pose)

@@ -31,7 +31,7 @@ from scenario_execution.utils import bt_logger
 from scenario_execution.utils import tick_recorder
 from scenario_execution import tick_report
 from scenario_execution.model.model_file_loader import ModelFileLoader
-from scenario_execution.simulation import SimulationClock
+from scenario_execution.simulation import HostClock, SimulationClock
 from scenario_execution.actions.process_registry import ProcessRegistry
 from dataclasses import dataclass
 from xml.sax.saxutils import escape  # nosec B406 # escape is only used on an internally generated error string
@@ -170,6 +170,16 @@ class ScenarioExecution(object):
         if register_signal:
             signal.signal(signal.SIGHUP, signal_handler)
             signal.signal(signal.SIGTERM, signal_handler)
+            # SIGINT too, and set unconditionally rather than left alone where it arrives
+            # ignored. A runner started as a background job by a shell without job control
+            # inherits SIGINT and SIGQUIT as SIG_IGN, and an ignored disposition is inherited
+            # through every exec below it -- so the actions' own children inherit it as well.
+            # A child that ignores SIGINT cannot be stopped by the one signal that asks it to
+            # finish what it is writing: `ros2 bag record` closes its bag on SIGINT and on
+            # nothing else, and a bag that was never closed has no metadata.yaml and can be
+            # opened by no reader. Taking the signal here restores it for every process this
+            # one spawns, because exec resets a HANDLED signal to its default.
+            signal.signal(signal.SIGINT, signal_handler)
 
         self.current_scenario_start = None
         self.current_scenario = None
@@ -279,6 +289,10 @@ class ScenarioExecution(object):
             input_dir = os.path.dirname(self.scenario_file)
         setup_kwargs = dict(kwargs)
         setup_kwargs['process_registry'] = self.process_registry
+        # Host time, beside the scenario clock: the domain a deadline lives in when it has to
+        # expire even though a simulated clock has stopped. Created per scenario so it is
+        # zero-based like every other clock the framework hands out.
+        setup_kwargs.setdefault('host_clock', HostClock())
         self.behaviour_tree.setup(timeout=self.setup_timeout,
                                   logger=self.logger,
                                   input_dir=input_dir,
@@ -291,16 +305,15 @@ class ScenarioExecution(object):
         """Attach the behaviour-tree status log for this scenario, if --bt-log is set.
 
         Middleware-independent: the ROS runner inherits this untouched and contributes
-        only the clock. ``sim_clock`` is preferred over ``clock`` so a runner can supply
-        a time source for the log alone -- passing ``clock`` would also retarget
-        ClockTimer/ClockTimeout, changing when timeouts fire.
+        only the clock. There is one scenario clock and the log is stamped on it, so a
+        recorded status change and the timer that caused it are on the same timeline.
         """
         self.close_bt_logger()
         if not self.bt_log:
             return
         if not output_dir:
             raise ValueError("--bt-log requires --output-dir.")
-        clock = setup_kwargs.get('sim_clock') or setup_kwargs.get('clock')
+        clock = setup_kwargs.get('clock')
         path = os.path.join(output_dir, bt_logger.DEFAULT_FILENAME)
         meta = bt_logger.build_meta(
             scenario_name=self.current_scenario.name,
@@ -330,8 +343,8 @@ class ScenarioExecution(object):
 
         Middleware-independent, like the behaviour-tree log beside it: the ROS
         runner inherits this untouched and contributes only its clock and its
-        driver name. The clock is chosen the same way, ``sim_clock`` over
-        ``clock``, so ``timestamp`` means the same thing in both files.
+        driver name. It is the same scenario clock, so ``timestamp`` means the
+        same thing in both files.
 
         Ordering: the recorder's post-tick handler is registered here, i.e. before
         :meth:`post_tick_handler`, because that one detects the end of the scenario
@@ -343,7 +356,7 @@ class ScenarioExecution(object):
             return
         if not output_dir:
             raise ValueError("--tick-log requires --output-dir.")
-        clock = setup_kwargs.get('sim_clock') or setup_kwargs.get('clock')
+        clock = setup_kwargs.get('clock')
         self.tick_recorder = tick_recorder.TickRecorder(
             output_dir, self.tick_period, self.tick_driver, clock=clock)
         # Before the tree is set up, so each action's own setup() cost is recorded.

@@ -35,6 +35,7 @@ def generate_launch_description():
     scenario_parameter_file = LaunchConfiguration('scenario_parameter_file')
     step_duration = LaunchConfiguration('step_duration')
     tick_log = LaunchConfiguration('tick_log')
+    use_sim_time = LaunchConfiguration('use_sim_time')
 
     return LaunchDescription([
         DeclareLaunchArgument('scenario', description='Scenario file to execute'),
@@ -54,6 +55,8 @@ def generate_launch_description():
                               description='Duration between behavior tree ticks in seconds (0.0: use default)'),
         DeclareLaunchArgument('tick_log', default_value='False',
                               description='Record tick and per-action timing into output_dir'),
+        DeclareLaunchArgument('use_sim_time', default_value='False',
+                              description='Tick the tree and measure the scenario durations on /clock instead of host time'),
 
         Node(
             condition=IfCondition(scenario_execution),
@@ -64,7 +67,7 @@ def generate_launch_description():
             additional_env={'PYTHONUNBUFFERED': '1'},
             arguments=['--ros-args', '--log-level', log_level],
             parameters=[{
-                'use_sim_time': False,
+                'use_sim_time': use_sim_time,
                 'debug': debug,
                 'live_tree': live_tree,
                 'log_model': log_model,
