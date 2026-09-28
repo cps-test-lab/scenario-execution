@@ -78,8 +78,15 @@ ROSDEP_SOURCES_URL = "https://raw.githubusercontent.com/ros/rosdistro/master/ros
 VERSION = re.compile(r"^\d+\.\d+\.\d+$")
 
 
-def run(*cmd, cwd=None):
-    return subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, check=True).stdout.strip()  # nosec B603
+def run(*cmd, cwd=None, env=None):
+    """Run ``cmd`` and return its stdout; on failure, stop with the command and what it printed."""
+    try:
+        return subprocess.run(cmd, cwd=cwd, env=env, capture_output=True, text=True,  # nosec B603
+                              check=True).stdout.strip()
+    except subprocess.CalledProcessError as error:
+        output = "\n".join(part.strip() for part in (error.stdout, error.stderr) if part and part.strip())
+        raise SystemExit(fail(f"{' '.join(map(str, cmd))} exited with {error.returncode}"
+                              + (f":\n{output}" if output else ""))) from None
 
 
 def fail(message):
@@ -270,14 +277,15 @@ def lay_out_bloom_environment(root):
     """
     venv = root / "venv"
     run(sys.executable, "-m", "venv", str(venv))
-    run(str(venv / "bin" / "pip"), "install", "-q", "bloom", "rosdep", "rosdistro")
+    # pip's 15 s read timeout reads a slow index as a package with no versions, and it then
+    # backtracks through every older bloom to one whose sources no longer build.
+    run(str(venv / "bin" / "pip"), "install", "-q", "--timeout", "120", "bloom", "rosdep", "rosdistro")
     sources = root / "rosdep" / "sources.list.d"
     sources.mkdir(parents=True)
     (sources / "20-default.list").write_text(fetch_text(ROSDEP_SOURCES_URL), encoding="utf-8")
     for distro in ROS_DISTROS:
-        subprocess.run([str(venv / "bin" / "rosdep"), "update", "--rosdistro", distro],  # nosec B603
-                       env={**os.environ, **bloom_environment(root)}, check=True,
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        run(str(venv / "bin" / "rosdep"), "update", "--rosdistro", distro,
+            env={**os.environ, **bloom_environment(root)})
 
 
 def bloom_environment(root):
