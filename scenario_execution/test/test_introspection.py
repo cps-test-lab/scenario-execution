@@ -31,6 +31,40 @@ from scenario_execution.introspection import (_parse_osc_library,
 class TestParseOscLibrary(unittest.TestCase):
     """The .osc-source parser is pure and environment-independent."""
 
+    def test_enum_members_are_kept(self):
+        # One member per line, with a trailing doc comment or an explicit value.
+        text = (
+            "enum comparison_operator: [\n"
+            "    lt,\n"
+            "    le,  # less or equal\n"
+            "    eq = 2,\n"
+            "    gt\n"
+            "]\n"
+        )
+        decl = _parse_osc_library(text, "ros")[0]
+        self.assertEqual(decl["kind"], "enum")
+        self.assertEqual([v["name"] for v in decl["values"]],
+                         ["lt", "le", "eq", "gt"])
+        self.assertEqual(decl["values"][1]["doc"], "less or equal")
+        self.assertEqual(decl["values"][2]["value"], "2")
+
+    def test_enum_members_on_one_line(self):
+        # The grammar allows members to share a line with each other and the brackets;
+        # a trailing comment documents the last member on its line.
+        text = "enum status: [a, b = 0x2,\n    c]  # the last one\n"
+        values = _parse_osc_library(text, "lib")[0]["values"]
+        self.assertEqual([(v["name"], v["value"]) for v in values],
+                         [("a", None), ("b", "0x2"), ("c", None)])
+        self.assertEqual(values[2]["doc"], "the last one")
+
+    def test_unreadable_enum_member_raises(self):
+        with self.assertRaises(ValueError):
+            _parse_osc_library("enum bad: [\n    a b\n]\n", "lib")
+
+    def test_a_declaration_that_is_not_an_enum_carries_no_values(self):
+        text = "action my_action:\n    msg: string = \"hi\"\n"
+        self.assertNotIn("values", _parse_osc_library(text, "lib")[0])
+
     def test_declaration_doc_and_parameters(self):
         # The block doc is the comment(s) between the declaration line and the
         # first parameter; per-parameter docs come from trailing inline comments.
@@ -145,12 +179,19 @@ class TestListActions(unittest.TestCase):
     def test_buckets_and_helpers_log_action(self):
         catalog = list_actions()
         self.assertEqual(
-            set(catalog), {"actions", "modifiers", "actors", "structs"})
+            set(catalog), {"actions", "modifiers", "actors", "structs", "enums"})
         log = next((a for a in catalog["actions"] if a["name"] == "log"), None)
         self.assertIsNotNone(log, "expected the 'log' action from osc.helpers")
         # 'log' is backed by an installed action entry point.
         self.assertTrue(log["resolvable"])
         self.assertEqual(log["kind"], "action")
+
+    def test_enums_reach_the_catalog_with_their_values(self):
+        # Every installed enum has members; one that parses to an empty set fails here.
+        catalog = list_actions()
+        self.assertTrue(catalog["enums"], "expected at least one enum from the installed libraries")
+        for enum in catalog["enums"]:
+            self.assertTrue(enum["values"], f"{enum['name']} reached the catalog with no members")
 
     def test_builtin_modifiers_resolvable(self):
         catalog = list_actions()
