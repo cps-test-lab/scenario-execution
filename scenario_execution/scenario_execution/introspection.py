@@ -21,7 +21,7 @@ no ANSI-coloured logging on stdout) so they can be consumed by tools and LLMs:
 
 * :func:`validate` — parse + semantically resolve a ``.osc`` file and return a
   structured list of diagnostics (line/column/message) instead of raising.
-* :func:`list_actions` — enumerate the actions/modifiers/actors/structs that are
+* :func:`list_actions` — enumerate the actions/modifiers/actors/structs/enums that are
   available in the *current environment* (which depends on the installed
   ``scenario_execution.actions`` / ``scenario_execution.osc_libraries`` packages),
   together with their osc signatures and inline documentation.
@@ -219,11 +219,8 @@ _DECL_RE = re.compile(
 _PARAM_RE = re.compile(
     r"^\s+([A-Za-z_]\w*)\s*:\s*([^=#]+?)\s*(?:=\s*(.+?))?\s*(?:#\s*(.*))?$")
 _COMMENT_RE = re.compile(r"^\s*#\s?(.*)$")
-# One member of an enum body: "    lt," or "    lt = 0,", with an optional trailing comment.
-# Enum members carry no type and no colon, so the parameter shape above cannot match them --
-# which is why an enum used to parse as a declaration with an empty signature.
-_ENUM_MEMBER_RE = re.compile(
-    r"^\s+([A-Za-z_]\w*)\s*(?:=\s*([^,#]+?))?\s*,?\s*(?:#\s*(.*))?$")
+# One enum member, "lt" or "succeeded = 4": no type and no colon, so _PARAM_RE cannot match it.
+_ENUM_MEMBER_RE = re.compile(r"^([A-Za-z_]\w*)\s*(?:=\s*(\S+))?$")
 
 
 def _parse_osc_library(text, source_lib):
@@ -291,24 +288,28 @@ def _parse_osc_library(text, source_lib):
 def _enum_values(block):
     """The members of an ``enum`` declaration, in the order written.
 
-    Without these an enum reaches a caller as a name and nothing else, so a parameter typed
-    ``comparison_operator`` says only that some fixed set exists -- and the set is the whole
-    content of the type. Guessing it wrong is a scenario that fails at parse time.
+    Returns ``[{name, value, doc}]``: ``value`` is the explicit ``= n`` or None, and ``doc``
+    is a trailing comment on the member's line, attached to the last member on that line.
+    Members may share a line with each other and with the brackets. Raises ValueError on a
+    member it cannot read, so a changed enum shape fails rather than losing members.
     """
     values = []
-    for line in block[1:]:
-        text = line.strip()
-        if not text or text in ("[", "]", "],") or text.startswith("#"):
-            continue
-        member = _ENUM_MEMBER_RE.match(line)
-        if not member:
-            continue
-        name, value, comment = member.groups()
-        values.append({
-            "name": name,
-            "value": value.strip() if value else None,
-            "doc": comment.strip() if comment else None,
-        })
+    body = [block[0].split("[", 1)[1] if "[" in block[0] else ""] + block[1:]
+    for line in body:
+        code, _, comment = line.partition("#")
+        line_members = []
+        for token in code.replace("[", "").replace("]", "").split(","):
+            token = token.strip()
+            if not token:
+                continue
+            member = _ENUM_MEMBER_RE.match(token)
+            if not member:
+                raise ValueError(f"unreadable enum member {token!r} in: {block[0].strip()}")
+            name, value = member.groups()
+            line_members.append({"name": name, "value": value, "doc": None})
+        if line_members and comment.strip():
+            line_members[-1]["doc"] = comment.strip()
+        values.extend(line_members)
     return values
 
 
@@ -337,9 +338,10 @@ def list_actions():
     action set.
 
     Returns ``{"actions": [...], "modifiers": [...], "actors": [...],
-    "structs": [...]}``. Each declaration is ``{name, kind, source_lib, doc,
+    "structs": [...], "enums": [...]}``. Each declaration is ``{name, kind, source_lib, doc,
     parameters:[{name,type,default,doc}], raw, resolvable}`` where ``resolvable``
-    marks entries backed by an installed Python plugin (actions/modifiers).
+    marks entries backed by an installed Python plugin (actions/modifiers). An enum
+    also carries ``values:[{name,value,doc}]``, its members in declaration order.
     """
     action_eps = {ep.name for ep in entry_points(group='scenario_execution.actions')}
     modifier_eps = {ep.name for ep in entry_points(group='scenario_execution.modifiers')}
@@ -369,8 +371,6 @@ def list_actions():
             elif decl["kind"] == "struct":
                 catalog["structs"].append(decl)
             elif decl["kind"] == "enum":
-                # Parsed and then dropped until now: an enum was added to `seen` and matched no
-                # bucket, so a parameter's type could be discovered but never its legal values.
                 catalog["enums"].append(decl)
 
     # Surface action plugins that are registered but have no .osc declaration in a
@@ -387,9 +387,9 @@ def list_actions():
 
 
 def get_action_details(name):
-    """One action/modifier/actor/struct's full catalog entry, or an error.
+    """One action/modifier/actor/struct/enum's full catalog entry, or an error.
 
-    ``list_actions()`` filtered down to a single item by name, across all four
+    ``list_actions()`` filtered down to a single item by name, across all five
     buckets — no new parsing; this exists so a caller who already knows a name
     (from ``describe_scenario`` or elsewhere) can fetch its detail without
     re-scanning the whole environment for context it will only use once.
@@ -402,7 +402,7 @@ def get_action_details(name):
         for decl in bucket:
             if decl["name"] == name:
                 return decl
-    return {"error": f"no action, modifier, actor or struct named {name!r} in this environment"}
+    return {"error": f"no action, modifier, actor, struct or enum named {name!r} in this environment"}
 
 
 # ── Scenario usage: what does *this* file reference, and what did it build? ───
