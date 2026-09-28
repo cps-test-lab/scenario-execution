@@ -2,6 +2,11 @@
 Changelog for package scenario_execution_ros
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.8.0 (2026-09-28)
+------------------
+* ``RosActionCall`` gains a ``check_result()`` hook: a message it returns for a succeeded goal fails the action (`#127 <https://github.com/cps-test-lab/scenario-execution/issues/127>`_)
+* Contributors: fred-labs
+
 1.7.0 (2026-09-21)
 ------------------
 * ``bag_record`` names its topics with ``--topics``, which every supported rosbag2 accepts; positional topics were dropped after Jazzy (`#116 <https://github.com/cps-test-lab/scenario-execution/issues/116>`_)

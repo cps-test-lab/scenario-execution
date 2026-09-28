@@ -1199,6 +1199,8 @@ Use nav2 to navigate to goal pose.
 
 Use nav2 to follow waypoints.
 
+The action fails when nav2 reports missed waypoints, even if it succeeded the goal (as its waypoint follower does with ``stop_on_failure: false``). The failure names each missed waypoint by nav2's index, counted from 0, with the error code and message where the installed ``nav2_msgs`` carries them. Set ``allow_missed_waypoints`` for a scenario that tolerates missed waypoints on purpose.
+
 .. list-table:: 
    :widths: 15 15 5 65
    :header-rows: 1
@@ -1208,14 +1210,14 @@ Use nav2 to follow waypoints.
      - Type
      - Default
      - Description
-   * - ``goal_pose``
-     - ``pose_3d``
+   * - ``goal_poses``
+     - ``list of pose_3d``
      - 
-     - Goal pose to navigate to
+     - Goal poses to navigate through
    * - ``loop_count``
      - ``int``
-     - ``1``
-     - Loop count
+     - ``0``
+     - Number of additional passes through the waypoints (nav2's ``number_of_loops``)
    * - ``namespace_override``
      - ``string``
      -
@@ -1228,6 +1230,10 @@ Use nav2 to follow waypoints.
      - ``bool``
      - ``false``
      -  succeed on goal acceptance
+   * - ``allow_missed_waypoints``
+     - ``bool``
+     - ``false``
+     - If true, succeed although nav2 reports missed waypoints; they are logged as a warning and named in the feedback message
 
 Network
 -------
@@ -2317,16 +2323,16 @@ Spawn an entity in the simulation.
      - Description
    * - ``entity_name``
      - ``string``
-     -
-     - Name to give to the spawned entity
+     - ``''``
+     - Name to give to the spawned entity; empty takes the resource's own
    * - ``uri``
      - ``string``
      -
      - URI of the resource to spawn
    * - ``initial_pose``
      - ``pose_3d``
-     -
-     - Initial pose for the entity
+     - ``pose_3d()``
+     - Initial pose for the entity, in the world frame
    * - ``allow_renaming``
      - ``bool``
      - ``false``

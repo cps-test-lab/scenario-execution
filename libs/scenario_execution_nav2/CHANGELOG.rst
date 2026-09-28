@@ -2,6 +2,11 @@
 Changelog for package scenario_execution_nav2
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.8.0 (2026-09-28)
+------------------
+* ``follow_waypoints`` fails when nav2 reports missed waypoints, where it succeeded before; ``allow_missed_waypoints: true`` keeps the old verdict and logs them as a warning (`#127 <https://github.com/cps-test-lab/scenario-execution/issues/127>`_)
+* Contributors: fred-labs
+
 1.7.0 (2026-09-21)
 ------------------
 * The nav2 actions work with navigation2 1.3 (Jazzy) and 1.5 (Lyrical): ``nav_through_poses`` and ``follow_waypoints`` send the goal message each version defines, and ``init_nav2`` uses the stock ``BasicNavigator`` (`#116 <https://github.com/cps-test-lab/scenario-execution/issues/116>`_)

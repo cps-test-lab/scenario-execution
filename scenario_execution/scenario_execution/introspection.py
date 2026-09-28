@@ -21,7 +21,7 @@ no ANSI-coloured logging on stdout) so they can be consumed by tools and LLMs:
 
 * :func:`validate` — parse + semantically resolve a ``.osc`` file and return a
   structured list of diagnostics (line/column/message) instead of raising.
-* :func:`list_actions` — enumerate the actions/modifiers/actors/structs that are
+* :func:`list_actions` — enumerate the actions/modifiers/actors/structs/enums that are
   available in the *current environment* (which depends on the installed
   ``scenario_execution.actions`` / ``scenario_execution.osc_libraries`` packages),
   together with their osc signatures and inline documentation.
@@ -219,6 +219,8 @@ _DECL_RE = re.compile(
 _PARAM_RE = re.compile(
     r"^\s+([A-Za-z_]\w*)\s*:\s*([^=#]+?)\s*(?:=\s*(.+?))?\s*(?:#\s*(.*))?$")
 _COMMENT_RE = re.compile(r"^\s*#\s?(.*)$")
+# One enum member, "lt" or "succeeded = 4": no type and no colon, so _PARAM_RE cannot match it.
+_ENUM_MEMBER_RE = re.compile(r"^([A-Za-z_]\w*)\s*(?:=\s*(\S+))?$")
 
 
 def _parse_osc_library(text, source_lib):
@@ -268,16 +270,47 @@ def _parse_osc_library(text, source_lib):
                     "doc": param_doc or None,
                 })
                 pending_doc = []
-        declarations.append({
+        declaration = {
             "name": name,
             "kind": kind,
             "source_lib": source_lib,
             "doc": " ".join(doc_parts).strip() or None,
             "parameters": params,
             "raw": "\n".join(block).rstrip(),
-        })
+        }
+        if kind == "enum":
+            declaration["values"] = _enum_values(block)
+        declarations.append(declaration)
         i = block_end
     return declarations
+
+
+def _enum_values(block):
+    """The members of an ``enum`` declaration, in the order written.
+
+    Returns ``[{name, value, doc}]``: ``value`` is the explicit ``= n`` or None, and ``doc``
+    is a trailing comment on the member's line, attached to the last member on that line.
+    Members may share a line with each other and with the brackets. Raises ValueError on a
+    member it cannot read, so a changed enum shape fails rather than losing members.
+    """
+    values = []
+    body = [block[0].split("[", 1)[1] if "[" in block[0] else ""] + block[1:]
+    for line in body:
+        code, _, comment = line.partition("#")
+        line_members = []
+        for token in code.replace("[", "").replace("]", "").split(","):
+            token = token.strip()
+            if not token:
+                continue
+            member = _ENUM_MEMBER_RE.match(token)
+            if not member:
+                raise ValueError(f"unreadable enum member {token!r} in: {block[0].strip()}")
+            name, value = member.groups()
+            line_members.append({"name": name, "value": value, "doc": None})
+        if line_members and comment.strip():
+            line_members[-1]["doc"] = comment.strip()
+        values.extend(line_members)
+    return values
 
 
 def _osc_library_files():
@@ -305,15 +338,16 @@ def list_actions():
     action set.
 
     Returns ``{"actions": [...], "modifiers": [...], "actors": [...],
-    "structs": [...]}``. Each declaration is ``{name, kind, source_lib, doc,
+    "structs": [...], "enums": [...]}``. Each declaration is ``{name, kind, source_lib, doc,
     parameters:[{name,type,default,doc}], raw, resolvable}`` where ``resolvable``
-    marks entries backed by an installed Python plugin (actions/modifiers).
+    marks entries backed by an installed Python plugin (actions/modifiers). An enum
+    also carries ``values:[{name,value,doc}]``, its members in declaration order.
     """
     action_eps = {ep.name for ep in entry_points(group='scenario_execution.actions')}
     modifier_eps = {ep.name for ep in entry_points(group='scenario_execution.modifiers')}
     resolvable_modifiers = set(BUILTIN_MODIFIERS) | modifier_eps
 
-    catalog = {"actions": [], "modifiers": [], "actors": [], "structs": []}
+    catalog = {"actions": [], "modifiers": [], "actors": [], "structs": [], "enums": []}
     seen = set()
     for library_name, path in _osc_library_files():
         try:
@@ -336,6 +370,8 @@ def list_actions():
                 catalog["actors"].append(decl)
             elif decl["kind"] == "struct":
                 catalog["structs"].append(decl)
+            elif decl["kind"] == "enum":
+                catalog["enums"].append(decl)
 
     # Surface action plugins that are registered but have no .osc declaration in a
     # reachable library (so the caller still learns the name exists).
@@ -351,9 +387,9 @@ def list_actions():
 
 
 def get_action_details(name):
-    """One action/modifier/actor/struct's full catalog entry, or an error.
+    """One action/modifier/actor/struct/enum's full catalog entry, or an error.
 
-    ``list_actions()`` filtered down to a single item by name, across all four
+    ``list_actions()`` filtered down to a single item by name, across all five
     buckets — no new parsing; this exists so a caller who already knows a name
     (from ``describe_scenario`` or elsewhere) can fetch its detail without
     re-scanning the whole environment for context it will only use once.
@@ -366,7 +402,7 @@ def get_action_details(name):
         for decl in bucket:
             if decl["name"] == name:
                 return decl
-    return {"error": f"no action, modifier, actor or struct named {name!r} in this environment"}
+    return {"error": f"no action, modifier, actor, struct or enum named {name!r} in this environment"}
 
 
 # ── Scenario usage: what does *this* file reference, and what did it build? ───
