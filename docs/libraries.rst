@@ -1925,7 +1925,7 @@ Run a package specific executable.
 ``service_call()``
 ^^^^^^^^^^^^^^^^^^
 
-Call a ROS service and wait for the reply.
+Call a ROS service and wait for the reply. The request is sent once the service is available; until then the action waits.
 
 .. list-table:: 
    :widths: 15 15 5 65
