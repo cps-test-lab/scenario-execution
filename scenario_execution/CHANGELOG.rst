@@ -2,6 +2,16 @@
 Changelog for package scenario_execution
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.8.0 (2026-09-28)
+------------------
+* The action catalog lists enums with their members: ``list_actions`` has an ``enums`` group, each entry carrying ``values``, and ``get_action_details`` finds an enum by name (`#101 <https://github.com/cps-test-lab/scenario-execution/issues/101>`_)
+* ``get_scenario_parameters`` reads a ``.sce`` scenario model file, which failed to parse before, and gives the same parameters as the scenario it was generated from (`#132 <https://github.com/cps-test-lab/scenario-execution/issues/132>`_)
+* A scenario's parse names the files it read (`#129 <https://github.com/cps-test-lab/scenario-execution/issues/129>`_)
+* A misspelled core library import is refused when external imports are skipped (`#131 <https://github.com/cps-test-lab/scenario-execution/issues/131>`_)
+* A relative string import resolves against the importing file's directory (`#130 <https://github.com/cps-test-lab/scenario-execution/issues/130>`_)
+* A scenario model file that cannot be loaded raises, naming the file (`#133 <https://github.com/cps-test-lab/scenario-execution/issues/133>`_)
+* Contributors: fred-labs
+
 1.7.0 (2026-09-21)
 ------------------
 * A recording that could not be closed is stoppable, and says so if it was not (`#119 <https://github.com/cps-test-lab/scenario-execution/issues/119>`_)

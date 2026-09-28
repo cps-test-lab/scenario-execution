@@ -2,6 +2,11 @@
 Changelog for package scenario_execution_sim
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.8.0 (2026-09-28)
+------------------
+* Default spawn_entity's name and pose to what SpawnEntity allows (`#126 <https://github.com/cps-test-lab/scenario-execution/issues/126>`_)
+* Contributors: fred-labs
+
 1.7.0 (2026-09-21)
 ------------------
 * The same source builds on Jazzy and Lyrical (`#115 <https://github.com/cps-test-lab/scenario-execution/issues/115>`_)
