@@ -134,20 +134,24 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install from the index
+      # The index's CDN can serve the listing from before the upload for many minutes after
+      # the upload succeeded. This waits until pip finds the version, fetching the wheel
+      # alone, so that the install below runs once and a failure there is a real one rather
+      # than the lag. --no-cache-dir so each attempt asks the index again.
+      - name: The index lists the version
+        timeout-minutes: 60
         run: |
           python -m venv venv
-          # The index's CDN can serve the listing from before the upload for a short while;
-          # --no-cache-dir so a retry asks again instead of reading pip's copy of that listing.
-          for attempt in 1 2 3 4 5 6; do
-            if venv/bin/pip install --no-cache-dir \
-                --index-url "$INDEX" --extra-index-url https://pypi.org/simple/ \
-                "scenario-execution==$VERSION"; then
-              break
-            fi
-            test "$attempt" -lt 6 || exit 1
-            echo "not yet on the index; retrying in 30s"; sleep 30
+          until venv/bin/pip download --quiet --no-cache-dir --no-deps --dest "$RUNNER_TEMP/listed" \
+              --index-url "$INDEX" "scenario-execution==$VERSION"; do
+            echo "$INDEX does not list $VERSION yet; asking again in 60s"
+            sleep 60
           done
+      - name: Install from the index
+        run: |
+          venv/bin/pip install --no-cache-dir \
+              --index-url "$INDEX" --extra-index-url https://pypi.org/simple/ \
+              "scenario-execution==$VERSION"
       - name: What was installed is what was published
         run: |
           venv/bin/python - <<'EOF'
