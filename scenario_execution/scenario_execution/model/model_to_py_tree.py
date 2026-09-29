@@ -24,7 +24,7 @@ from importlib.metadata import entry_points
 from importlib.resources import files
 import inspect
 
-from scenario_execution.model.types import KeepConstraintDeclaration, visit_expression, ActionDeclaration, declarations_named, BinaryExpression, EventReference, Expression, FunctionApplicationExpression, ModifierInvocation, ScenarioDeclaration, DoMember, UntilDirective, WaitDirective, EmitDirective, BehaviorInvocation, EventCondition, EventDeclaration, RelationExpression, LogicalExpression, ElapsedExpression, PhysicalLiteral, ModifierDeclaration, IdentifierReference
+from scenario_execution.model.types import KeepConstraintDeclaration, visit_expression, expression_operand, ActionDeclaration, declarations_named, BinaryExpression, EventReference, Expression, FunctionApplicationExpression, ModifierInvocation, ScenarioDeclaration, DoMember, UntilDirective, WaitDirective, EmitDirective, BehaviorInvocation, EventCondition, EventDeclaration, RelationExpression, LogicalExpression, ElapsedExpression, RiseExpression, FallExpression, PhysicalLiteral, ModifierDeclaration, IdentifierReference
 from scenario_execution.clock_behaviors import ClockTimer, ClockTimeout
 from scenario_execution.model.model_base_visitor import ModelBaseVisitor
 from scenario_execution.model.error import OSC2ParsingError
@@ -154,18 +154,85 @@ class TopicPublish(py_trees.behaviour.Behaviour):
         return Status.SUCCESS
 
 
-class ExpressionBehavior(BaseAction):  # py_trees.behaviour.Behaviour):
+def _is_boolean(value) -> bool:
+    """A Python bool, or numpy's, which a comparison of numpy numbers returns."""
+    if isinstance(value, bool):
+        return True
+    value_type = type(value)
+    return value_type.__module__ == 'numpy' and value_type.__name__ in ('bool', 'bool_')
+
+
+def _require_boolean(node):
+    """Refuse a condition, or an operand of its and/or/not, whose type is known and not bool."""
+    if isinstance(node, LogicalExpression):
+        for child in node.get_children():
+            _require_boolean(child)
+        return
+    if isinstance(node, RelationExpression):
+        return
+    if not hasattr(node, 'get_type_string'):
+        # A node with no type to report; evaluation checks its value.
+        return
+    type_string = node.get_type_string()
+    if type_string is not None and type_string != 'bool':
+        raise OSC2ParsingError(
+            msg=f"Event condition '{node.get_ctx()[2]}' is of type {type_string}, not bool. "
+                f"Compare it to a value instead, for example '{node.get_ctx()[2]} == ...'.",
+            context=node.get_ctx())
+
+
+class ExpressionBehavior(BaseAction):
+    """Succeeds on the first tick its boolean condition holds.
+
+    A value that is not a bool fails the behavior, naming the condition: a number or a string used
+    as a condition is a mistake in the scenario, and reading it by truthiness would hide it.
+    """
 
     def __init__(self, name: "ExpressionBehavior", expression: Expression, model, logger):
         super().__init__(resolve_variable_reference_arguments_in_execute=False)
         self._set_base_properities(name, model, logger)
         self.expression = expression
 
+    def evaluate(self):
+        """The condition's value, or None -- with the reason set as feedback -- if it is not a bool."""
+        value = self.expression.eval(self.get_blackboard_client())
+        if _is_boolean(value):
+            return bool(value)
+        self.feedback_message = (f"Condition '{self.name}' is not boolean: it evaluated to {value!r} "
+                                 f"({type(value).__name__}).")
+        self.logger.error(self.feedback_message)
+        return None
+
     def update(self):
-        if self.expression.eval(self.get_blackboard_client()):
-            return Status.SUCCESS
-        else:
-            return Status.RUNNING
+        value = self.evaluate()
+        if value is None:
+            return Status.FAILURE
+        return Status.SUCCESS if value else Status.RUNNING
+
+
+class EdgeBehavior(ExpressionBehavior):
+    """``rise()`` or ``fall()``: succeeds on the tick its condition changes to *target*.
+
+    The value on the first tick is the reference, so a condition that already holds when the wait
+    starts is not a rise -- it has to become false and then true again.
+    """
+
+    def __init__(self, name, expression: Expression, model, logger, target: bool):
+        super().__init__(name, expression, model, logger)
+        self.target = target
+        self.previous = None
+
+    def initialise(self):
+        super().initialise()
+        self.previous = None
+
+    def update(self):
+        value = self.evaluate()
+        if value is None:
+            return Status.FAILURE
+        changed = self.previous is not None and self.previous != value
+        self.previous = value
+        return Status.SUCCESS if changed and value == self.target else Status.RUNNING
 
 
 class ModelToPyTree(object):
@@ -572,17 +639,35 @@ class ModelToPyTree(object):
             return TopicEquals(key=name, msg=True)
 
         def visit_event_condition(self, node: EventCondition):
-            expression = ""
-            for child in node.get_children():
-                if isinstance(child, (RelationExpression, LogicalExpression)):
-                    expression = ExpressionBehavior(name=node.get_ctx()[2], expression=self.visit(child), model=node, logger=self.logger)
-                elif isinstance(child, ElapsedExpression):
-                    elapsed_condition = self.visit_elapsed_expression(child)
-                    expression = ClockTimer(name=f"wait {elapsed_condition}s", duration=float(elapsed_condition))
-                else:
-                    raise OSC2ParsingError(
-                        msg=f'Invalid event condition {child}', context=node.get_ctx())
-            return expression
+            children = list(node.get_children())
+            if len(children) != 1:
+                raise OSC2ParsingError(msg='Invalid event condition.', context=node.get_ctx())
+            child = children[0]
+            name = node.get_ctx()[2]
+            if isinstance(child, ElapsedExpression):
+                elapsed_condition = self.visit_elapsed_expression(child)
+                return ClockTimer(name=f"wait {elapsed_condition}s", duration=float(elapsed_condition))
+            if isinstance(child, (RiseExpression, FallExpression)):
+                operands = list(child.get_children())
+                if len(operands) != 1:
+                    raise OSC2ParsingError(msg='Invalid event condition.', context=child.get_ctx())
+                return EdgeBehavior(name=name, expression=self.condition_expression(operands[0]), model=node,
+                                    logger=self.logger, target=isinstance(child, RiseExpression))
+            return ExpressionBehavior(name=name, expression=self.condition_expression(child), model=node,
+                                      logger=self.logger)
+
+        def condition_expression(self, node):
+            """The Expression a condition evaluates on every tick.
+
+            Any boolean expression is a condition: a comparison, ``and``/``or``/``not``, a bool
+            variable, parameter or member, or a function returning bool. A part whose declared type
+            is known and not bool is refused here; what cannot be typed here is checked when it is
+            evaluated (ExpressionBehavior).
+            """
+            _require_boolean(node)
+            if isinstance(node, (RelationExpression, LogicalExpression, BinaryExpression)):
+                return visit_expression(node, self.blackboard)
+            return Expression(expression_operand(node, self.blackboard), None, lambda value: value)
 
         def visit_relation_expression(self, node: RelationExpression):
             return visit_expression(node, self.blackboard)
