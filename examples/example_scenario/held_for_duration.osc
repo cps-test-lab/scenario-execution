@@ -27,7 +27,7 @@ scenario held_for_duration:
                     with:
                         success_is_failure()
             with:
-                retry(10)
+                retry()
             log('held for 2 s')
         with:
             timeout(10s)
