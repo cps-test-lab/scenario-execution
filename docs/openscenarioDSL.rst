@@ -64,11 +64,11 @@ Element Tag             Support              Notes
 ``emit``                :raw-html:`&#9989;`
 ``enum``                :raw-html:`&#9989;`
 ``event``               :raw-html:`&#9989;`
-``every``               :raw-html:`&#10060;`
+``every``               :raw-html:`&#10060;` see :ref:`event_conditions`
 ``expression``          :raw-html:`&#10060;` method bodies are ``external`` only
 ``extend``              :raw-html:`&#10060;`
 ``external``            :raw-html:`&#9989;`  method implementation qualifier
-``fall``                :raw-html:`&#10060;`
+``fall``                :raw-html:`&#9989;`  in ``wait`` and ``until``, see :ref:`event_conditions`
 ``float``               :raw-html:`&#9989;`
 ``global``              :raw-html:`&#9989;`
 ``hard``                :raw-html:`&#10060;`
@@ -88,7 +88,7 @@ Element Tag             Support              Notes
 ``range``               :raw-html:`&#10060;`
 ``record``              :raw-html:`&#10060;`
 ``remove_default``      :raw-html:`&#10060;`
-``rise``                :raw-html:`&#10060;`
+``rise``                :raw-html:`&#9989;`  in ``wait`` and ``until``, see :ref:`event_conditions`
 ``scenario``            :raw-html:`&#9989;`
 ``serial``              :raw-html:`&#9989;`
 ``SI``                  :raw-html:`&#9989;`
@@ -120,6 +120,51 @@ Method         :raw-html:`&#9989;`
 Coverage       :raw-html:`&#10060;`
 Modifier       :raw-html:`&#9989;`  partially (only predefined)
 ============== ==================== ===========================
+
+.. _event_conditions:
+
+Event conditions
+^^^^^^^^^^^^^^^^
+
+``wait``, ``until`` and the guard of ``@event if`` take an event condition. These are supported:
+
+======================== ============================================================================
+Condition                Holds
+======================== ============================================================================
+``elapsed(<duration>)``  once the duration has passed since the ``wait`` or ``until`` started
+``<bool expression>``    on every tick the expression is true
+``rise(<bool expr>)``    on the tick the expression changes from false to true
+``fall(<bool expr>)``    on the tick the expression changes from true to false
+======================== ============================================================================
+
+A boolean expression is anything that evaluates to ``bool``: a comparison, a ``bool`` variable or
+parameter, a member (``robot.docked``), a function returning ``bool``, and these combined with
+``and``, ``or``, ``not`` and parentheses. It is evaluated on every tick.
+
+.. code-block:: none
+
+    scenario conditions:
+        var tripped: bool = false
+        var docked: bool = true
+        var clearance: float = 1.0
+        do serial:
+            wait tripped
+            wait not docked
+            wait rise(clearance < 0.3)
+
+A condition must be a ``bool``; a number or a string is not read as true or false. A condition whose
+declared type is not ``bool`` -- ``wait count`` on an ``int`` -- is refused when the scenario is
+loaded, and a value that turns out not to be a ``bool`` while running fails the ``wait`` or
+``until``, naming the condition.
+
+``rise()`` and ``fall()`` take their reference on the first tick of the ``wait`` or ``until``. A
+rise is a change, so an expression that is already true when the ``wait`` starts is not one: it has
+to become false and then true again. ``fall()`` is the same the other way around.
+
+``every()`` is not supported. It is a periodic event anchored to the start of the behavior that
+declares it, which a ``wait`` or ``until`` does not know, and ``on`` -- where the period matters --
+is not supported either. For a single delay, use ``elapsed()``. An ``event`` declared with a
+condition (``event e is rise(x)``) is not supported; ``emit`` is what sets an event.
 
 Patterns
 --------
@@ -159,8 +204,8 @@ when the two really are peers rather than an action and the thing that stops it.
 Stop when something happens
 """""""""""""""""""""""""""
 
-``until`` takes an event specification -- an ``elapsed()``, an ``@event``, or a condition over
-variables -- not an action:
+``until`` takes an event specification -- an ``@event`` or an event condition (see
+:ref:`event_conditions`) -- not an action:
 
 .. code-block:: none
 

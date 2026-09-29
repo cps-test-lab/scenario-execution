@@ -1634,7 +1634,7 @@ class FallExpression(ModelExpression):
 
     def enter_node(self, listener):
         if hasattr(listener, "enter_fall_expression"):
-            listener.enter_rise_expression(self)
+            listener.enter_fall_expression(self)
 
     def exit_node(self, listener):
         if hasattr(listener, "exit_fall_expression"):
@@ -1654,15 +1654,15 @@ class ElapsedExpression(ModelExpression):
 
     def enter_node(self, listener):
         if hasattr(listener, "enter_elapsed_expression"):
-            listener.enter_rise_expression(self)
+            listener.enter_elapsed_expression(self)
 
     def exit_node(self, listener):
         if hasattr(listener, "exit_elapsed_expression"):
-            listener.exit_fall_expression(self)
+            listener.exit_elapsed_expression(self)
 
     def accept(self, visitor):
         if hasattr(visitor, "visit_elapsed_expression"):
-            return visitor.visit_fall_expression(self)
+            return visitor.visit_elapsed_expression(self)
         else:
             return visitor.visit_children(self)
 
