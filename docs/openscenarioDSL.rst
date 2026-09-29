@@ -64,11 +64,11 @@ Element Tag             Support              Notes
 ``emit``                :raw-html:`&#9989;`
 ``enum``                :raw-html:`&#9989;`
 ``event``               :raw-html:`&#9989;`
-``every``               :raw-html:`&#10060;`
+``every``               :raw-html:`&#10060;` see :ref:`event_conditions`
 ``expression``          :raw-html:`&#10060;` method bodies are ``external`` only
 ``extend``              :raw-html:`&#10060;`
 ``external``            :raw-html:`&#9989;`  method implementation qualifier
-``fall``                :raw-html:`&#10060;`
+``fall``                :raw-html:`&#9989;`  in ``wait`` and ``until``, see :ref:`event_conditions`
 ``float``               :raw-html:`&#9989;`
 ``global``              :raw-html:`&#9989;`
 ``hard``                :raw-html:`&#10060;`
@@ -88,7 +88,7 @@ Element Tag             Support              Notes
 ``range``               :raw-html:`&#10060;`
 ``record``              :raw-html:`&#10060;`
 ``remove_default``      :raw-html:`&#10060;`
-``rise``                :raw-html:`&#10060;`
+``rise``                :raw-html:`&#9989;`  in ``wait`` and ``until``, see :ref:`event_conditions`
 ``scenario``            :raw-html:`&#9989;`
 ``serial``              :raw-html:`&#9989;`
 ``SI``                  :raw-html:`&#9989;`
@@ -121,6 +121,53 @@ Coverage       :raw-html:`&#10060;`
 Modifier       :raw-html:`&#9989;`  partially (only predefined)
 ============== ==================== ===========================
 
+.. _event_conditions:
+
+Event conditions
+^^^^^^^^^^^^^^^^
+
+``wait``, ``until`` and the guard of ``@event if`` take an event condition. These are supported:
+
+======================== ============================================================================
+Condition                Holds
+======================== ============================================================================
+``elapsed(<duration>)``  once the duration has passed since the ``wait`` or ``until`` started
+``<bool expression>``    on every tick the expression is true
+``rise(<bool expr>)``    on the tick the expression changes from false to true
+``fall(<bool expr>)``    on the tick the expression changes from true to false
+======================== ============================================================================
+
+A boolean expression is anything that evaluates to ``bool``: a comparison, a ``bool`` variable or
+parameter, a member (``robot.docked``), a function returning ``bool``, and these combined with
+``and``, ``or``, ``not`` and parentheses. It is evaluated on every tick.
+
+.. code-block:: none
+
+    scenario conditions:
+        var tripped: bool = false
+        var docked: bool = true
+        var clearance: float = 1.0
+        do serial:
+            wait tripped
+            wait not docked
+            wait rise(clearance < 0.3)
+
+A condition must be a ``bool``; a number or a string is not read as true or false. A condition whose
+declared type is not ``bool`` -- ``wait count`` on an ``int`` -- is refused when the scenario is
+loaded, and a value that turns out not to be a ``bool`` while running fails the ``wait`` or
+``until``, naming the condition.
+
+``rise()`` and ``fall()`` take their reference on the first tick of the ``wait`` or ``until``. A
+rise is a change, so an expression that is already true when the ``wait`` starts is not one: it has
+to become false and then true again. ``fall()`` is the same the other way around. In
+``@event if rise(...)`` the reference is taken on the first tick the event is set, so a change that
+happened before the event is not seen.
+
+``every()`` is not supported. It is a periodic event anchored to the start of the behavior that
+declares it, which a ``wait`` or ``until`` does not know, and ``on`` -- where the period matters --
+is not supported either. For a single delay, use ``elapsed()``. An ``event`` declared with a
+condition (``event e is rise(x)``) is not supported; ``emit`` is what sets an event.
+
 Patterns
 --------
 
@@ -130,6 +177,59 @@ Each entry is a shape that has been run, not a sketch.
 This section is meant to grow: add to it whenever a use case takes more than one attempt to express,
 so the next reader finds the answer instead of rediscovering it. Keep the same form -- when to reach
 for it, the scenario, and any caveat that would otherwise be found the hard way.
+
+Waiting for a condition
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Wait until a flag is set
+""""""""""""""""""""""""
+
+When a value in the scenario says the moment has come -- a sensor reading, a state that another
+branch keeps up to date. ``topic_monitor()`` keeps a variable at the latest value of a topic, and
+``wait`` on a ``bool`` holds until it is true.
+
+.. code-block:: none
+
+    actor sensor_state:
+        var blocked: bool = false
+
+    scenario wait_for_flag:
+        sensor: sensor_state
+        do parallel:
+            topic_monitor('/blocked', 'std_msgs.msg.Bool', sensor.blocked, member_name: 'data')
+            serial:
+                wait sensor.blocked
+                log('blocked')
+                emit end
+
+``wait not sensor.blocked`` waits for the opposite, and a comparison or ``and``/``or`` of several
+works the same way (see :ref:`event_conditions`). The condition must be a ``bool``: ``wait count``
+on an ``int`` is refused when the scenario is loaded -- write ``wait count > 0``.
+
+Wait for a change
+"""""""""""""""""
+
+When what matters is the moment something *happens*, not that it holds. ``rise()`` holds on the
+tick its condition changes from false to true, ``fall()`` on the tick it changes back.
+
+.. code-block:: none
+
+    scenario wait_for_change:
+        sensor: sensor_state
+        do parallel:
+            topic_monitor('/blocked', 'std_msgs.msg.Bool', sensor.blocked, member_name: 'data')
+            serial:
+                wait rise(sensor.blocked)
+                log('became blocked')
+                wait fall(sensor.blocked)
+                log('cleared')
+                emit end
+
+.. caution::
+
+    A condition that already holds when the ``wait`` starts is not a rise. ``wait sensor.blocked``
+    returns at once if the flag is already set; ``wait rise(sensor.blocked)`` waits for it to clear
+    and be set again. Choose by which of the two the scenario means.
 
 Stopping a running action
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -159,8 +259,8 @@ when the two really are peers rather than an action and the thing that stops it.
 Stop when something happens
 """""""""""""""""""""""""""
 
-``until`` takes an event specification -- an ``elapsed()``, an ``@event``, or a condition over
-variables -- not an action:
+``until`` takes an event specification -- an ``@event`` or an event condition (see
+:ref:`event_conditions`) -- not an action:
 
 .. code-block:: none
 
@@ -262,25 +362,22 @@ two combine into it:
 
 .. code-block:: none
 
-    scenario keep_clear:
-        var clearance: float = 10.0
-        do parallel:
-            topic_monitor('/clearance', 'std_msgs.msg.Float32', 'clearance', member_name: 'data')
-            serial:
+    serial:
+        serial:
+            wait clearance < 0.3
+            one_of:
+                wait elapsed(2s)
                 serial:
-                    wait clearance < 0.3
-                    one_of:
-                        wait elapsed(2s)
-                        serial:
-                            wait clearance >= 0.3
-                        with:
-                            success_is_failure()
+                    wait clearance >= 0.3
                 with:
-                    retry()
-            with:
-                timeout(60s)
+                    success_is_failure()
+        with:
+            retry()
+    with:
+        timeout(60s)
 
-Each part has one job:
+``clearance`` is a variable that something else keeps up to date -- for a topic, ``topic_monitor()``
+in a parallel branch. Each part has one job:
 
 - ``wait clearance < 0.3`` starts the attempt once the condition holds, so the timer below counts
   from there and not from the start of the scenario.
@@ -304,13 +401,6 @@ The durations are scenario time: ``wait elapsed()`` and ``timeout()`` read the s
 which is simulated time with ``use_sim_time`` or a step-based simulation (see `Choosing what a
 second means`_). The condition is checked once per tick, so a break shorter than a tick goes
 unseen, and the pattern ends up to a tick after the duration.
-
-:repo_link:`examples/example_scenario/held_for_duration.osc` runs the pattern without ROS, with a
-second branch that makes and breaks the condition on a schedule:
-
-.. code-block:: bash
-
-    scenario_execution examples/example_scenario/held_for_duration.osc
 
 Inspecting another action
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -338,8 +428,7 @@ Modifiers stack, and they nest: the one written **last** ends up closest to the 
         failure_is_success()
 
 ``timeout()`` stops the process and reports failure, and ``failure_is_success()`` turns that into
-the verdict the scenario wants. Order matters: the modifier written last ends up closest to the
-action.
+the verdict the scenario wants.
 
 Choosing what a second means
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^

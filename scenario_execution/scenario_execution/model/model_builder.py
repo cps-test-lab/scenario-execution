@@ -15,7 +15,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-from .types import CompilationUnit, PhysicalTypeDeclaration, UnitDeclaration, EnumDeclaration, EnumMemberDeclaration, EnumValueReference, StructDeclaration, StructInherits, ActionDeclaration, ActionInherits, ActorDeclaration, ActorInherits, FieldAccessExpression,  FloatLiteral, FunctionApplicationExpression, Argument, BehaviorInvocation, BinaryExpression, BoolLiteral, DoDirective, ElapsedExpression, DoMember, EmitDirective,  EventCondition, EventDeclaration, EventFieldDecl, EventReference,  GlobalParameterDeclaration, Identifier, IdentifierReference, IntegerLiteral, KeepConstraintDeclaration,  LogicalExpression, MethodBody, MethodDeclaration, NamedArgument, ParameterDeclaration, PhysicalLiteral, ParameterReference, PositionalArgument,  RelationExpression, ScenarioInherits, SIUnitSpecifier, StringLiteral, ScenarioDeclaration,  Type, VariableDeclaration, UntilDirective, WaitDirective, ListExpression, ModifierDeclaration, ModifierInvocation
+from .types import CompilationUnit, PhysicalTypeDeclaration, UnitDeclaration, EnumDeclaration, EnumMemberDeclaration, EnumValueReference, StructDeclaration, StructInherits, ActionDeclaration, ActionInherits, ActorDeclaration, ActorInherits, FieldAccessExpression,  FloatLiteral, FunctionApplicationExpression, Argument, BehaviorInvocation, BinaryExpression, BoolLiteral, DoDirective, ElapsedExpression, FallExpression, RiseExpression, DoMember, EmitDirective,  EventCondition, EventDeclaration, EventFieldDecl, EventReference,  GlobalParameterDeclaration, Identifier, IdentifierReference, IntegerLiteral, KeepConstraintDeclaration,  LogicalExpression, MethodBody, MethodDeclaration, NamedArgument, ParameterDeclaration, PhysicalLiteral, ParameterReference, PositionalArgument,  RelationExpression, ScenarioInherits, SIUnitSpecifier, StringLiteral, ScenarioDeclaration,  Type, VariableDeclaration, UntilDirective, WaitDirective, ListExpression, ModifierDeclaration, ModifierInvocation
 
 
 from ..osc2_parsing.OpenSCENARIO2Parser import OpenSCENARIO2Parser
@@ -826,13 +826,12 @@ class ModelBuilder(OpenSCENARIO2Listener):  # pylint: disable=too-many-public-me
 
     # Enter a parse tree produced by OpenSCENARIO2Parser#riseExpression.
     def enterRiseExpression(self, ctx: OpenSCENARIO2Parser.RiseExpressionContext):
-        raise OSC2ParsingError(msg=f"rise expression not yet supported", context=ctx)
-        # self.__node_stack.append(self.__cur_node)
-        # node = RiseExpression()
-        # node.set_ctx(ctx, self.current_file)
+        self.__node_stack.append(self.__cur_node)
+        node = RiseExpression()
+        node.set_ctx(ctx, self.current_file)
 
-        # self.__cur_node.set_children(node)
-        # self.__cur_node = node
+        self.__cur_node.set_children(node)
+        self.__cur_node = node
 
     # Exit a parse tree produced by OpenSCENARIO2Parser#riseExpression.
     def exitRiseExpression(self, ctx: OpenSCENARIO2Parser.RiseExpressionContext):
@@ -840,13 +839,12 @@ class ModelBuilder(OpenSCENARIO2Listener):  # pylint: disable=too-many-public-me
 
     # Enter a parse tree produced by OpenSCENARIO2Parser#fallExpression.
     def enterFallExpression(self, ctx: OpenSCENARIO2Parser.FallExpressionContext):
-        raise OSC2ParsingError(msg=f"fall expression not yet supported", context=ctx)
-        # self.__node_stack.append(self.__cur_node)
-        # node = FallExpression()
-        # node.set_ctx(ctx, self.current_file)
+        self.__node_stack.append(self.__cur_node)
+        node = FallExpression()
+        node.set_ctx(ctx, self.current_file)
 
-        # self.__cur_node.set_children(node)
-        # self.__cur_node = node
+        self.__cur_node.set_children(node)
+        self.__cur_node = node
 
     # Exit a parse tree produced by OpenSCENARIO2Parser#fallExpression.
     def exitFallExpression(self, ctx: OpenSCENARIO2Parser.FallExpressionContext):
@@ -867,13 +865,12 @@ class ModelBuilder(OpenSCENARIO2Listener):  # pylint: disable=too-many-public-me
 
     # Enter a parse tree produced by OpenSCENARIO2Parser#everyExpression.
     def enterEveryExpression(self, ctx: OpenSCENARIO2Parser.EveryExpressionContext):
-        raise OSC2ParsingError(msg=f"every expression not yet supported", context=ctx)
-        # self.__node_stack.append(self.__cur_node)
-        # node = EveryExpression()
-        # node.set_ctx(ctx, self.current_file)
-
-        # self.__cur_node.set_children(node)
-        # self.__cur_node = node
+        # A periodic event is anchored to the start of the behavior that owns it, which a wait or
+        # an until does not know, and `on` -- where a period is what matters -- is not supported.
+        raise OSC2ParsingError(
+            msg="every() is not supported: use elapsed() for a single delay after the wait or "
+                "until starts.",
+            context=ctx)
 
     # Exit a parse tree produced by OpenSCENARIO2Parser#everyExpression.
     def exitEveryExpression(self, ctx: OpenSCENARIO2Parser.EveryExpressionContext):
