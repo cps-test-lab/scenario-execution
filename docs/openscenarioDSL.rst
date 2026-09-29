@@ -375,8 +375,7 @@ Modifiers stack, and they nest: the one written **last** ends up closest to the 
         failure_is_success()
 
 ``timeout()`` stops the process and reports failure, and ``failure_is_success()`` turns that into
-the verdict the scenario wants. Order matters: the modifier written last ends up closest to the
-action.
+the verdict the scenario wants.
 
 Choosing what a second means
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
