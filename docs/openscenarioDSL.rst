@@ -231,6 +231,56 @@ tick its condition changes from false to true, ``fall()`` on the tick it changes
     returns at once if the flag is already set; ``wait rise(sensor.blocked)`` waits for it to clear
     and be set again. Choose by which of the two the scenario means.
 
+Wait until a condition has held for a duration
+""""""""""""""""""""""""""""""""""""""""""""""
+
+When the criterion is a state that has to last -- "clearance stayed below 0.3 m for 2 s" -- rather
+than a moment. The standard has no directive for it: ``wait`` ends on the first tick a condition
+holds, and ``elapsed()`` counts from when it starts, not from when something else became true. The
+two combine into it:
+
+.. code-block:: none
+
+    serial:
+        serial:
+            wait clearance < 0.3
+            one_of:
+                wait elapsed(2s)
+                serial:
+                    wait clearance >= 0.3
+                with:
+                    success_is_failure()
+        with:
+            retry()
+    with:
+        timeout(60s)
+
+``clearance`` is a variable that something else keeps up to date -- for a topic, ``topic_monitor()``
+in a parallel branch. Each part has one job:
+
+- ``wait clearance < 0.3`` starts the attempt once the condition holds, so the timer below counts
+  from there and not from the start of the scenario.
+- ``one_of`` runs the timer against a watch for the condition breaking, and ends on whichever
+  finishes first. The timer finishing means the condition held for the full 2 s.
+- ``success_is_failure()`` turns the watch finishing -- the condition broke -- into a failure.
+  Without it the break would end the ``one_of`` with success, and "held for 2 s" would pass on a
+  condition that held for a moment.
+- ``retry()`` restarts the whole attempt after a break: it waits for the condition to hold
+  again, and the timer starts again from zero. Holding before the break does not count towards
+  the 2 s.
+- ``timeout(60s)`` fails the scenario if the condition never holds for 2 s in a row -- it never
+  becomes true, or it keeps breaking.
+
+Without a count ``retry()`` retries until the attempt succeeds, so only the ``timeout()`` decides.
+``retry(count)`` makes repeated breaks a failure in their own right: break number ``count`` fails the
+pattern at once.
+A break and the end of the 2 s on the same tick count as a break.
+
+The durations are scenario time: ``wait elapsed()`` and ``timeout()`` read the scenario's clock,
+which is simulated time with ``use_sim_time`` or a step-based simulation (see `Choosing what a
+second means`_). The condition is checked once per tick, so a break shorter than a tick goes
+unseen, and the pattern ends up to a tick after the duration.
+
 Stopping a running action
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -348,59 +398,6 @@ would be nothing for the name to hold.
     a ticked tree. And the standard describes ``until`` only for a behavior invocation, leaving a
     ``with:`` block on a composition -- which its grammar allows -- unstated; the reading taken here
     is that the composition ends on the event.
-
-Waiting on a condition
-^^^^^^^^^^^^^^^^^^^^^^
-
-Wait until a condition has held for a duration
-""""""""""""""""""""""""""""""""""""""""""""""
-
-When the criterion is a state that has to last -- "clearance stayed below 0.3 m for 2 s" -- rather
-than a moment. The standard has no directive for it: ``wait`` ends on the first tick a condition
-holds, and ``elapsed()`` counts from when it starts, not from when something else became true. The
-two combine into it:
-
-.. code-block:: none
-
-    serial:
-        serial:
-            wait clearance < 0.3
-            one_of:
-                wait elapsed(2s)
-                serial:
-                    wait clearance >= 0.3
-                with:
-                    success_is_failure()
-        with:
-            retry()
-    with:
-        timeout(60s)
-
-``clearance`` is a variable that something else keeps up to date -- for a topic, ``topic_monitor()``
-in a parallel branch. Each part has one job:
-
-- ``wait clearance < 0.3`` starts the attempt once the condition holds, so the timer below counts
-  from there and not from the start of the scenario.
-- ``one_of`` runs the timer against a watch for the condition breaking, and ends on whichever
-  finishes first. The timer finishing means the condition held for the full 2 s.
-- ``success_is_failure()`` turns the watch finishing -- the condition broke -- into a failure.
-  Without it the break would end the ``one_of`` with success, and "held for 2 s" would pass on a
-  condition that held for a moment.
-- ``retry()`` restarts the whole attempt after a break: it waits for the condition to hold
-  again, and the timer starts again from zero. Holding before the break does not count towards
-  the 2 s.
-- ``timeout(60s)`` fails the scenario if the condition never holds for 2 s in a row -- it never
-  becomes true, or it keeps breaking.
-
-Without a count ``retry()`` retries until the attempt succeeds, so only the ``timeout()`` decides.
-``retry(count)`` makes repeated breaks a failure in their own right: break number ``count`` fails the
-pattern at once.
-A break and the end of the 2 s on the same tick count as a break.
-
-The durations are scenario time: ``wait elapsed()`` and ``timeout()`` read the scenario's clock,
-which is simulated time with ``use_sim_time`` or a step-based simulation (see `Choosing what a
-second means`_). The condition is checked once per tick, so a break shorter than a tick goes
-unseen, and the pattern ends up to a tick after the duration.
 
 Inspecting another action
 ^^^^^^^^^^^^^^^^^^^^^^^^^
