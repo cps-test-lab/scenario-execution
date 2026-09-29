@@ -184,6 +184,19 @@ class TestEventCondition(unittest.TestCase):
         self.set('tripped', True)
         self.assertEqual(Status.SUCCESS, self.tick())
 
+    def test_event_guarded_by_rise_takes_its_reference_when_the_event_is_set(self):
+        # The rise before the event is not seen: the reference is the value once the event is set.
+        self.build("        wait @ev if rise(tripped)\n")
+        self.assertEqual(Status.RUNNING, self.tick())
+        self.set('tripped', True)
+        self.assertEqual(Status.RUNNING, self.tick())
+        self.set('ev', True)
+        self.assertEqual(Status.RUNNING, self.tick())
+        self.set('tripped', False)
+        self.assertEqual(Status.RUNNING, self.tick())
+        self.set('tripped', True)
+        self.assertEqual(Status.SUCCESS, self.tick())
+
     #########
     # until
     #########

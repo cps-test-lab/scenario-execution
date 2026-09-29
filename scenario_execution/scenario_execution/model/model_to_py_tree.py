@@ -24,7 +24,7 @@ from importlib.metadata import entry_points
 from importlib.resources import files
 import inspect
 
-from scenario_execution.model.types import KeepConstraintDeclaration, visit_expression, ActionDeclaration, declarations_named, BinaryExpression, EventReference, Expression, FunctionApplicationExpression, ModifierInvocation, ScenarioDeclaration, DoMember, UntilDirective, WaitDirective, EmitDirective, BehaviorInvocation, EventCondition, EventDeclaration, RelationExpression, LogicalExpression, ElapsedExpression, RiseExpression, FallExpression, PhysicalLiteral, ModifierDeclaration, IdentifierReference
+from scenario_execution.model.types import KeepConstraintDeclaration, visit_expression, expression_operand, ActionDeclaration, declarations_named, BinaryExpression, EventReference, Expression, FunctionApplicationExpression, ModifierInvocation, ScenarioDeclaration, DoMember, UntilDirective, WaitDirective, EmitDirective, BehaviorInvocation, EventCondition, EventDeclaration, RelationExpression, LogicalExpression, ElapsedExpression, RiseExpression, FallExpression, PhysicalLiteral, ModifierDeclaration, IdentifierReference
 from scenario_execution.clock_behaviors import ClockTimer, ClockTimeout
 from scenario_execution.model.model_base_visitor import ModelBaseVisitor
 from scenario_execution.model.error import OSC2ParsingError
@@ -170,11 +170,10 @@ def _require_boolean(node):
         return
     if isinstance(node, RelationExpression):
         return
-    try:
-        type_string = node.get_type_string()
-    except (AttributeError, IndexError):
-        # A node with no type to report, or an empty reference list; evaluation checks it.
+    if not hasattr(node, 'get_type_string'):
+        # A node with no type to report; evaluation checks its value.
         return
+    type_string = node.get_type_string()
     if type_string is not None and type_string != 'bool':
         raise OSC2ParsingError(
             msg=f"Event condition '{node.get_ctx()[2]}' is of type {type_string}, not bool. "
@@ -668,15 +667,7 @@ class ModelToPyTree(object):
             _require_boolean(node)
             if isinstance(node, (RelationExpression, LogicalExpression, BinaryExpression)):
                 return visit_expression(node, self.blackboard)
-            if isinstance(node, IdentifierReference):
-                operand = node.get_variable_reference(self.blackboard)
-                if operand is None:
-                    operand = node.get_resolved_value(self.blackboard)
-            elif isinstance(node, FunctionApplicationExpression):
-                operand = node
-            else:
-                operand = node.get_resolved_value(self.blackboard)
-            return Expression(operand, None, lambda value: value)
+            return Expression(expression_operand(node, self.blackboard), None, lambda value: value)
 
         def visit_relation_expression(self, node: RelationExpression):
             return visit_expression(node, self.blackboard)

@@ -159,7 +159,9 @@ loaded, and a value that turns out not to be a ``bool`` while running fails the 
 
 ``rise()`` and ``fall()`` take their reference on the first tick of the ``wait`` or ``until``. A
 rise is a change, so an expression that is already true when the ``wait`` starts is not one: it has
-to become false and then true again. ``fall()`` is the same the other way around.
+to become false and then true again. ``fall()`` is the same the other way around. In
+``@event if rise(...)`` the reference is taken on the first tick the event is set, so a change that
+happened before the event is not seen.
 
 ``every()`` is not supported. It is a periodic event anchored to the start of the behavior that
 declares it, which a ``wait`` or ``until`` does not know, and ``on`` -- where the period matters --
@@ -175,6 +177,59 @@ Each entry is a shape that has been run, not a sketch.
 This section is meant to grow: add to it whenever a use case takes more than one attempt to express,
 so the next reader finds the answer instead of rediscovering it. Keep the same form -- when to reach
 for it, the scenario, and any caveat that would otherwise be found the hard way.
+
+Waiting for a condition
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Wait until a flag is set
+""""""""""""""""""""""""
+
+When a value in the scenario says the moment has come -- a sensor reading, a state that another
+branch keeps up to date. ``topic_monitor()`` keeps a variable at the latest value of a topic, and
+``wait`` on a ``bool`` holds until it is true.
+
+.. code-block:: none
+
+    actor sensor_state:
+        var blocked: bool = false
+
+    scenario wait_for_flag:
+        sensor: sensor_state
+        do parallel:
+            topic_monitor('/blocked', 'std_msgs.msg.Bool', sensor.blocked, member_name: 'data')
+            serial:
+                wait sensor.blocked
+                log('blocked')
+                emit end
+
+``wait not sensor.blocked`` waits for the opposite, and a comparison or ``and``/``or`` of several
+works the same way (see :ref:`event_conditions`). The condition must be a ``bool``: ``wait count``
+on an ``int`` is refused when the scenario is loaded -- write ``wait count > 0``.
+
+Wait for a change
+"""""""""""""""""
+
+When what matters is the moment something *happens*, not that it holds. ``rise()`` holds on the
+tick its condition changes from false to true, ``fall()`` on the tick it changes back.
+
+.. code-block:: none
+
+    scenario wait_for_change:
+        sensor: sensor_state
+        do parallel:
+            topic_monitor('/blocked', 'std_msgs.msg.Bool', sensor.blocked, member_name: 'data')
+            serial:
+                wait rise(sensor.blocked)
+                log('became blocked')
+                wait fall(sensor.blocked)
+                log('cleared')
+                emit end
+
+.. caution::
+
+    A condition that already holds when the ``wait`` starts is not a rise. ``wait sensor.blocked``
+    returns at once if the flag is already set; ``wait rise(sensor.blocked)`` waits for it to clear
+    and be set again. Choose by which of the two the scenario means.
 
 Stopping a running action
 ^^^^^^^^^^^^^^^^^^^^^^^^^

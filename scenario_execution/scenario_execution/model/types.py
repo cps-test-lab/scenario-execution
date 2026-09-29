@@ -2399,6 +2399,24 @@ class Expression(object):
             return self.operator(left, right)
 
 
+def expression_operand(node, blackboard):
+    """What an Expression resolves on every evaluation for *node*.
+
+    A nested expression, a variable's reference or a function application is resolved when the
+    Expression is evaluated; anything else is a value fixed now.
+    """
+    if isinstance(node, (RelationExpression, BinaryExpression, LogicalExpression)):
+        return visit_expression(node, blackboard)
+    if isinstance(node, IdentifierReference):
+        var_def = node.get_variable_reference(blackboard)
+        if var_def is not None:
+            return var_def
+        return node.get_resolved_value(blackboard)
+    if isinstance(node, FunctionApplicationExpression):
+        return node
+    return node.get_resolved_value(blackboard)
+
+
 def visit_expression(node, blackboard):
     operator = None
     single_child = False
@@ -2440,19 +2458,7 @@ def visit_expression(node, blackboard):
     idx = 0
     args = [None, None]
     for child in node.get_children():
-        if isinstance(child, (RelationExpression, BinaryExpression, LogicalExpression)):
-            args[idx] = visit_expression(child, blackboard)
-        else:
-            if isinstance(child, IdentifierReference):
-                var_def = child.get_variable_reference(blackboard)
-                if var_def is not None:
-                    args[idx] = var_def
-                else:
-                    args[idx] = child.get_resolved_value(blackboard)
-            elif isinstance(child, FunctionApplicationExpression):
-                args[idx] = child
-            else:
-                args[idx] = child.get_resolved_value(blackboard)
+        args[idx] = expression_operand(child, blackboard)
         idx += 1
 
     if single_child:
