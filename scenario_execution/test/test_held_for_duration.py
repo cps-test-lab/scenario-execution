@@ -21,7 +21,6 @@ is exact: the step count is the scenario time in units of ``dt``.
 """
 
 import unittest
-from pathlib import Path
 
 import py_trees
 from antlr4.InputStream import InputStream
@@ -32,8 +31,6 @@ from scenario_execution.model.osc2_parser import OpenScenario2Parser
 from scenario_execution.model.model_blackboard import create_py_tree_blackboard
 from scenario_execution.model.model_to_py_tree import create_py_tree
 from .common import DebugLogger
-
-EXAMPLE = Path(__file__).resolve().parents[2] / 'examples' / 'example_scenario' / 'held_for_duration.osc'
 
 
 class _SteppedSim(SimulationInterface):
@@ -161,12 +158,6 @@ class TestHeldForDuration(unittest.TestCase):
         success, ended = self.run_scenario(scenario(blink, retries=2))
         self.assertFalse(success)
         self.assert_ends_near(ended, 4.0)
-
-    def test_the_example_ends_after_the_second_hold(self):
-        # The example the documentation includes: close at 1 s, broken at 2 s, close again at 2.5 s.
-        success, ended = self.run_scenario(EXAMPLE.read_text(encoding='utf-8'))
-        self.assertTrue(success)
-        self.assert_ends_near(ended, 4.5)
 
 
 if __name__ == '__main__':

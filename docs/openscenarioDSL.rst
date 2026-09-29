@@ -258,34 +258,39 @@ Wait until a condition has held for a duration
 When the criterion is a state that has to last -- "clearance stayed below 0.3 m for 2 s" -- rather
 than a moment. The standard has no directive for it: ``wait`` ends on the first tick a condition
 holds, and ``elapsed()`` counts from when it starts, not from when something else became true. The
-two combine into it. This is :repo_link:`examples/example_scenario/held_for_duration.osc`, which
-runs without ROS: its first branch plays the part of a sensor and makes and breaks the condition on
-a schedule, the second is the pattern.
+two combine into it:
 
-.. literalinclude:: ../examples/example_scenario/held_for_duration.osc
-    :language: none
+.. code-block:: none
 
-.. code-block:: bash
+    serial:
+        serial:
+            wait clearance < 0.3
+            one_of:
+                wait elapsed(2s)
+                serial:
+                    wait clearance >= 0.3
+                with:
+                    success_is_failure()
+        with:
+            retry(100)
+    with:
+        timeout(60s)
 
-    scenario_execution examples/example_scenario/held_for_duration.osc
+``clearance`` is a variable that something else keeps up to date -- for a topic, ``topic_monitor()``
+in a parallel branch. Each part has one job:
 
-Each part of the pattern has one job:
-
-- ``wait close == 1`` starts the attempt once the condition holds, so the timer below counts from
-  there and not from the start of the scenario.
+- ``wait clearance < 0.3`` starts the attempt once the condition holds, so the timer below counts
+  from there and not from the start of the scenario.
 - ``one_of`` runs the timer against a watch for the condition breaking, and ends on whichever
   finishes first. The timer finishing means the condition held for the full 2 s.
 - ``success_is_failure()`` turns the watch finishing -- the condition broke -- into a failure.
   Without it the break would end the ``one_of`` with success, and "held for 2 s" would pass on a
   condition that held for a moment.
-- ``retry(10)`` restarts the whole attempt after a break: it waits for the condition to hold again,
-  and the timer starts again from zero. Holding before the break does not count towards the 2 s.
-- ``timeout(10s)`` fails the scenario if the condition never holds for 2 s in a row -- it never
+- ``retry(100)`` restarts the whole attempt after a break: it waits for the condition to hold
+  again, and the timer starts again from zero. Holding before the break does not count towards
+  the 2 s.
+- ``timeout(60s)`` fails the scenario if the condition never holds for 2 s in a row -- it never
   becomes true, or it keeps breaking.
-
-In a real scenario the first branch is whatever keeps the variable up to date -- for a topic,
-``topic_monitor()`` -- and the condition is the comparison the criterion names, such as
-``clearance < 0.3`` and its negation ``clearance >= 0.3``.
 
 ``retry(count)`` is also a limit on breaks: break number ``count`` fails the pattern at once. Pick a
 count no run could reach when only the ``timeout()`` should decide -- a noisy condition can break on
