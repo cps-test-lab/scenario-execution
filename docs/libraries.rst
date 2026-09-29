@@ -476,7 +476,7 @@ Modifier to repeat a sub-tree. If any of the included children report ``failure`
 
 ``retry()``
 """""""""""
-Modifier to retry a sub-tree until it succeeds.
+Modifier to retry a sub-tree until it succeeds. Each retry restarts the sub-tree from its beginning.
 
 .. list-table:: 
    :widths: 15 15 5 65
@@ -489,8 +489,8 @@ Modifier to retry a sub-tree until it succeeds.
      - Description
    * - ``count``
      - ``int``
-     - 
-     - Maximum number of permitted failures
+     - ``-1``
+     - Number of failures that ends the retrying: the sub-tree runs at most ``count`` times, and its last failure is reported. ``-1``, the default, retries until the sub-tree succeeds, or until a ``timeout()`` or ``until`` around it ends it
 
 ``timeout()``
 """""""""""""

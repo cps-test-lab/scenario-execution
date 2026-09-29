@@ -23,6 +23,7 @@ from functools import lru_cache
 from importlib.metadata import entry_points
 from importlib.resources import files
 import inspect
+import math
 
 from scenario_execution.model.types import KeepConstraintDeclaration, visit_expression, ActionDeclaration, declarations_named, BinaryExpression, EventReference, Expression, FunctionApplicationExpression, ModifierInvocation, ScenarioDeclaration, DoMember, UntilDirective, WaitDirective, EmitDirective, BehaviorInvocation, EventCondition, EventDeclaration, RelationExpression, LogicalExpression, ElapsedExpression, PhysicalLiteral, ModifierDeclaration, IdentifierReference
 from scenario_execution.clock_behaviors import ClockTimer, ClockTimeout
@@ -341,7 +342,13 @@ class ModelToPyTree(object):
             elif node.name == "timeout":
                 instance = ClockTimeout(name="timeout", child=child, duration=resolved_values["duration"])
             elif node.name == "retry":
-                instance = py_trees.decorators.Retry(name="retry", child=child, num_failures=resolved_values["count"])
+                count = resolved_values["count"]
+                if count == -1:
+                    # No bound: only success, or a timeout or until around it, ends the retrying.
+                    count = math.inf
+                elif count < 1:
+                    raise ValueError(f"count must be at least 1, or -1 to retry until success, not {count}")
+                instance = py_trees.decorators.Retry(name="retry", child=child, num_failures=count)
             elif node.name == "failure_is_running":
                 instance = py_trees.decorators.FailureIsRunning(name="failure_is_running", child=child)
             elif node.name == "failure_is_success":
