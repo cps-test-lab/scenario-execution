@@ -372,7 +372,7 @@ two combine into it:
                 with:
                     success_is_failure()
         with:
-            retry(100)
+            retry()
     with:
         timeout(60s)
 
@@ -386,15 +386,15 @@ in a parallel branch. Each part has one job:
 - ``success_is_failure()`` turns the watch finishing -- the condition broke -- into a failure.
   Without it the break would end the ``one_of`` with success, and "held for 2 s" would pass on a
   condition that held for a moment.
-- ``retry(100)`` restarts the whole attempt after a break: it waits for the condition to hold
+- ``retry()`` restarts the whole attempt after a break: it waits for the condition to hold
   again, and the timer starts again from zero. Holding before the break does not count towards
   the 2 s.
 - ``timeout(60s)`` fails the scenario if the condition never holds for 2 s in a row -- it never
   becomes true, or it keeps breaking.
 
-``retry(count)`` is also a limit on breaks: break number ``count`` fails the pattern at once. Pick a
-count no run could reach when only the ``timeout()`` should decide -- a noisy condition can break on
-every other tick -- or a small one when repeated breaks are a failure in their own right.
+Without a count ``retry()`` retries until the attempt succeeds, so only the ``timeout()`` decides.
+``retry(count)`` makes repeated breaks a failure in their own right: break number ``count`` fails the
+pattern at once.
 A break and the end of the 2 s on the same tick count as a break.
 
 The durations are scenario time: ``wait elapsed()`` and ``timeout()`` read the scenario's clock,
