@@ -63,7 +63,7 @@ modifier repeat:
 
 modifier retry:
     # modifier to retry a subtree until it succeeds
-    count: int                           # maximum number of permitted failures
+    count: int                           # the subtree runs at most count times, and its last failure is reported
 
 modifier timeout:
     # modifier to set a timeout for a subtree
