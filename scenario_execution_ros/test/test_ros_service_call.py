@@ -90,3 +90,21 @@ scenario test_ros_service_call:
 """
         self.execute(scenario_content)
         self.assertTrue(self.scenario_execution_ros.process_results())
+
+    def test_server_appears_after_call_started(self):
+        scenario_content = """
+import osc.helpers
+import osc.ros
+
+scenario test_ros_service_call:
+    timeout(30s)
+    do serial:
+        service_call('/late', 'std_srvs.srv.SetBool', '{\\\"data\\\": True}')
+        emit end
+"""
+        late = threading.Timer(2.0, lambda: self.node.create_service(SetBool, "/late", self.service_callback))
+        late.start()
+        self.execute(scenario_content)
+        late.join()
+        self.assertTrue(self.scenario_execution_ros.process_results())
+        self.assertTrue(self.request_received)
