@@ -17,6 +17,7 @@
 import py_trees
 from rclpy.node import Node, NodeNameNonExistentError
 from scenario_execution.actions.base_action import BaseAction, ActionError
+from scenario_execution_ros.actions.conversions import node_name_matches
 
 
 class RosServiceWaitForServiceServer(BaseAction):
@@ -39,16 +40,10 @@ class RosServiceWaitForServiceServer(BaseAction):
             raise ActionError(error_message, action=self) from e
 
     def update(self) -> py_trees.common.Status:
-        for node_name in self.node.get_node_names():
-            if not node_name.startswith('/'):
-                node_name = '/' + node_name
-            if node_name != self.node_name:
+        for node_base_name, namespace in self.node.get_node_names_and_namespaces():
+            if not node_name_matches(self.node_name, node_base_name, namespace):
                 continue
             self.feedback_message = f"detected node {self.node_name}"
-            node_base_name = node_name.rsplit('/', 1)[-1]
-            namespace = node_name.rsplit('/', 1)[0]
-            if namespace == '':
-                namespace = '/'
             try:
                 services = self.node.get_service_names_and_types_by_node(node_base_name, namespace)
                 for service_tuple in services:

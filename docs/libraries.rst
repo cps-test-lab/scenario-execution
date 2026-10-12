@@ -2092,7 +2092,7 @@ Wait for nodes to get available.
    * - ``nodes``
      - ``list of string``
      - 
-     - List of nodes to wait for
+     - List of nodes to wait for. A name starting with ``/`` is fully qualified (``/robot1/controller_server``); a bare name matches that node in any namespace.
 
 ``wait_for_service_server()``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -2115,7 +2115,7 @@ Wait for a specific node to provide a ROS2 service.
    * - ``node_name``
      - ``string``
      - 
-     - Name of the node that should provide the service
+     - Name of the node that should provide the service. A name starting with ``/`` is fully qualified (``/robot1/controller_server``); a bare name matches that node in any namespace.
 
 ``wait_for_services()``
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -2181,7 +2181,7 @@ Wait for a specific node to subscribe to a topic.
    * - ``node_name``
      - ``string``
      - 
-     - Name of the node that should be subscribed to the topic
+     - Name of the node that should be subscribed to the topic. A name starting with ``/`` is fully qualified (``/robot1/controller_server``); a bare name matches that node in any namespace.
 
 ``wait_for_topics()``
 ^^^^^^^^^^^^^^^^^^^^^

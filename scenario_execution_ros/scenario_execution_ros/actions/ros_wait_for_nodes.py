@@ -18,6 +18,7 @@ import py_trees
 from rclpy.node import Node
 from scenario_execution.actions.base_action import BaseAction
 from ros2node.api import get_node_names
+from scenario_execution_ros.actions.conversions import node_name_matches
 
 
 class RosWaitForNodes(BaseAction):
@@ -43,9 +44,10 @@ class RosWaitForNodes(BaseAction):
 
     def update(self) -> py_trees.common.Status:
         available_nodes = get_node_names(node=self.node, include_hidden_nodes=False)
-        available_nodes = [seq[2] for seq in available_nodes]
-        result = all(elem in available_nodes for elem in self.nodes)
-        if result:
+        missing = [wanted for wanted in self.nodes
+                   if not any(node_name_matches(wanted, name, namespace)
+                              for name, namespace, _full_name in available_nodes)]
+        if not missing:
             return py_trees.common.Status.SUCCESS
-        else:
-            return py_trees.common.Status.RUNNING
+        self.feedback_message = f"waiting for nodes: {', '.join(missing)}"  # pylint: disable= attribute-defined-outside-init
+        return py_trees.common.Status.RUNNING

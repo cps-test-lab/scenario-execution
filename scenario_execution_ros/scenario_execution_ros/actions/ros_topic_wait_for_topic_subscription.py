@@ -17,6 +17,7 @@
 import py_trees
 from rclpy.node import Node
 from scenario_execution.actions.base_action import BaseAction, ActionError
+from scenario_execution_ros.actions.conversions import node_name_matches
 
 
 class RosTopicWaitForTopicSubscription(BaseAction):
@@ -40,9 +41,7 @@ class RosTopicWaitForTopicSubscription(BaseAction):
 
     def update(self) -> py_trees.common.Status:
         subscribers_info = self.node.get_subscriptions_info_by_topic(self.topic)
-        subscriber_node_names = [info.node_name for info in subscribers_info]
-
-        if self.node_name in subscriber_node_names:
+        if any(node_name_matches(self.node_name, info.node_name, info.node_namespace)
+               for info in subscribers_info):
             return py_trees.common.Status.SUCCESS
-        else:
-            return py_trees.common.Status.RUNNING
+        return py_trees.common.Status.RUNNING

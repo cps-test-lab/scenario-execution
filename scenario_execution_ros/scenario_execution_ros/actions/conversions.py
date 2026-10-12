@@ -115,3 +115,16 @@ def set_variable_if_available(msg, target_variable, member_name):
             if isinstance(val, array):
                 val = val.tolist()
         target_variable.set_value(val)
+
+
+def node_name_matches(wanted: str, name: str, namespace: str) -> bool:
+    """Whether the node ``name`` in ``namespace`` is the node a scenario named ``wanted``.
+
+    One rule for every action that names a node: a name starting with ``/`` is fully
+    qualified and matches exactly (``/robot1/controller_server``); a bare name matches a node
+    of that name in any namespace (``controller_server``).
+    """
+    if wanted.startswith('/'):
+        qualified = namespace.rstrip('/') + '/' + name
+        return qualified == wanted
+    return name == wanted
