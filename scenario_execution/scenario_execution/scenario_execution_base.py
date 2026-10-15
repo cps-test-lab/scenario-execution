@@ -39,18 +39,26 @@ from timeit import default_timer as timer
 import subprocess  # nosec B404
 
 
+#: ``reset()`` arguments the runner supplies itself, by name, rather than the scenario:
+#: ``output_dir`` is the directory the scenario's results go to. A simulation that
+#: declares it is told where this scenario writes, which is what lets it keep a
+#: recording per scenario when a parameter file runs several in one process.
+RUNNER_RESET_ARGS = ("output_dir",)
+
+
 def _get_missing_reset_params(simulation, scenario_params: dict) -> set:
     """Return the set of parameter names that ``simulation.reset()`` requires
     but are absent from *scenario_params*.
 
     Only the concrete override of ``reset()`` is inspected — ``self`` is
     excluded.  Parameters that carry a default value are considered optional
-    and are not flagged.
+    and are not flagged, and neither is one the runner supplies
+    (:data:`RUNNER_RESET_ARGS`).
     """
     sig = inspect.signature(type(simulation).reset)
     missing = set()
     for name, param in sig.parameters.items():
-        if name == 'self':
+        if name == 'self' or name in RUNNER_RESET_ARGS:
             continue
         if param.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
             continue
@@ -60,12 +68,14 @@ def _get_missing_reset_params(simulation, scenario_params: dict) -> set:
     return missing
 
 
-def _build_reset_kwargs(simulation, scenario_params: dict) -> dict:
+def _build_reset_kwargs(simulation, scenario_params: dict, runner_args: dict = None) -> dict:
     """Build the keyword-argument dict for calling ``simulation.reset()``.
 
     Each named parameter in the concrete ``reset()`` override is looked up in
     *scenario_params* and forwarded so the implementation can use plain
-    Python parameter names instead of unpacking a dict manually.
+    Python parameter names instead of unpacking a dict manually. *runner_args*
+    are the values the runner supplies for :data:`RUNNER_RESET_ARGS`; a
+    ``reset()`` that declares one of those names receives the runner's value.
     """
     sig = inspect.signature(type(simulation).reset)
     kwargs = {}
@@ -73,6 +83,9 @@ def _build_reset_kwargs(simulation, scenario_params: dict) -> dict:
         if name == 'self':
             continue
         if param.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
+            continue
+        if name in RUNNER_RESET_ARGS:
+            kwargs[name] = (runner_args or {}).get(name)
             continue
         value = (scenario_params or {}).get(name, param.default)
         if value is not inspect.Parameter.empty:
@@ -546,7 +559,8 @@ class ScenarioExecution(object):
                     return
 
                 try:
-                    reset_kwargs = _build_reset_kwargs(simulation, params)
+                    reset_kwargs = _build_reset_kwargs(
+                        simulation, params, {"output_dir": effective_output_dir})
                     simulation.reset(**reset_kwargs)
                 except Exception as e:  # pylint: disable=broad-except
                     self.fail_from_exception("Simulation reset failed", e)

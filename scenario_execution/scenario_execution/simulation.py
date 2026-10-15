@@ -240,6 +240,16 @@ class SimulationInterface(ABC):
         Override via ``--scenario-parameter-file`` is already applied before
         this method is called, so no special handling is needed.
 
+        One name is the runner's rather than the scenario's: a ``reset()`` that
+        declares ``output_dir`` receives the directory this scenario's results
+        go to (``None`` when the run has no output directory). A parameter file
+        runs several scenarios in one process, each with its own directory, and
+        this is how a simulation keeps a recording per scenario rather than one
+        for the whole file::
+
+            def reset(self, output_dir=None):
+                self._recorder.start(os.path.join(output_dir, "run.mcap"))
+
         Must NOT tear down the simulation (that is ``shutdown()``'s job). The
         simulation clock is reset separately by the framework.
 
