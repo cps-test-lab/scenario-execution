@@ -29,10 +29,11 @@ from scenario_execution.utils.logging import Logger
 from antlr4.InputStream import InputStream
 
 CLOCK_PERIOD = 0.05  # wall seconds between /clock messages
-#: What a case means by a clock that keeps up. Above the 0.5 the assertions use, and not by a
-#: hair: the factor is measured from when the messages arrive, so a loaded machine that delays
-#: them measures less than was published, and a healthy clock published at exactly 1.0 fails.
-HEALTHY_RTF = 2.0
+#: What a case means by a clock that keeps up. Far above the 0.5 the assertions use: the factor is
+#: measured from when the messages arrive, over windows of five of them (0.25 s of publishing), so a
+#: loaded machine that holds back their delivery for a moment measures much less than was published.
+#: At 10 a window still reads 0.5 with delivery held back for 4.75 s; at 2 it failed with 0.75 s.
+HEALTHY_RTF = 10.0
 
 
 class TestAssertRealtimeFactor(unittest.TestCase):
