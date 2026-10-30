@@ -376,7 +376,8 @@ class ROSScenarioExecution(ScenarioExecution):
             try:
                 self.simulation.setup(logger=self.logger, output_dir=effective_output_dir,
                                       tick_period=self.tick_period)
-                self.simulation.reset(**_build_reset_kwargs(self.simulation, scenario_params or {}))
+                self.simulation.reset(**_build_reset_kwargs(
+                    self.simulation, scenario_params or {}, {"output_dir": effective_output_dir}))
                 sim_dt = self.simulation.dt
             except Exception as e:  # pylint: disable=broad-except
                 self.on_scenario_shutdown(False, "Simulation setup failed", f"{e}")

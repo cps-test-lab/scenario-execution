@@ -21,6 +21,8 @@
 # (_get_missing_reset_params / _build_reset_kwargs), so arguments-differ does not apply.
 # pylint: disable=arguments-differ
 
+import os
+import tempfile
 import unittest
 import py_trees
 from antlr4.InputStream import InputStream
@@ -391,6 +393,66 @@ scenario test:
         self.assertAlmostEqual(sim.received_start_pos['y'], 2.0)
         self.assertAlmostEqual(sim.received_start_pos['z'], 3.0)
 
+    def test_reset_receives_the_scenarios_output_dir(self):
+        """A reset() that declares ``output_dir`` is told where this scenario's results go,
+        which is the runner's value and never a scenario parameter."""
+
+        class _Sim(_CountingSim):
+            def reset(self, speed, output_dir=None):
+                self.received_speed = speed
+                self.received_output_dir = output_dir
+
+        sim = _Sim()
+        scenario_content = """
+type time is SI(s: 1)
+unit s          of time is SI(s: 1, factor: 1)
+
+scenario test:
+    speed: float = 1.5
+    output_dir: string = "a scenario parameter, never what reset receives"
+    do serial:
+        wait elapsed(0.1s)
+"""
+        se, _ = _parse_and_run(scenario_content, sim=sim)
+        self.assertAlmostEqual(sim.received_speed, 1.5)
+        self.assertEqual(sim.received_output_dir, se.output_dir)
+        self.assertEqual(_get_missing_reset_params(sim, {}), {"speed"})
+
+    def test_each_scenario_of_a_parameter_file_resets_into_its_own_directory(self):
+        """Several scenarios in one process: each reset() is told its own scenario's
+        directory, in order, under the runner's output directory."""
+        received = []
+
+        class _Sim(_CountingSim):
+            def reset(self, output_dir=None):
+                received.append(output_dir)
+
+        scenario_content = """
+type time is SI(s: 1)
+unit s          of time is SI(s: 1, factor: 1)
+
+scenario test:
+    do serial:
+        wait elapsed(0.1s)
+"""
+        with tempfile.TemporaryDirectory() as out:
+            logger = DebugLogger("")
+            scenarios = []
+            for override in ("cfg/0", "cfg/1"):
+                parser = OpenScenario2Parser(logger)
+                tree = py_trees.composites.Sequence(name="", memory=True)
+                model = parser.create_internal_model(
+                    parser.parse_input_stream(InputStream(scenario_content)), tree, "test.osc", False)
+                scenarios.append((create_py_tree(model, tree, parser.logger, False),
+                                  parser.scenario_params, override))
+            se = ScenarioExecution(debug=False, log_model=False, live_tree=False,
+                                   scenario_file='test.osc', output_dir=out, logger=logger,
+                                   simulation=_Sim())
+            se.tree, se.scenario_params, _ = scenarios[0]
+            se.scenarios_list = scenarios
+            se.run()
+            self.assertEqual(received, [os.path.join(out, "cfg/0"), os.path.join(out, "cfg/1")])
+
     def test_no_params_reset_called(self):
         """reset() with no args is called once even when the scenario declares no params."""
         sim = _CountingSim()
@@ -563,7 +625,7 @@ scenario test:
                 pass
 
         params = {'speed': 5.0}
-        kwargs = _build_reset_kwargs(_Sim(), params)
+        kwargs = _build_reset_kwargs(_Sim(), params, {"output_dir": None})
         self.assertAlmostEqual(kwargs['speed'], 5.0)
         self.assertAlmostEqual(kwargs['gravity'], 9.81)  # default used
         self.assertNotIn('scenario_params', kwargs)
