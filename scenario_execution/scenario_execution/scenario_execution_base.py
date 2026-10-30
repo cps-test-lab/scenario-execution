@@ -68,7 +68,7 @@ def _get_missing_reset_params(simulation, scenario_params: dict) -> set:
     return missing
 
 
-def _build_reset_kwargs(simulation, scenario_params: dict, runner_args: dict = None) -> dict:
+def _build_reset_kwargs(simulation, scenario_params: dict, runner_args: dict) -> dict:
     """Build the keyword-argument dict for calling ``simulation.reset()``.
 
     Each named parameter in the concrete ``reset()`` override is looked up in
@@ -76,6 +76,7 @@ def _build_reset_kwargs(simulation, scenario_params: dict, runner_args: dict = N
     Python parameter names instead of unpacking a dict manually. *runner_args*
     are the values the runner supplies for :data:`RUNNER_RESET_ARGS`; a
     ``reset()`` that declares one of those names receives the runner's value.
+    Every runner passes them, so none can leave a simulation without them.
     """
     sig = inspect.signature(type(simulation).reset)
     kwargs = {}
@@ -85,7 +86,7 @@ def _build_reset_kwargs(simulation, scenario_params: dict, runner_args: dict = N
         if param.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
             continue
         if name in RUNNER_RESET_ARGS:
-            kwargs[name] = (runner_args or {}).get(name)
+            kwargs[name] = runner_args[name]
             continue
         value = (scenario_params or {}).get(name, param.default)
         if value is not inspect.Parameter.empty:
