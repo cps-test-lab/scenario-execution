@@ -30,9 +30,10 @@ from antlr4.InputStream import InputStream
 
 CLOCK_PERIOD = 0.05  # wall seconds between /clock messages
 #: What a case means by a clock that keeps up. Far above the 0.5 the assertions use: the factor is
-#: measured from when the messages arrive, over windows of five of them (0.25 s of publishing), so a
-#: loaded machine that holds back their delivery for a moment measures much less than was published.
-#: At 10 a window still reads 0.5 with delivery held back for 4.75 s; at 2 it failed with 0.75 s.
+#: measured from when the messages arrive, over windows of five of them (0.25 s of publishing), so
+#: latency that grows between this test's clock reading and the action's -- a loaded machine starving
+#: either side for a moment -- reads as a slower clock. At 10 a window reaches 0.5 only after a
+#: 4.75 s hold-up; at 2, a 0.75 s one already reaches it.
 HEALTHY_RTF = 10.0
 
 
@@ -52,6 +53,9 @@ class TestAssertRealtimeFactor(unittest.TestCase):
         self.last_publish_wall = None
         self.rtf = HEALTHY_RTF
         self.stall_next = 0  # number of upcoming ticks that publish no sim-time progress
+        #: Wall seconds after which a degraded clock recovers to HEALTHY_RTF; switched by the
+        #: publisher itself, so the switch cannot lag behind a timer of its own.
+        self.recover_after = None
         #: Whether to fall silent once the stalled samples are published. A window of one sample holds
         #: the stall only until the next message replaces it, which is shorter than a tree tick, so a
         #: case asserting on that verdict has to leave it standing long enough to be ticked on.
@@ -76,6 +80,9 @@ class TestAssertRealtimeFactor(unittest.TestCase):
         if not self.publish_clock:
             return
         now = time.monotonic()
+        if self.recover_after is not None and now - self.start_wall > self.recover_after:
+            self.rtf = HEALTHY_RTF
+            self.recover_after = None
         delta_wall = 0. if self.last_publish_wall is None else now - self.last_publish_wall
         self.last_publish_wall = now
         stalled = self.stall_next > 0
@@ -99,7 +106,7 @@ class TestAssertRealtimeFactor(unittest.TestCase):
 
 
 # TESTS PERFORMED
-# 1. Case 1: a clock running at realtime passes a 'realtime_factor >= 0.5' assertion.
+# 1. Case 1: a healthy clock (HEALTHY_RTF) passes a 'realtime_factor >= 0.5' assertion.
 # 2. Case 2: a clock running at a fifth of realtime fails it.
 # 3. Case 3 & 4: the grace period suppresses a degraded bring-up phase; without it the same run fails.
 # 4. Case 5 & 6: a single stalled sample is smoothed away by rolling_average_count, but trips the
@@ -152,11 +159,7 @@ scenario test_assert_realtime_factor:
     def test_case_3(self):
         # degraded during bring-up only, covered by the grace period -> passes
         self.rtf = 0.1
-
-        def recover():
-            if self.elapsed() > 3.0:
-                self.rtf = HEALTHY_RTF
-        self.node.create_timer(0.1, recover)
+        self.recover_after = 3.0
 
         scenario_content = """
 import osc.ros
@@ -181,11 +184,7 @@ scenario test_assert_realtime_factor:
         # the very same run without a grace period fails, which is what shows case 3 was the grace
         # period doing the work rather than lucky timing
         self.rtf = 0.1
-
-        def recover():
-            if self.elapsed() > 3.0:
-                self.rtf = HEALTHY_RTF
-        self.node.create_timer(0.1, recover)
+        self.recover_after = 3.0
 
         scenario_content = """
 import osc.ros
