@@ -662,9 +662,8 @@ If a ``--scenario-parameter-file`` is supplied the overridden values are
 applied before ``reset()`` is called.
 
 One argument name is reserved for the runner: a ``reset()`` that declares
-``output_dir`` receives the directory the scenario's results go to (the
-``_output_dir`` of its parameter document, under ``-o``), not a scenario
-parameter. A parameter file runs several scenarios in one process, each with its
+``output_dir`` receives the directory the scenario's results go to (see
+:ref:`per_scenario_output_directories`), not a scenario parameter. A parameter file runs several scenarios in one process, each with its
 own directory, so a simulation that records each scenario separately takes its
 target from there.
 

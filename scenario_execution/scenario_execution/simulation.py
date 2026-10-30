@@ -248,7 +248,8 @@ class SimulationInterface(ABC):
         for the whole file::
 
             def reset(self, output_dir=None):
-                self._recorder.start(os.path.join(output_dir, "run.mcap"))
+                if output_dir is not None:
+                    self._recorder.start(os.path.join(output_dir, "run.mcap"))
 
         Must NOT tear down the simulation (that is ``shutdown()``'s job). The
         simulation clock is reset separately by the framework.
