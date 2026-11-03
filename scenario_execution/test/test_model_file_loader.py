@@ -1,4 +1,5 @@
 # Copyright (C) 2026 Frederik Pasch
+# Copyright (C) 2026 Florian Mirus
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,24 +15,75 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""
-A .sce model file that cannot be loaded fails naming the file, through the loader and the runner.
-"""
+"""Tests for loading serialized scenario models."""
+
 import os
 import sys
 import tempfile
 import unittest
 from unittest import mock
 
+from antlr4.InputStream import InputStream
+import py_trees
 import yaml
 
 from scenario_execution.model.model_file_loader import ModelFileLoader
+from scenario_execution.model.osc2_parser import OpenScenario2Parser
+from scenario_execution.model.types import serialize
 from scenario_execution.scenario_execution_base import ScenarioExecution, main
 from scenario_execution.utils.logging import Logger
 
 
 class TestModelFileLoader(unittest.TestCase):
     # pylint: disable=missing-function-docstring
+
+    def test_wait_on_variable_in_serialized_model(self):
+        cases = (
+            ("ready", "bool", "true", "ready == true"),
+            ("session_id", "string", "'local-session'", 'session_id != ""'),
+        )
+        for variable, variable_type, initial_value, condition in cases:
+            with self.subTest(variable=variable):
+                self._check_serialized_wait(variable, variable_type, initial_value, condition)
+
+    def _check_serialized_wait(self, variable, variable_type, initial_value, condition):
+        with tempfile.NamedTemporaryFile(suffix='.sce', mode='w') as model_file:
+            scenario = f"""\
+scenario test_{variable}:
+    var {variable}: {variable_type} = {initial_value}
+    do serial:
+        wait {condition}
+"""
+            logger = Logger('test', False)
+            parser = OpenScenario2Parser(logger)
+            parsed = parser.parse_input_stream(InputStream(scenario))
+            model = parser.load_internal_model(parsed, 'test.osc')
+            yaml.safe_dump(serialize(model)['CompilationUnit']['_children'], model_file)
+            model_file.flush()
+
+            tree = ModelFileLoader(logger).process_file(model_file.name)[0][0]
+            tree.tick_once()
+            self.assertEqual(tree.status, py_trees.common.Status.SUCCESS)
+            self.assertIn("wait (source unavailable)", py_trees.display.unicode_tree(tree))
+
+    def test_serialized_scenario_parameters_reach_runner(self):
+        scenario = """\
+scenario test_params:
+    count: int = 7
+    do serial:
+        wait count == 7
+"""
+        logger = Logger('test', False)
+        parser = OpenScenario2Parser(logger)
+        parsed = parser.parse_input_stream(InputStream(scenario))
+        model = parser.load_internal_model(parsed, 'test.osc')
+        with tempfile.NamedTemporaryFile(suffix='.sce', mode='w') as model_file:
+            yaml.safe_dump(serialize(model)['CompilationUnit']['_children'], model_file)
+            model_file.flush()
+            runner = ScenarioExecution(debug=False, log_model=False, live_tree=False,
+                                       scenario_file=model_file.name, output_dir='')
+            self.assertTrue(runner.parse())
+            self.assertEqual(runner.scenario_params, {'count': 7})
 
     def setUp(self):
         self.tmp_dir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
