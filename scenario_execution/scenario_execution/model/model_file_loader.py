@@ -19,6 +19,7 @@ import py_trees
 import yaml
 from scenario_execution.model.types import print_tree, deserialize
 from scenario_execution.model.model_to_py_tree import create_py_tree
+from scenario_execution.model.model_blackboard import create_py_tree_blackboard
 from scenario_execution.model.model_resolver import resolve_internal_model
 
 
@@ -31,6 +32,7 @@ class ModelFileLoader(object):
         model = self.load_file(file_name, log_tree)
         tree = py_trees.composites.Sequence(name="", memory=True)
         resolve_internal_model(model, tree, self.logger, log_tree)
+        create_py_tree_blackboard(model, tree, self.logger, debug)
         create_py_tree(model, tree, self.logger, log_tree)
         return [(tree, {}, None)]
 

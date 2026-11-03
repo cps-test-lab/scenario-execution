@@ -405,7 +405,7 @@ class ModelToPyTree(object):
             expression = ""
             for child in node.get_children():
                 if isinstance(child, (RelationExpression, LogicalExpression)):
-                    expression = ExpressionBehavior(name=node.get_ctx()[2], expression=self.visit(child), model=node, logger=self.logger)
+                    expression = ExpressionBehavior(name=node.get_ctx()[2] or "wait", expression=self.visit(child), model=node, logger=self.logger)
                 elif isinstance(child, ElapsedExpression):
                     elapsed_condition = self.visit_elapsed_expression(child)
                     expression = ClockTimer(name=f"wait {elapsed_condition}s", duration=float(elapsed_condition))
