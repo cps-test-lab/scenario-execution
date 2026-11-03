@@ -15,9 +15,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""
-A .sce model file that cannot be loaded fails naming the file, through the loader and the runner.
-"""
+"""Tests for loading serialized scenario models."""
+
 import os
 import sys
 import tempfile
@@ -45,9 +44,9 @@ class TestModelFileLoader(unittest.TestCase):
         )
         for variable, variable_type, initial_value, condition in cases:
             with self.subTest(variable=variable):
-                self.check_serialized_wait(variable, variable_type, initial_value, condition)
+                self._check_serialized_wait(variable, variable_type, initial_value, condition)
 
-    def check_serialized_wait(self, variable, variable_type, initial_value, condition):
+    def _check_serialized_wait(self, variable, variable_type, initial_value, condition):
         with tempfile.NamedTemporaryFile(suffix='.sce', mode='w') as model_file:
             scenario = f"""\
 scenario test_{variable}:
@@ -65,7 +64,7 @@ scenario test_{variable}:
             tree = ModelFileLoader(logger).process_file(model_file.name)[0][0]
             tree.tick_once()
             self.assertEqual(tree.status, py_trees.common.Status.SUCCESS)
-            self.assertIn("wait", py_trees.display.unicode_tree(tree))
+            self.assertIn("wait (source unavailable)", py_trees.display.unicode_tree(tree))
 
     def setUp(self):
         self.tmp_dir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with

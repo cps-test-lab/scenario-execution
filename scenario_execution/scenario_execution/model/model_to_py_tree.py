@@ -650,7 +650,7 @@ class ModelToPyTree(object):
             if len(children) != 1:
                 raise OSC2ParsingError(msg='Invalid event condition.', context=node.get_ctx())
             child = children[0]
-            name = node.get_ctx()[2] or "wait"
+            name = node.get_ctx()[2] or "wait (source unavailable)"
             if isinstance(child, ElapsedExpression):
                 elapsed_condition = self.visit_elapsed_expression(child)
                 return ClockTimer(name=f"wait {elapsed_condition}s", duration=float(elapsed_condition))
