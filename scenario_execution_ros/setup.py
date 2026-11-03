@@ -17,13 +17,20 @@
 """ Setup python package """
 from glob import glob
 import os
+import re
+from pathlib import Path
 from setuptools import find_namespace_packages, setup
 
 PACKAGE_NAME = 'scenario_execution_ros'
 
+# The version lives in package.xml alone: the ROS tooling reads it there and nowhere else,
+# so a release bumps one file per package and this can never disagree with it.
+VERSION = re.search(r"<version>\s*([^<\s]+)\s*</version>",
+                    (Path(__file__).resolve().parent / "package.xml").read_text(encoding="utf-8")).group(1)
+
 setup(
     name=PACKAGE_NAME,
-    version='1.5.0',
+    version=VERSION,
     packages=find_namespace_packages(),
     data_files=[
         ('share/ament_index/resource_index/packages',
@@ -36,7 +43,7 @@ setup(
     ],
     install_requires=[
         'setuptools',
-        'transforms3d==0.4.1',
+        'transforms3d==0.4.2',  # 0.4.1 calls np.maximum_sctype, removed in NumPy 2.0
         'py-trees-ros==2.4.0',
     ],
     zip_safe=True,
@@ -44,7 +51,7 @@ setup(
     maintainer_email='fred-labs@mailbox.org',
     description='Scenario Execution for ROS',
     license='Apache License 2.0',
-    tests_require=['pytest'],
+    extras_require={'test': ['pytest']},
     include_package_data=True,
     entry_points={
         'console_scripts': [
@@ -52,6 +59,7 @@ setup(
         ],
         'scenario_execution.actions': [
             'action_call = scenario_execution_ros.actions.ros_action_call:RosActionCall',
+            'assert_realtime_factor = scenario_execution_ros.actions.assert_realtime_factor:AssertRealtimeFactor',
             'assert_topic_latency = scenario_execution_ros.actions.assert_topic_latency:AssertTopicLatency',
             'assert_tf_moving = scenario_execution_ros.actions.assert_tf_moving:AssertTfMoving',
             'assert_lifecycle_state = scenario_execution_ros.actions.assert_lifecycle_state:AssertLifecycleState',

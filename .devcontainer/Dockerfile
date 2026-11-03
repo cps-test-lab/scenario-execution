@@ -36,8 +36,12 @@ RUN chmod +x /ros_entrypoint.sh
 ##                      Scenario Execution Dependencies                     ##
 ##############################################################################
 
+# Upgrade before installing, for the same reason as in .github/workflows/Dockerfile.testing: the
+# base image is a snapshot and rosdep installs from the current repository.
+# hadolint ignore=DL3005
 RUN --mount=type=bind,target=/tmp_setup export DEBIAN_FRONTEND=noninteractive && \
     apt-get update && \
+    apt-get upgrade -y && \
     xargs -a /tmp_setup/deb_requirements.txt apt-get install -y --no-install-recommends && \
     xargs -a /tmp_setup/libs/scenario_execution_kubernetes/deb_requirements.txt apt-get install -y --no-install-recommends && \
     rosdep update --rosdistro="${ROS_DISTRO}" && \

@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>example_nav2</name>
-  <version>1.5.0</version>
+  <version>0.0.0</version>
   <description>Scenario Execution Example for Navigation2</description>
   <author>Intel Labs</author>
   <author email="fred-labs@mailbox.org">Frederik Pasch</author>
@@ -14,6 +14,7 @@
   <depend>scenario_execution_ros</depend>
   <depend>scenario_execution_nav2</depend>
   <depend>nav2_bringup</depend>
+  <exec_depend>tb4_sim_scenario</exec_depend>
 
   <exec_depend>rclpy</exec_depend>
   <exec_depend>nav2_loopback_sim</exec_depend>

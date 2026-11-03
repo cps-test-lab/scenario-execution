@@ -2,8 +2,17 @@
 Changelog for package scenario_execution_os
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.8.0 (2026-09-28)
+------------------
+
+1.7.0 (2026-09-21)
+------------------
+
+1.6.0 (2026-09-18)
+------------------
+
+1.5.0 (2026-06-14)
+------------------
 * Support step-based simulators
 * os: add action to monitor resource usage (`#58 <https://github.com/cps-test-lab/scenario-execution/issues/58>`_)
 * Contributors: Frederik Pasch

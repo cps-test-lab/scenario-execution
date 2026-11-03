@@ -17,12 +17,12 @@ was adapted to be usable by the current parsing support of scenario execution.
 Mapping to py-trees
 -------------------
 
-.. list-table:: 
+.. list-table::
    :widths: 15 25 60
    :header-rows: 1
-   :class: tight-table   
-   
-   - * OpenScenario2  
+   :class: tight-table
+
+   - * OpenScenario2
      * py-trees
      * Comment
    - * ``action``
@@ -51,57 +51,57 @@ In the following the OpenSCENARIO DSL keywords are listed with their current sup
 ======================= ==================== =============================
 Element Tag             Support              Notes
 ======================= ==================== =============================
-``action``              :raw-html:`&#9989;`  partially, see details below      
-``actor``               :raw-html:`&#9989;`  partially, see details below      
-``as``                  :raw-html:`&#10060;`       
-``bool``                :raw-html:`&#9989;`          
-``call``                :raw-html:`&#10060;`       
-``cover``               :raw-html:`&#10060;`       
+``action``              :raw-html:`&#9989;`  partially, see details below
+``actor``               :raw-html:`&#9989;`  partially, see details below
+``as``                  :raw-html:`&#10060;`
+``bool``                :raw-html:`&#9989;`
+``call``                :raw-html:`&#10060;`
+``cover``               :raw-html:`&#10060;`
 ``def``                 :raw-html:`&#9989;`  only ``external``
-``default``             :raw-html:`&#10060;`      
-``do``                  :raw-html:`&#9989;`          
-``elapsed``             :raw-html:`&#9989;`           
-``emit``                :raw-html:`&#9989;`              
-``enum``                :raw-html:`&#9989;`              
-``event``               :raw-html:`&#9989;`              
-``every``               :raw-html:`&#10060;`        
-``expression``          :raw-html:`&#9989;`
-``extend``              :raw-html:`&#10060;`        
-``external``            :raw-html:`&#10060;`      
-``fall``                :raw-html:`&#10060;`          
-``float``               :raw-html:`&#9989;`    
-``global``              :raw-html:`&#9989;`       
-``hard``                :raw-html:`&#10060;`         
-``if``                  :raw-html:`&#10060;`       
-``import``              :raw-html:`&#9989;`    
-``inherits``            :raw-html:`&#9989;`    
-``int``                 :raw-html:`&#9989;`    
-``is``                  :raw-html:`&#10060;`         
-``it``                  :raw-html:`&#9989;`    
-``keep``                :raw-html:`&#9989;`    
-``list``                :raw-html:`&#9989;`    
-``of``                  :raw-html:`&#9989;`        
-``on``                  :raw-html:`&#10060;` 
-``one_of``              :raw-html:`&#9989;`        
-``only``                :raw-html:`&#10060;`      
-``parallel``            :raw-html:`&#9989;`         
-``range``               :raw-html:`&#10060;`        
-``record``              :raw-html:`&#10060;`   
-``remove_default``      :raw-html:`&#10060;`   
-``rise``                :raw-html:`&#10060;`   
-``scenario``            :raw-html:`&#9989;`     
-``serial``              :raw-html:`&#9989;`     
-``SI``                  :raw-html:`&#9989;`     
-``string``              :raw-html:`&#9989;`     
-``struct``              :raw-html:`&#9989;`   
-``type``                :raw-html:`&#9989;`       
-``uint``                :raw-html:`&#9989;`    
-``undefined``           :raw-html:`&#10060;`     
-``unit``                :raw-html:`&#9989;`       
-``until``               :raw-html:`&#10060;`        
-``var``                 :raw-html:`&#9989;`         
-``wait``                :raw-html:`&#9989;`        
-``with``                :raw-html:`&#9989;`        
+``default``             :raw-html:`&#10060;`
+``do``                  :raw-html:`&#9989;`
+``elapsed``             :raw-html:`&#9989;`
+``emit``                :raw-html:`&#9989;`
+``enum``                :raw-html:`&#9989;`
+``event``               :raw-html:`&#9989;`
+``every``               :raw-html:`&#10060;` see :ref:`event_conditions`
+``expression``          :raw-html:`&#10060;` method bodies are ``external`` only
+``extend``              :raw-html:`&#10060;`
+``external``            :raw-html:`&#9989;`  method implementation qualifier
+``fall``                :raw-html:`&#9989;`  in ``wait`` and ``until``, see :ref:`event_conditions`
+``float``               :raw-html:`&#9989;`
+``global``              :raw-html:`&#9989;`
+``hard``                :raw-html:`&#10060;`
+``if``                  :raw-html:`&#9989;`  guards an event reference, see below
+``import``              :raw-html:`&#9989;`  ``osc.<library>``, or a file path; a relative path resolves against the importing file's directory
+``inherits``            :raw-html:`&#9989;`
+``int``                 :raw-html:`&#9989;`
+``is``                  :raw-html:`&#9989;`
+``it``                  :raw-html:`&#9989;`
+``keep``                :raw-html:`&#9989;`
+``list``                :raw-html:`&#9989;`
+``of``                  :raw-html:`&#9989;`
+``on``                  :raw-html:`&#10060;`
+``one_of``              :raw-html:`&#9989;`
+``only``                :raw-html:`&#9989;`  method implementation qualifier
+``parallel``            :raw-html:`&#9989;`
+``range``               :raw-html:`&#10060;`
+``record``              :raw-html:`&#10060;`
+``remove_default``      :raw-html:`&#10060;`
+``rise``                :raw-html:`&#9989;`  in ``wait`` and ``until``, see :ref:`event_conditions`
+``scenario``            :raw-html:`&#9989;`
+``serial``              :raw-html:`&#9989;`
+``SI``                  :raw-html:`&#9989;`
+``string``              :raw-html:`&#9989;`
+``struct``              :raw-html:`&#9989;`
+``type``                :raw-html:`&#9989;`
+``uint``                :raw-html:`&#9989;`
+``undefined``           :raw-html:`&#10060;`
+``unit``                :raw-html:`&#9989;`
+``until``               :raw-html:`&#9989;`
+``var``                 :raw-html:`&#9989;`
+``wait``                :raw-html:`&#9989;`
+``with``                :raw-html:`&#9989;`
 ======================= ==================== =============================
 
 
@@ -113,10 +113,338 @@ Composition types are ``struct``, ``actor``, ``action``, ``scenario``.
 ============== ==================== ===========================
 Element Type   Support              Notes
 ============== ==================== ===========================
-Event          :raw-html:`&#9989;`      
-Field          :raw-html:`&#9989;`     
+Event          :raw-html:`&#9989;`
+Field          :raw-html:`&#9989;`
 Constraint     :raw-html:`&#9989;`  partially
-Method         :raw-html:`&#9989;`       
-Coverage       :raw-html:`&#10060;`       
-Modifier       :raw-html:`&#9989;`  partially (only predefined)     
+Method         :raw-html:`&#9989;`
+Coverage       :raw-html:`&#10060;`
+Modifier       :raw-html:`&#9989;`  partially (only predefined)
 ============== ==================== ===========================
+
+.. _event_conditions:
+
+Event conditions
+^^^^^^^^^^^^^^^^
+
+``wait``, ``until`` and the guard of ``@event if`` take an event condition. These are supported:
+
+======================== ============================================================================
+Condition                Holds
+======================== ============================================================================
+``elapsed(<duration>)``  once the duration has passed since the ``wait`` or ``until`` started
+``<bool expression>``    on every tick the expression is true
+``rise(<bool expr>)``    on the tick the expression changes from false to true
+``fall(<bool expr>)``    on the tick the expression changes from true to false
+======================== ============================================================================
+
+A boolean expression is anything that evaluates to ``bool``: a comparison, a ``bool`` variable or
+parameter, a member (``robot.docked``), a function returning ``bool``, and these combined with
+``and``, ``or``, ``not`` and parentheses. It is evaluated on every tick.
+
+.. code-block:: none
+
+    scenario conditions:
+        var tripped: bool = false
+        var docked: bool = true
+        var clearance: float = 1.0
+        do serial:
+            wait tripped
+            wait not docked
+            wait rise(clearance < 0.3)
+
+A condition must be a ``bool``; a number or a string is not read as true or false. A condition whose
+declared type is not ``bool`` -- ``wait count`` on an ``int`` -- is refused when the scenario is
+loaded, and a value that turns out not to be a ``bool`` while running fails the ``wait`` or
+``until``, naming the condition.
+
+``rise()`` and ``fall()`` take their reference on the first tick of the ``wait`` or ``until``. A
+rise is a change, so an expression that is already true when the ``wait`` starts is not one: it has
+to become false and then true again. ``fall()`` is the same the other way around. In
+``@event if rise(...)`` the reference is taken on the first tick the event is set, so a change that
+happened before the event is not seen.
+
+``every()`` is not supported. It is a periodic event anchored to the start of the behavior that
+declares it, which a ``wait`` or ``until`` does not know, and ``on`` -- where the period matters --
+is not supported either. For a single delay, use ``elapsed()``. An ``event`` declared with a
+condition (``event e is rise(x)``) is not supported; ``emit`` is what sets an event.
+
+Patterns
+--------
+
+Short, working answers to "how do I express this in a scenario", using the subset described above.
+Each entry is a shape that has been run, not a sketch.
+
+This section is meant to grow: add to it whenever a use case takes more than one attempt to express,
+so the next reader finds the answer instead of rediscovering it. Keep the same form -- when to reach
+for it, the scenario, and any caveat that would otherwise be found the hard way.
+
+Waiting for a condition
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Wait until a flag is set
+""""""""""""""""""""""""
+
+When a value in the scenario says the moment has come -- a sensor reading, a state that another
+branch keeps up to date. ``topic_monitor()`` keeps a variable at the latest value of a topic, and
+``wait`` on a ``bool`` holds until it is true.
+
+.. code-block:: none
+
+    actor sensor_state:
+        var blocked: bool = false
+
+    scenario wait_for_flag:
+        sensor: sensor_state
+        do parallel:
+            topic_monitor('/blocked', 'std_msgs.msg.Bool', sensor.blocked, member_name: 'data')
+            serial:
+                wait sensor.blocked
+                log('blocked')
+                emit end
+
+``wait not sensor.blocked`` waits for the opposite, and a comparison or ``and``/``or`` of several
+works the same way (see :ref:`event_conditions`). The condition must be a ``bool``: ``wait count``
+on an ``int`` is refused when the scenario is loaded -- write ``wait count > 0``.
+
+Wait for a change
+"""""""""""""""""
+
+When what matters is the moment something *happens*, not that it holds. ``rise()`` holds on the
+tick its condition changes from false to true, ``fall()`` on the tick it changes back.
+
+.. code-block:: none
+
+    scenario wait_for_change:
+        sensor: sensor_state
+        do parallel:
+            topic_monitor('/blocked', 'std_msgs.msg.Bool', sensor.blocked, member_name: 'data')
+            serial:
+                wait rise(sensor.blocked)
+                log('became blocked')
+                wait fall(sensor.blocked)
+                log('cleared')
+                emit end
+
+.. caution::
+
+    A condition that already holds when the ``wait`` starts is not a rise. ``wait sensor.blocked``
+    returns at once if the flag is already set; ``wait rise(sensor.blocked)`` waits for it to clear
+    and be set again. Choose by which of the two the scenario means.
+
+Wait until a condition has held for a duration
+""""""""""""""""""""""""""""""""""""""""""""""
+
+When the criterion is a state that has to last -- "clearance stayed below 0.3 m for 2 s" -- rather
+than a moment. The standard has no directive for it: ``wait`` ends on the first tick a condition
+holds, and ``elapsed()`` counts from when it starts, not from when something else became true. The
+two combine into it:
+
+.. code-block:: none
+
+    serial:
+        serial:
+            wait clearance < 0.3
+            one_of:
+                wait elapsed(2s)
+                serial:
+                    wait clearance >= 0.3
+                with:
+                    success_is_failure()
+        with:
+            retry()
+    with:
+        timeout(60s)
+
+``clearance`` is a variable that something else keeps up to date -- for a topic, ``topic_monitor()``
+in a parallel branch. Each part has one job:
+
+- ``wait clearance < 0.3`` starts the attempt once the condition holds, so the timer below counts
+  from there and not from the start of the scenario.
+- ``one_of`` runs the timer against a watch for the condition breaking, and ends on whichever
+  finishes first. The timer finishing means the condition held for the full 2 s.
+- ``success_is_failure()`` turns the watch finishing -- the condition broke -- into a failure.
+  Without it the break would end the ``one_of`` with success, and "held for 2 s" would pass on a
+  condition that held for a moment.
+- ``retry()`` restarts the whole attempt after a break: it waits for the condition to hold
+  again, and the timer starts again from zero. Holding before the break does not count towards
+  the 2 s.
+- ``timeout(60s)`` fails the scenario if the condition never holds for 2 s in a row -- it never
+  becomes true, or it keeps breaking.
+
+Without a count ``retry()`` retries until the attempt succeeds, so only the ``timeout()`` decides.
+``retry(count)`` makes repeated breaks a failure in their own right: break number ``count`` fails the
+pattern at once.
+A break and the end of the 2 s on the same tick count as a break.
+
+The durations are scenario time: ``wait elapsed()`` and ``timeout()`` read the scenario's clock,
+which is simulated time with ``use_sim_time`` or a step-based simulation (see `Choosing what a
+second means`_). The condition is checked once per tick, so a break shorter than a tick goes
+unseen, and the pattern ends up to a tick after the duration.
+
+Stopping a running action
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Stop after a fixed time
+"""""""""""""""""""""""
+
+When the action is scaffolding -- a recording, a background load -- and only the stopping matters.
+
+.. code-block:: none
+
+    ros_bag_record(topics: ['/scan', '/odom']) with:
+        until elapsed(30s)
+
+``until`` bounds the action it is written on: the action runs, and ends the moment the condition
+holds. Written as a ``one_of`` against a timer it means the same thing, and is what to reach for
+when the two really are peers rather than an action and the thing that stops it.
+
+.. caution::
+
+    ``until`` ends the action's branch by invalidating it, so the action reports no status: this
+    shape can show that the timer fired, never that the action stopped or how it ended. An action
+    that does not support cancellation is left running until the scenario ends, silently. For a ROS
+    action whose cancellation is itself the thing under test, ``action_call()`` takes ``cancel_after``
+    and ``expected_status`` instead.
+
+Stop when something happens
+"""""""""""""""""""""""""""
+
+``until`` takes an event specification -- an ``@event`` or an event condition (see
+:ref:`event_conditions`) -- not an action:
+
+.. code-block:: none
+
+    scenario stop_on_count:
+        var seen: int = 0
+        do serial:
+            nav_to_pose(goal_pose: ...) with:
+                until seen == 3
+
+Several ``until`` directives on one invocation end it on the first of them to occur.
+
+When the thing to wait for is an *action* rather than a condition, it has to be a branch of its own,
+which is what ``one_of`` is for:
+
+.. code-block:: none
+
+    one_of:
+        nav_to_pose(goal_pose: ...)
+        wait_for_data(topic_name: '/obstacle_detected', topic_type: 'std_msgs.msg.Bool')
+
+Stop from another branch
+""""""""""""""""""""""""
+
+When the condition is established elsewhere in the scenario, carry it as an ``event``. The emitting
+branch decides *when*, the ``until`` decides *what it ends*, and neither refers to the other.
+
+.. code-block:: none
+
+    scenario stop_on_event:
+        event obstacle_detected
+        do parallel:
+            nav_to_pose(goal_pose: ...) with:
+                until @obstacle_detected
+            serial:
+                wait_for_data(topic_name: '/obstacle_detected', topic_type: 'std_msgs.msg.Bool')
+                emit obstacle_detected
+
+This is the way to reach across branches. There is no way to name a running action and act on it
+directly, and there should not be: an event goes through the blackboard, so the two branches stay
+independent of each other's structure.
+
+Bound a whole block
+"""""""""""""""""""
+
+A ``with:`` block on a composition applies to everything inside it, which is the case ``one_of``
+cannot state without wrapping the block in another level first.
+
+.. code-block:: none
+
+    do serial:
+        log(msg: 'collecting')
+        run_process(command: 'sleep 60')
+        log(msg: 'never reached')
+    with:
+        until elapsed(3s)
+
+Require more than the event
+"""""""""""""""""""""""""""
+
+An event is a flag: once emitted it stays set, so the first ``emit`` ends the action. ``if`` guards
+the event with a condition that is re-checked on every tick, and the action ends on the first tick
+where both hold -- below, on the second batch rather than the first.
+
+.. code-block:: none
+
+    scenario until_guarded:
+        event batch_done
+        var batches: int = 0
+        do parallel:
+            run_process(command: 'sleep 60') with:
+                until @batch_done if batches == 2
+            serial:
+                repeat(3)
+                wait elapsed(1s)
+                increment(batches)
+                emit batch_done
+
+Binding the event to a name with ``as`` is not supported: an event carries no payload here, so there
+would be nothing for the name to hold.
+
+.. note::
+
+    Two places where this differs from the standard. Termination lands on the first tick at which
+    the condition holds rather than at the instant of the event, which is true of every condition in
+    a ticked tree. And the standard describes ``until`` only for a behavior invocation, leaving a
+    ``with:`` block on a composition -- which its grammar allows -- unstated; the reading taken here
+    is that the composition ends on the event.
+
+Inspecting another action
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Wait for a process to log something
+"""""""""""""""""""""""""""""""""""
+
+Label the process, then name the label:
+
+.. code-block:: none
+
+    do serial:
+        app: run_process('./server')
+        process_log_check('app', ['Ready'])
+
+Combining modifiers
+^^^^^^^^^^^^^^^^^^^
+
+Modifiers stack, and they nest: the one written **last** ends up closest to the action.
+
+.. code-block:: none
+
+    run_process('./load-generator') with:
+        timeout(30s)
+        failure_is_success()
+
+``timeout()`` stops the process and reports failure, and ``failure_is_success()`` turns that into
+the verdict the scenario wants.
+
+Choosing what a second means
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When the duration is the experiment's own -- a dwell the method prescribes, a trial limit the
+paper states -- rather than a wall-clock convenience.
+
+.. code-block:: bash
+
+    ros2 launch scenario_execution_ros scenario_launch.py scenario:=trial.osc use_sim_time:=True
+
+Nothing in the scenario changes. ``wait elapsed()``, ``until elapsed()`` and ``timeout()`` read the
+scenario's clock, and ``use_sim_time`` makes that clock ``/clock``, so a stated duration is
+simulated seconds and does not vary with how loaded the host is. The behavior tree ticks on the same
+clock, so the run is reproducible tick for tick. See :ref:`ros_simulated_time_usage`.
+
+.. caution::
+
+    Something must publish ``/clock``, or the scenario fails at startup rather than measuring every
+    duration from zero -- and a simulator that stops or is reset mid-run ends the scenario, because
+    a tree ticking on a stopped clock does not tick. Deadlines that exist to catch a dead simulator
+    stay on host time and are unaffected: a ``shutdown_timeout``, and ``assert_realtime_factor()``.

@@ -30,9 +30,9 @@ action set_simulation_state:
 
 action spawn_entity:
     # Spawn an entity in the simulation.
-    entity_name: string                  # Name to give to the spawned entity
+    entity_name: string = ''             # Name to give to the spawned entity; empty takes the resource's own
     uri: string                          # URI of the resource to spawn
-    initial_pose: pose_3d                # Initial pose for the entity
+    initial_pose: pose_3d = pose_3d()    # Initial pose for the entity, in the world frame
     allow_renaming: bool = false         # Whether to allow renaming if name is not unique
     entity_namespace: string = ''        # Namespace for the entity
     

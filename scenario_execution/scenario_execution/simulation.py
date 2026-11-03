@@ -33,6 +33,21 @@ class Clock(ABC):
 
     Provides a unified time source that works for both wallclock and
     step-based simulations.
+
+    The framework names two time domains and hands a clock for each to every
+    behavior's ``setup()``:
+
+    - ``clock`` is **scenario time**, the timeline a scenario's own durations are
+      stated in: ``wait elapsed()``, ``timeout()``, an action's measurement window.
+    - ``host_clock`` is **host time**, which keeps running when a simulated clock
+      does not: process kill deadlines, teardown guards, waiting for a simulator
+      to come up.
+
+    A clock passed as either reads 0 at scenario start, so a recorded timestamp is
+    an offset into the scenario rather than an epoch. :class:`SimulationClock`,
+    :class:`HostClock` and the ROS runner's ``RosClock`` satisfy that;
+    :class:`WallClock` does not, which is why the wall-clock runner passes no
+    ``clock`` and the behaviors fall back to it only as a bare time source.
     """
 
     @abstractmethod
@@ -49,6 +64,25 @@ class WallClock(Clock):
 
     def now(self) -> float:
         return time.time()
+
+
+class HostClock(Clock):
+    """Clock backed by the host's monotonic time, zero-based at construction.
+
+    This is the **host time** domain: the timeline that keeps advancing when a
+    simulated clock stops. A deadline that exists to catch a stalled or dead
+    simulator has to be measured here, because one measured against that
+    simulator's own clock can never expire.
+
+    Monotonic rather than wall: a duration must not be perturbed by a step of the
+    system clock.
+    """
+
+    def __init__(self):
+        self._start = time.monotonic()
+
+    def now(self) -> float:
+        return time.monotonic() - self._start
 
 
 class SimulationClock(Clock):
@@ -205,6 +239,17 @@ class SimulationInterface(ABC):
 
         Override via ``--scenario-parameter-file`` is already applied before
         this method is called, so no special handling is needed.
+
+        One name is the runner's rather than the scenario's: a ``reset()`` that
+        declares ``output_dir`` receives the directory this scenario's results
+        go to (``None`` when the run has no output directory). A parameter file
+        runs several scenarios in one process, each with its own directory, and
+        this is how a simulation keeps a recording per scenario rather than one
+        for the whole file::
+
+            def reset(self, output_dir=None):
+                if output_dir is not None:
+                    self._recorder.start(os.path.join(output_dir, "run.mcap"))
 
         Must NOT tear down the simulation (that is ``shutdown()``'s job). The
         simulation clock is reset separately by the framework.

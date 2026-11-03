@@ -36,6 +36,12 @@ struct msg_conversion:
 struct ament:
     def get_package_share_directory(package_name: string) -> string is external ament_index_python.packages.get_package_share_directory()
 
+enum action_goal_status: [
+    succeeded = 4,
+    canceled = 5,
+    aborted = 6
+]
+
 action action_call:
     # Call a ros action and wait for the result
     action_name: string                  # name of the action to connect to
@@ -45,6 +51,8 @@ action action_call:
     transient_local: bool = false
     result_variable: string = ""         # variable to store the response in
     result_member_name: string = ""      # if not empty, only the value of the member is stored within the variable
+    expected_status: action_goal_status = action_goal_status!succeeded # terminal goal status to accept as success. Set it to canceled to assert that a cancellation was honoured. Cannot be combined with success_on_acceptance.
+    cancel_after: time = -1s             # if not negative, cancel the goal this long after it is sent and wait for the terminal status. 0s cancels as soon as the goal is accepted.
 
 action assert_lifecycle_state:
     # Checks for the state of a lifecycle-managed node.
@@ -53,6 +61,14 @@ action assert_lifecycle_state:
     allow_initial_skip: bool = false     # if true, allows skipping of states within the state_sequence without reporting failure
     fail_on_unexpected: bool = true      # if true and an unexpected transition or final state occurs, the action fails. Otherwise it succeed.
     keep_running: bool = true            # if true, the action keeps running while the last state in the state_sequence remains
+
+action assert_realtime_factor:
+    # Compares the rate of the ROS clock (/clock) against wall time. If the check with comparison_operator gets false, the action ends with failure.
+    # The action never succeeds, it keeps monitoring until it fails or the scenario ends. Use it in a parallel branch.
+    realtime_factor: float               # realtime factor to compare against
+    comparison_operator: comparison_operator = comparison_operator!ge # the comparison is done using the python operator module
+    rolling_average_count: int = 10      # the check is done against the rolling average over x samples
+    grace_period: time = 10s             # samples within this time after action start are discarded (bring-up)
 
 action assert_tf_moving:
     # Checks that a tf frame_id keeps moving in respect to a parent_frame_id. If there is no movement within timeout the action ends with failure.
@@ -66,10 +82,10 @@ action assert_tf_moving:
     threshold_rotation: angular_rate = 0.01radps # rotational speed, below this threshold is skipped
     wait_for_first_transform: bool = true # start measuring with the first received message
     tf_topic_namespace: string = ''      # if set, it's used as namespace
-    use_sim_time: bool = false           # in simulation, we need to look up the transform at a different time as the scenario execution node is not allowed to use the sim time
+    latest_transform: bool = false       # look the transform up at the latest available stamp, instead of at the node's current time
 
 action assert_topic_latency:
-    # Check the latency of the specified topic (in system time). If the check with comparison_operator gets true, the action ends with failure.
+    # Check the latency of the specified topic (in system time). If the check with comparison_operator gets false, the action ends with failure.
     topic_name: string                   # topic name to wait for message
     latency: time                        # the time to compare against
     comparison_operator: comparison_operator = comparison_operator!le # the comparison is done using the python operator module
@@ -87,11 +103,11 @@ action bag_play:
 
 action bag_record:
     # Record a ros bag, stored in output_dir defined by command-line parameter (default: '.')
-    topics: list of string               # topics to records, if empty all topics are recorded
+    topics: list of string               # topics to record (a hidden topic, e.g. an action's /_action/ ones, is recorded too); if empty all topics are recorded
     timestamp_suffix: bool = true        # add a timestamp suffix to output directory name
-    hidden_topics: bool = false          # whether to record hidden topics
+    hidden_topics: bool = false          # whether to record hidden topics when all topics are recorded
     storage: string = ''                 # storage type to use (empty string: use default)
-    use_sim_time: bool = false           # use simulation time for message timestamps by subscribing to the /clock topic
+    use_sim_time: bool = false           # stamp messages with simulation time even when the scenario execution node runs on host time
 
 action check_data:
     # Compare received topic messages using the given comparison_operator, against the specified value. Either the whole message gets compared or a member defined by member_name.
@@ -127,7 +143,6 @@ action differential_drive_robot.tf_close_to:
     threshold: length                    # distance at which the action succeeds
     reference_point: position_3d         # z is not considered
     robot_frame_id: string = 'base_link' # defines the TF frame id of the robot 
-    sim: bool = false                    # in simulation, we need to look up the transform parent_frame_id --> robot_frame_id at a different time as the scenario execution node is not allowed to use the sim time
     namespace_override: string = ''      # if set, it's used as namespace (instead of the associated actor's name)
     parent_frame_id: string = 'map'      # defines the TF parent frame id of the robot. Defaults to map.
 

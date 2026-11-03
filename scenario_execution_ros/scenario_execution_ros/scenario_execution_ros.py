@@ -18,11 +18,155 @@
 import sys
 import time
 import rclpy  # pylint: disable=import-error
+from rclpy.clock import JumpThreshold  # pylint: disable=import-error
+from rclpy.duration import Duration  # pylint: disable=import-error
+from rclpy.parameter import Parameter  # pylint: disable=import-error
 import py_trees_ros
 from py_trees_ros_interfaces.srv import OpenSnapshotStream
 from scenario_execution import ScenarioExecution, ShutdownHandler
+from scenario_execution.scenario_execution_base import _load_simulation, _build_reset_kwargs
+from scenario_execution.simulation import Clock, HostClock
+from scenario_execution.utils import tick_recorder
 from .logging_ros import RosLogger
 from .marker_handler import MarkerHandler
+
+
+class RosClock(Clock):
+    """The ROS time source, as a scenario_execution Clock.
+
+    Implements the interface the framework already defines rather than adding a
+    ROS-specific path. This is the scenario clock: under ``use_sim_time`` it is the
+    /clock timeline, so a scenario's own durations and every table the run records
+    are on the one timeline; otherwise it is the system clock, which is what a
+    scenario measured against wall time already meant.
+
+    Zero-based, like every clock the framework hands out, so a recorded timestamp is
+    an offset into the scenario. Reading and rebasing is all it does -- whether the
+    clock is alive, and whether it has jumped, belong to :class:`ClockWatch`, which
+    is what acts on the answer.
+    """
+
+    def __init__(self, node):
+        self._node = node
+        clock = node.get_clock()
+        start = clock.now().nanoseconds
+        if clock.ros_time_is_active and start == 0:
+            raise RuntimeError(
+                "use_sim_time is set but ROS time is still 0: /clock has not been received. "
+                "Every duration in the scenario would be measured from zero.")
+        self._start = start / 1e9
+
+    def now(self) -> float:
+        return self._node.get_clock().now().nanoseconds / 1e9 - self._start
+
+
+class ClockWatch:
+    """Whether the scenario clock is alive, and whether it has been reset.
+
+    Under ``use_sim_time`` the behaviour tree ticks on /clock and so does every
+    duration in the scenario, which makes a clock that never starts, stops, or jumps
+    backwards the one failure the tree cannot report about itself: it simply stops
+    being ticked. One object holds the state -- last ROS time seen, when the host
+    clock last saw it advance, whether a jump was observed -- and the spin loop asks
+    it. The deadlines are host time, because the thing being measured is the clock.
+
+    With ``use_sim_time`` off this is inert: the node's clock is the system clock,
+    which does not stop.
+    """
+
+    def __init__(self, node, host_clock, logger):
+        self._node = node
+        self._host_clock = host_clock
+        self._logger = logger
+        self._clock = node.get_clock()
+        self.active = self._clock.ros_time_is_active
+        self._last_ros = self._clock.now().nanoseconds
+        self._last_progress = host_clock.now()
+        self.jump = None
+        self._jump_handle = None
+        if self.active:
+            # A backwards step of more than a millisecond is a reset rather than publisher
+            # jitter; on_clock_change catches ROS time being switched on or off underneath us.
+            self._jump_handle = self._clock.create_jump_callback(
+                JumpThreshold(min_forward=None,
+                              min_backward=Duration(nanoseconds=-1000000),
+                              on_clock_change=True),
+                post_callback=self._on_jump)
+
+    def _on_jump(self, time_jump):
+        # Runs in the /clock subscription callback, so it records and returns; the spin
+        # loop decides what to do about it.
+        self.jump = time_jump
+
+    def _advanced(self):
+        now_ros = self._clock.now().nanoseconds
+        if now_ros != self._last_ros:
+            self._last_ros = now_ros
+            self._last_progress = self._host_clock.now()
+            return True
+        return False
+
+    def stalled_for(self):
+        """Host seconds since ROS time last advanced, or 0.0 while it is advancing."""
+        if not self.active:
+            return 0.0
+        if self._advanced():
+            return 0.0
+        return self._host_clock.now() - self._last_progress
+
+    def wait_for_clock(self, spin_once, timeout_s):
+        """Block until /clock is advancing, bounded by host time.
+
+        Two strictly increasing readings, not merely a non-zero one: a single latched
+        message from a paused or dead publisher satisfies "non-zero" and would start the
+        run against a frozen timeline.
+
+        ``spin_once`` is the caller's own spin-and-step iteration, so a stepped
+        simulation keeps producing the /clock this waits for.
+        """
+        if not self.active:
+            return True
+        started = self._host_clock.now()
+        first = None
+        while rclpy.ok():
+            spin_once()
+            now_ros = self._clock.now().nanoseconds
+            if now_ros:
+                if first is None:
+                    first = now_ros
+                elif now_ros > first:
+                    self._logger.info(f"/clock is advancing (ROS time {now_ros / 1e9:.3f}s).")
+                    self._last_ros = now_ros
+                    self._last_progress = self._host_clock.now()
+                    return True
+            if self._host_clock.now() - started > timeout_s:
+                return False
+        return False
+
+
+class InterruptibleBehaviorTree(py_trees_ros.trees.BehaviourTree):
+    """A py_trees_ros tree whose ``interrupt()`` actually stops the ticking.
+
+    py_trees' ``interrupt()`` sets ``interrupt_tick_tocking``, which its own blocking ``tick_tock``
+    loop checks every iteration. py_trees_ros re-implements ``tick_tock`` on an rclpy timer whose
+    callback never reads that flag, so ``interrupt()`` is a no-op here and the timer is stopped only
+    by ``shutdown()``.
+
+    That gap loses run artifacts. ``on_scenario_shutdown`` calls ``interrupt()`` and then schedules
+    ``shutdown()`` as an executor task, so between the two the timer keeps firing; py_trees
+    re-initialises every child that is not RUNNING, and an action parked in SUCCESS
+    (``wait_for_shutdown: false``) is re-``execute()``d. For ``ros_launch`` that used to spawn a
+    second ``ros2 launch``, which ``shutdown()`` then killed instead of the real one -- leaving the
+    simulator orphaned and its recording and run capture never written.
+
+    ``shutdown()`` cancels and destroys the same timer afterwards; cancelling twice is harmless, and
+    ``timer`` is ``None`` until ``tick_tock()`` runs, so interrupting before then is a no-op.
+    """
+
+    def interrupt(self):
+        if self.timer is not None:
+            self.timer.cancel()
+        super().interrupt()
 
 
 class ROSScenarioExecution(ScenarioExecution):
@@ -53,6 +197,9 @@ class ROSScenarioExecution(ScenarioExecution):
         self.post_run = args.post_run
         self.snapshot_period = args.snapshot_period
         self.output_result_per_scenario = args.output_result_per_scenario
+        bt_log = args.bt_log
+        tick_log = args.tick_log
+        step_duration = args.step_duration
 
         # override commandline by ros parameters
         self.node.declare_parameter('debug', False)
@@ -66,6 +213,9 @@ class ROSScenarioExecution(ScenarioExecution):
         self.node.declare_parameter('create_scenario_parameter_file_template', False)
         self.node.declare_parameter('post_run', [""])
         self.node.declare_parameter('snapshot_period', 1.0)
+        self.node.declare_parameter('bt_log', False)
+        self.node.declare_parameter('tick_log', False)
+        self.node.declare_parameter('step_duration', 0.0)
 
         if self.node.get_parameter('debug').value:
             debug = self.node.get_parameter('debug').value
@@ -90,7 +240,24 @@ class ROSScenarioExecution(ScenarioExecution):
             self.post_run = post_run_param
         if self.node.get_parameter('snapshot_period').value:
             self.snapshot_period = self.node.get_parameter('snapshot_period').value
+        if self.node.get_parameter('bt_log').value:
+            bt_log = self.node.get_parameter('bt_log').value
+        if self.node.get_parameter('tick_log').value:
+            tick_log = self.node.get_parameter('tick_log').value
+        # Declared default is 0.0 so that "unset" is falsy like every other parameter
+        # here, leaving the commandline value in place. A period of 0 is not a value
+        # anyone can mean.
+        if self.node.get_parameter('step_duration').value:
+            step_duration = self.node.get_parameter('step_duration').value
+        # Not declared here: rclpy's TimeSource declares use_sim_time when the node is
+        # created, and declaring it twice raises. It is the switch for the whole feature --
+        # under it this node's clock, its tick timer and every scenario duration are /clock.
+        self.use_sim_time = bool(self.node.get_parameter('use_sim_time').value)
         self.logger = RosLogger('scenario_execution_ros', debug)
+        # Optional step-based SimulationInterface (--simulation module:Class). The base ROS runner
+        # historically ignored it; _run_single_scenario() below now drives its
+        # setup/reset/step/shutdown inside the ROS spin loop (see run() docstring).
+        simulation = _load_simulation(args.simulation) if getattr(args, 'simulation', None) else None
         super().__init__(debug=debug,
                          log_model=log_model,
                          live_tree=live_tree,
@@ -102,7 +269,14 @@ class ROSScenarioExecution(ScenarioExecution):
                          create_scenario_parameter_file_template=self.create_scenario_parameter_file_template,
                          post_run=self.post_run,
                          output_result_per_scenario=self.output_result_per_scenario,
+                         simulation=simulation,
+                         bt_log=bt_log,
+                         tick_log=tick_log,
+                         tick_period=step_duration,
                          logger=self.logger)
+        # The tree is ticked by an rclpy timer rather than by a loop in this class,
+        # so a late tick is one the executor did not get to on time.
+        self.tick_driver = tick_recorder.DRIVER_ROS_TIMER
 
     def setup_behaviour_tree(self, tree):
         """
@@ -113,9 +287,9 @@ class ROSScenarioExecution(ScenarioExecution):
             tree [py_trees.behaviour.Behaviour]: root of the behaviour tree
 
         return:
-            py_trees_ros.trees.BehaviourTree
+            InterruptibleBehaviorTree
         """
-        return py_trees_ros.trees.BehaviourTree(tree)
+        return InterruptibleBehaviorTree(tree)
 
     def post_setup(self):
         request = OpenSnapshotStream.Request()
@@ -126,6 +300,8 @@ class ROSScenarioExecution(ScenarioExecution):
         self.behaviour_tree._open_snapshot_stream(request, response)  # pylint: disable=protected-access
 
     SHUTDOWN_TIMEOUT = 30.0  # seconds to wait for async shutdown operations (e.g. goal cancellations)
+    CLOCK_WAIT_TIMEOUT = 30.0  # host seconds to wait for /clock to start before failing a scenario
+    CLOCK_STALL_TIMEOUT = 30.0  # host seconds of no /clock progress that fail a running scenario
 
     def run(self) -> bool:
         """Execute every scenario in ``self.scenarios_list`` sequentially.
@@ -135,6 +311,14 @@ class ROSScenarioExecution(ScenarioExecution):
         down once, after the last scenario. With multiple scenarios (e.g. one per
         document of a multi-document ``--scenario-parameter-file``) each result is
         written into its own ``_output_dir`` by :meth:`process_results`.
+
+        When a step-based ``--simulation`` (SimulationInterface) is given, each
+        scenario additionally sets it up, resets it with the scenario parameters,
+        ticks ``simulation.step()`` inside the ROS spin loop, and shuts it down.
+        Unlike the non-ROS ``run_with_simulation`` (which the simulation drives
+        exclusively), here ROS behaviours run the scenario while the simulation
+        advances time (a simulation that publishes ``/clock`` becomes the time
+        source; other nodes run ``use_sim_time``).
         """
         self._aborted = False
         # The node created in __init__ is only needed to read ROS parameters; each
@@ -146,39 +330,106 @@ class ROSScenarioExecution(ScenarioExecution):
 
         try:
             multiple_scenarios = len(self.scenarios_list) > 1
-            for tree, _params, scenario_output_dir_override in self.scenarios_list:
+            for tree, params, scenario_output_dir_override in self.scenarios_list:
                 effective_output_dir = self._resolve_scenario_output_dir(
                     tree.name, scenario_output_dir_override, multiple_scenarios)
                 if effective_output_dir is None and multiple_scenarios and self.output_dir:
                     # Directory creation failed; failure already recorded.
                     continue
-                self._run_single_scenario(tree, effective_output_dir)
+                self._run_single_scenario(tree, effective_output_dir, params)
                 if self._aborted:
                     break
         finally:
             rclpy.shutdown()
 
-    def _run_single_scenario(self, tree, effective_output_dir):
+    def _run_single_scenario(self, tree, effective_output_dir, scenario_params=None):
         """Set up, tick and tear down one scenario's behaviour tree.
 
         Each scenario runs on its OWN ROS node and executor: py_trees_ros adopts
         the node it is given and destroys it on ``shutdown()``, so the node cannot
         be shared across scenarios.
+
+        If a step-based ``--simulation`` is configured it is set up and reset for
+        this scenario, stepped once per spin-loop iteration (paced to realtime),
+        and shut down afterwards -- so the simulation advances alongside the ROS
+        behaviours that drive it.
         """
         # Reset per-scenario async-shutdown state so the previous scenario's
         # tasks/futures do not leak into this one.
         self.shutdown_task = None
         ShutdownHandler.get_instance().futures.clear()
 
-        self.node = rclpy.create_node(node_name="scenario_execution_ros")
+        # The override is passed explicitly rather than left to the launch params file: rcl
+        # matches that file against the node's remapped name, which holds only for a launch
+        # that names the node, and not at all for a node created in-process.
+        self.node = rclpy.create_node(
+            node_name="scenario_execution_ros",
+            parameter_overrides=[Parameter('use_sim_time', Parameter.Type.BOOL, self.use_sim_time)])
         self.marker_handler = MarkerHandler(self.node)
         executor = rclpy.executors.MultiThreadedExecutor()
         executor.add_node(self.node)
 
+        # Optional step-based SimulationInterface: build + reset it for this scenario. A simulation
+        # that publishes /clock on step() becomes the time source; other nodes run use_sim_time.
+        sim_dt = None
+        if self.simulation is not None:
+            try:
+                self.simulation.setup(logger=self.logger, output_dir=effective_output_dir,
+                                      tick_period=self.tick_period)
+                self.simulation.reset(**_build_reset_kwargs(
+                    self.simulation, scenario_params or {}, {"output_dir": effective_output_dir}))
+                sim_dt = self.simulation.dt
+            except Exception as e:  # pylint: disable=broad-except
+                self.on_scenario_shutdown(False, "Simulation setup failed", f"{e}")
+                self._shutdown_simulation()
+                try:
+                    self.node.destroy_node()
+                except Exception:  # pylint: disable=broad-except
+                    pass
+                return
+
+        host_clock = HostClock()
+        next_step = time.perf_counter()
+
+        def spin_once():
+            """One iteration of the loop below: advance the simulation if there is one, spin ROS."""
+            nonlocal next_step
+            if self.simulation is not None:
+                # Pace stepping to realtime (v1): step only once wall time has caught up,
+                # and spin ROS in the gap so behaviour action feedback keeps flowing.
+                # For faster-than-realtime, drop the `now >= next_step` gate.
+                if time.perf_counter() >= next_step:
+                    self.simulation.step()
+                    next_step += sim_dt
+                executor.spin_once(
+                    timeout_sec=max(min(next_step - time.perf_counter(), sim_dt), 0.0))
+            else:
+                executor.spin_once(timeout_sec=self.tick_period)
+
+        # Before the tree is set up, because that is where the scenario clock and both
+        # recorders take their zero. Nothing may tick before /clock is advancing: every
+        # duration in the scenario would otherwise be measured from ROS time 0.
+        clock_watch = ClockWatch(self.node, host_clock, self.logger)
+        if not clock_watch.wait_for_clock(spin_once, self.CLOCK_WAIT_TIMEOUT):
+            self.on_scenario_shutdown(
+                False, "No /clock",
+                f"use_sim_time is set but /clock did not advance within {self.CLOCK_WAIT_TIMEOUT}s of "
+                f"host time. Every duration in the scenario would be measured from zero.")
+            self._shutdown_simulation()
+            try:
+                self.node.destroy_node()
+            except Exception:  # pylint: disable=broad-except
+                pass
+            return
+
         try:
             try:
+                # One scenario clock, read by the timers and by both recorders alike, so a
+                # duration a scenario states and a timestamp the run records mean the same
+                # thing. use_sim_time decides whether it is /clock or the system clock.
                 self.setup(tree, current_output_dir=effective_output_dir,
-                           node=self.node, marker_handler=self.marker_handler)
+                           node=self.node, marker_handler=self.marker_handler,
+                           clock=RosClock(self.node), host_clock=host_clock)
             except Exception as e:  # pylint: disable=broad-except
                 self.on_scenario_shutdown(False, "Setup failed", f"{e}")
                 return
@@ -188,10 +439,28 @@ class ROSScenarioExecution(ScenarioExecution):
                 shutdown_done_time = None
                 while rclpy.ok():
                     try:
-                        executor.spin_once(timeout_sec=self.tick_period)
+                        spin_once()
                     except KeyboardInterrupt:
                         self._aborted = True
                         self.on_scenario_shutdown(False, "Aborted")
+
+                    # The tree ticks on ROS time, so a /clock that stops or is reset stops the
+                    # tree -- including anything in it that might have reported the failure.
+                    # Both deadlines are host time, because what is being measured is the clock.
+                    if self.shutdown_task is None:
+                        if clock_watch.jump is not None:
+                            stepped_back = -clock_watch.jump.delta.nanoseconds / 1e9
+                            self.on_scenario_shutdown(
+                                False, "ROS time jumped backwards",
+                                f"/clock stepped back by {stepped_back:.3f}s: the simulation was "
+                                f"reset underneath the running scenario.")
+                        else:
+                            stalled = clock_watch.stalled_for()
+                            if stalled > self.CLOCK_STALL_TIMEOUT:
+                                self.on_scenario_shutdown(
+                                    False, "ROS time stalled",
+                                    f"/clock did not advance for {stalled:.1f}s of host time. The "
+                                    f"behaviour tree ticks on ROS time and has stopped ticking.")
 
                     if self.shutdown_task is not None and self.shutdown_task.done():
                         shutdown_handler = ShutdownHandler.get_instance()
@@ -205,10 +474,11 @@ class ROSScenarioExecution(ScenarioExecution):
                                 f"Shutdown timed out after {self.SHUTDOWN_TIMEOUT}s waiting for async operations.")
                             break
             except Exception as e:  # pylint: disable=broad-except
-                self.on_scenario_shutdown(False, "Run failed", f"{e}")
+                self.fail_from_exception("Run failed", e)
             finally:
                 # ensure behaviour tree threads are stopped before the next scenario
                 self._robust_tree_shutdown()
+                self._shutdown_simulation()
         finally:
             # py_trees_ros may already have destroyed the node during shutdown;
             # destroy_node() is idempotent-safe here (errors are ignored).
@@ -216,6 +486,15 @@ class ROSScenarioExecution(ScenarioExecution):
                 self.node.destroy_node()
             except Exception as e:  # pylint: disable=broad-except
                 self.logger.debug(f"Exception destroying scenario node: {e}")
+
+    def _shutdown_simulation(self):
+        """Shut down the step-based simulation for the current scenario, if any."""
+        if self.simulation is None:
+            return
+        try:
+            self.simulation.shutdown()
+        except Exception as e:  # pylint: disable=broad-except
+            self.logger.error(f"Simulation shutdown error: {e}")
 
     def shutdown(self):
         self.logger.info("Shutting down...")

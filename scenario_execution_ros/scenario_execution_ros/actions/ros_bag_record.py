@@ -48,11 +48,16 @@ class RosBagRecord(RunProcess):
         self.output_dir = None
         self.topics = None
         self.missing_topics = None
+        # A cancel stops the recording the way shutdown() does: ros2 bag needs SIGINT to flush its
+        # cache and close the bag, and SIGKILL only once it has had SHUTDOWN_TIMEOUT to do so.
+        self.shutdown_signal = signal.SIGINT
+        self.shutdown_timeout = self.SHUTDOWN_TIMEOUT
 
     def setup(self, **kwargs):
         """
         set up
         """
+        self.node = kwargs.get('node')
         if "output_dir" not in kwargs:
             raise ActionError("output_dir not defined.", action=self)
 
@@ -80,13 +85,23 @@ class RosBagRecord(RunProcess):
         else:
             self.missing_topics = None
         self.command = ["ros2", "bag", "record"]
-        if hidden_topics:
+        # A hidden topic (a name segment starting with '_', as an action's topics do) is never
+        # subscribed without the flag, and the recording would wait for it without end. With an
+        # explicit list the flag admits only the listed ones, so it is set whenever one is hidden.
+        if hidden_topics or any(part.startswith('_') for topic in topics for part in topic.split('/') if part):
             self.command.append("--include-hidden-topics")
         if storage:
             self.command.extend(["--storage", storage])
-        if use_sim_time:
+        # The recorder is a separate node with a parameter of its own, so it does not follow
+        # this one automatically. A scenario running on simulated time wants its bag stamped
+        # the same way without having to say so, and the parameter forces it either way.
+        if use_sim_time or (self.node is not None and self.node.get_parameter('use_sim_time').value):
             self.command.append("--use-sim-time")
-        self.command.extend(["-o", self.bag_dir] + self.topics)
+        self.command.extend(["-o", self.bag_dir])
+        # Named with --topics: rosbag2 dropped positional topics after Jazzy, and the option is
+        # accepted by every supported distro.
+        if self.topics:
+            self.command.extend(["--topics"] + self.topics)
 
     def get_logger_stderr(self):
         """
@@ -133,6 +148,10 @@ class RosBagRecord(RunProcess):
     # recorder cannot block the whole (multi-)scenario run indefinitely.
     SHUTDOWN_TIMEOUT = 30.0
 
+    #: rosbag2 writes this when it closes the bag, and every reader needs it: without it
+    #: ``rosbag2_storage`` cannot open the directory at all.
+    BAG_METADATA = 'metadata.yaml'
+
     def shutdown(self):
         if self.current_state != RosBagRecordActionState.FAILURE:
             self.logger.info('Waiting for process to quit...')
@@ -151,10 +170,33 @@ class RosBagRecord(RunProcess):
                         pass
                     self.process.wait()
             self.logger.info('Process finished.')
+            if self.current_state == RosBagRecordActionState.RECORDING:
+                # Only a recording that started can be lost. One still waiting for its topics
+                # has a bag directory too, and the branch below removes it on purpose.
+                self.report_unclosed_bag()
         if self.current_state == RosBagRecordActionState.WAITING_FOR_TOPICS and self.bag_dir and os.path.exists(self.bag_dir):
             self.logger.info(
                 f'Shutdown while waiting for topics. Removing incomplete bag {self.bag_dir}...')
             shutil.rmtree(self.bag_dir)
+
+    def report_unclosed_bag(self):
+        """Say so when the recorder left a bag it never closed.
+
+        A recorder that does not act on SIGINT is killed after ``SHUTDOWN_TIMEOUT``, and what
+        it leaves is an mcap with no sidecar: ``rosbag2_storage`` refuses to open the directory,
+        so every reader of that recording fails while the scenario itself reports success. The
+        recording is the evidence a run exists for, so its loss is stated here rather than
+        discovered by whatever tries to read it next.
+        """
+        if not self.bag_dir or not os.path.isdir(self.bag_dir):
+            return
+        if os.path.exists(os.path.join(self.bag_dir, self.BAG_METADATA)):
+            return
+        self.logger.error(
+            f"The recording in {self.bag_dir} was never closed: it has no {self.BAG_METADATA}, "
+            f"so no reader can open it. The recorder did not act on SIGINT -- check that it was "
+            f"not started with that signal ignored, which a background job in a shell without "
+            f"job control does to every process below it.")
 
     def on_process_finished(self, ret):
         """

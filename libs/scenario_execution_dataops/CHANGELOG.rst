@@ -2,8 +2,19 @@
 Changelog for package scenario_execution_dataops
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.8.0 (2026-09-28)
+------------------
+
+1.7.0 (2026-09-21)
+------------------
+
+1.6.0 (2026-09-18)
+------------------
+* fix dataops (`#71 <https://github.com/cps-test-lab/scenario-execution/issues/71>`_)
+* Contributors: fred-labs
+
+1.5.0 (2026-06-14)
+------------------
 * Support step-based simulators
 * Contributors: Frederik Pasch
 

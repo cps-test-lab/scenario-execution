@@ -161,6 +161,51 @@ scenario test:
         self.assertEqual(self.logger.logs_info[4], "False")
         self.assertEqual(self.logger.logs_info[5], "42")
 
+    def test_base_params_bool_override_both_directions(self):
+        """A bool parameter WITH a default, overridden in both directions.
+
+        The pre-existing bool coverage only ever overrides to False, which is the one value that
+        survives storing a Python bool in a BoolLiteral: the literal carries the source spelling and
+        resolves as `value == "true"`, so True resolved False and False resolved False. Overriding
+        to True is the direction that catches it, and a silently inverted bool is worse than a
+        rejected one -- the scenario runs, and takes the other branch.
+        """
+        scenario_content = """
+action log:
+    msg: string
+
+scenario test:
+    with_default: bool = true
+    do serial:
+        log(with_default)
+"""
+        for override, expected in ((True, "True"), (False, "False")):
+            with self.subTest(override=override):
+                self.setUp()
+                self.execute(scenario_content, {"test": {"with_default": override}})
+                self.assertEqual(self.logger.logs_info[2], expected)
+
+    def test_base_params_bool_override_matches_whether_or_not_a_default_exists(self):
+        """The two override paths must agree. A parameter with no default is built by
+        create_override_value_base_literal, one with a default is patched by set_override_value;
+        they took different representations of the same bool, so which branch a scenario hit
+        decided whether its override survived."""
+        scenario_content = """
+action log:
+    msg: string
+
+scenario test:
+    with_default: bool = false
+    without_default: bool
+    do serial:
+        log(with_default)
+        log(without_default)
+"""
+        self.execute(scenario_content,
+                     {"test": {"with_default": True, "without_default": True}})
+        self.assertEqual(self.logger.logs_info[2], "True")
+        self.assertEqual(self.logger.logs_info[3], "True")
+
     def test_base_params_num_in_string(self):
         scenario_content = """
 action log:
@@ -674,6 +719,31 @@ scenario test:
         self.execute(scenario_content, override_parameters)
         self.assertEqual(
             self.logger.logs_info[2], "{'position': {'x': 0.0, 'y': 0.0, 'z': 0.0}, 'orientation': {'roll': 0.0, 'pitch': 1.23, 'yaw': 0.0}}")
+
+    def test_pose3d_positional_default_partial_sub_struct_override(self):
+        # Regression test: `position_3d inherits position`, and its default here is given
+        # POSITIONALLY (`pose_3d(position_3d(4.0, 2.0, 0.0))`), not with named arguments.
+        # A struct's own get_children() also carries the `inherits` link as an unnamed
+        # leading entry, which used to be counted as positional argument 0 -- shifting
+        # every real field's override by one position for any partially-overridden struct
+        # that inherits from a base. `x` must stay 4.0 (unchanged) and `y` must become 2.0
+        # (not 4.0), with `z` untouched at its own default (0.0, not 2.0).
+        scenario_content = """
+import osc.helpers
+
+scenario test:
+    goal_pose: pose_3d = pose_3d(position_3d(4.0m, 2.0m, 0.0m))
+    do serial:
+        log(goal_pose)
+"""
+        override_parameters = {"test": {
+            "goal_pose": {
+                "position": {"x": 4.0, "y": 2.0}
+            }}}
+        self.execute(scenario_content, override_parameters)
+        self.assertEqual(
+            self.logger.logs_info[2],
+            "{'position': {'x': 4.0, 'y': 2.0, 'z': 0.0}, 'orientation': {'roll': 0.0, 'pitch': 0.0, 'yaw': 0.0}}")
 
     def test_string_empty(self):
         scenario_content = """

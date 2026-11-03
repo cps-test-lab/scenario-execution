@@ -2,8 +2,46 @@
 Changelog for package scenario_execution
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.8.0 (2026-09-28)
+------------------
+* The action catalog lists enums with their members: ``list_actions`` has an ``enums`` group, each entry carrying ``values``, and ``get_action_details`` finds an enum by name (`#101 <https://github.com/cps-test-lab/scenario-execution/issues/101>`_)
+* ``get_scenario_parameters`` reads a ``.sce`` scenario model file, which failed to parse before, and gives the same parameters as the scenario it was generated from (`#132 <https://github.com/cps-test-lab/scenario-execution/issues/132>`_)
+* A scenario's parse names the files it read (`#129 <https://github.com/cps-test-lab/scenario-execution/issues/129>`_)
+* A misspelled core library import is refused when external imports are skipped (`#131 <https://github.com/cps-test-lab/scenario-execution/issues/131>`_)
+* A relative string import resolves against the importing file's directory (`#130 <https://github.com/cps-test-lab/scenario-execution/issues/130>`_)
+* A scenario model file that cannot be loaded raises, naming the file (`#133 <https://github.com/cps-test-lab/scenario-execution/issues/133>`_)
+* Contributors: fred-labs
+
+1.7.0 (2026-09-21)
+------------------
+* A recording that could not be closed is stoppable, and says so if it was not (`#119 <https://github.com/cps-test-lab/scenario-execution/issues/119>`_)
+* Contributors: fred-labs
+
+1.6.0 (2026-09-18)
+------------------
+* run_process: stop a process at shutdown whose action never called execute()
+* The version lives in package.xml alone, and a release is one command, one PR and one tag (`#107 <https://github.com/cps-test-lab/scenario-execution/issues/107>`_)
+* Measure a scenario's durations on simulated time under use_sim_time (`#104 <https://github.com/cps-test-lab/scenario-execution/issues/104>`_)
+* Keep the traceback when a scenario run fails (`#92 <https://github.com/cps-test-lab/scenario-execution/issues/92>`_)
+* Report an action declared by two libraries whichever is imported first (`#98 <https://github.com/cps-test-lab/scenario-execution/issues/98>`_)
+* Read a duration as a duration, and an action name as its library's (`#95 <https://github.com/cps-test-lab/scenario-execution/issues/95>`_)
+* Refuse a parameter that is its own value, instead of recursing until Python stops (`#96 <https://github.com/cps-test-lab/scenario-execution/issues/96>`_)
+* Read a scenario file as UTF-8, and place a decode failure in it (`#94 <https://github.com/cps-test-lab/scenario-execution/issues/94>`_)
+* Fix positional override binding for structs declared with inherits (`#91 <https://github.com/cps-test-lab/scenario-execution/issues/91>`_)
+* Support the until directive, and the if guard on an event reference (`#88 <https://github.com/cps-test-lab/scenario-execution/issues/88>`_)
+* Cancel a long-running action mid-scenario, not only at teardown (`#85 <https://github.com/cps-test-lab/scenario-execution/issues/85>`_)
+* Keep a bool parameter override true when the parameter has a default (`#86 <https://github.com/cps-test-lab/scenario-execution/issues/86>`_)
+* Record how fast the tree ticked, and which behavior spent the time (`#84 <https://github.com/cps-test-lab/scenario-execution/issues/84>`_)
+* Drop the lexer predicate that defeats ANTLR's DFA cache (`#82 <https://github.com/cps-test-lab/scenario-execution/issues/82>`_)
+* Get latest scenario state (`#81 <https://github.com/cps-test-lab/scenario-execution/issues/81>`_)
+* Extend the introspection interface: get_action_details, describe_scenario, and a standalone MCP server (`#79 <https://github.com/cps-test-lab/scenario-execution/issues/79>`_)
+* add introspection interface (`#75 <https://github.com/cps-test-lab/scenario-execution/issues/75>`_)
+* Tracing (`#76 <https://github.com/cps-test-lab/scenario-execution/issues/76>`_)
+* Feature/process log check (`#74 <https://github.com/cps-test-lab/scenario-execution/issues/74>`_)
+* Contributors: Florian Mirus, fred-labs
+
+1.5.0 (2026-06-14)
+------------------
 * Support step-based simulators
 * Fix for python 3.13 (`#65 <https://github.com/cps-test-lab/scenario-execution/issues/65>`_)
 * support multiple --post-run (`#63 <https://github.com/cps-test-lab/scenario-execution/issues/63>`_)

@@ -476,7 +476,7 @@ Modifier to repeat a sub-tree. If any of the included children report ``failure`
 
 ``retry()``
 """""""""""
-Modifier to retry a sub-tree until it succeeds.
+Modifier to retry a sub-tree until it succeeds. Each retry restarts the sub-tree from its beginning.
 
 .. list-table:: 
    :widths: 15 15 5 65
@@ -489,12 +489,12 @@ Modifier to retry a sub-tree until it succeeds.
      - Description
    * - ``count``
      - ``int``
-     - 
-     - Maximum number of permitted failures
+     - ``-1``
+     - Number of failures that ends the retrying: the sub-tree runs at most ``count`` times, and its last failure is reported. ``-1``, the default, retries until the sub-tree succeeds, or until a ``timeout()`` or ``until`` around it ends it
 
 ``timeout()``
 """""""""""""
-Modifier to set a timeout for a sub-tree.
+Modifier to set a timeout for a sub-tree. When the time is up the action is canceled and ``failure`` is reported. The action is stopped, but its own outcome is discarded -- to cancel a ROS action *and* assert how it ended, use ``action_call()``'s ``cancel_after`` and ``expected_status`` instead.
 
 .. list-table:: 
    :widths: 15 15 5 65
@@ -1199,6 +1199,8 @@ Use nav2 to navigate to goal pose.
 
 Use nav2 to follow waypoints.
 
+The action fails when nav2 reports missed waypoints, even if it succeeded the goal (as its waypoint follower does with ``stop_on_failure: false``). The failure names each missed waypoint by nav2's index, counted from 0, with the error code and message where the installed ``nav2_msgs`` carries them. Set ``allow_missed_waypoints`` for a scenario that tolerates missed waypoints on purpose.
+
 .. list-table:: 
    :widths: 15 15 5 65
    :header-rows: 1
@@ -1208,14 +1210,14 @@ Use nav2 to follow waypoints.
      - Type
      - Default
      - Description
-   * - ``goal_pose``
-     - ``pose_3d``
+   * - ``goal_poses``
+     - ``list of pose_3d``
      - 
-     - Goal pose to navigate to
+     - Goal poses to navigate through
    * - ``loop_count``
      - ``int``
-     - ``1``
-     - Loop count
+     - ``0``
+     - Number of additional passes through the waypoints (nav2's ``number_of_loops``)
    * - ``namespace_override``
      - ``string``
      -
@@ -1228,6 +1230,10 @@ Use nav2 to follow waypoints.
      - ``bool``
      - ``false``
      -  succeed on goal acceptance
+   * - ``allow_missed_waypoints``
+     - ``bool``
+     - ``false``
+     - If true, succeed although nav2 reports missed waypoints; they are logged as a warning and named in the feedback message
 
 Network
 -------
@@ -1409,6 +1415,26 @@ Call a ROS action and wait for the result.
      - ``bool``
      - ``false``
      -  succeed on goal acceptance
+   * - ``transient_local``
+     - ``bool``
+     - ``false``
+     - If true, the result service uses a transient-local QoS profile
+   * - ``result_variable``
+     - ``string``
+     - ``""``
+     - Variable to store the result in
+   * - ``result_member_name``
+     - ``string``
+     - ``""``
+     - If not empty, only the value of this member is stored within the variable
+   * - ``expected_status``
+     - ``action_goal_status``
+     - ``action_goal_status!succeeded``
+     - Terminal goal status to accept as success, one of ``succeeded``, ``canceled``, ``aborted``. Any other status fails the action. Set it to ``canceled`` to assert that a cancellation was honored, together with ``cancel_after``. Cannot be combined with ``success_on_acceptance``, which finishes the action before the goal reaches any status.
+   * - ``cancel_after``
+     - ``time``
+     - ``-1s``
+     - If not negative, cancel the goal this long after it is sent. The action then waits for the terminal status rather than ending, so ``expected_status`` can assert what the cancellation led to. ``0s`` cancels as soon as the goal is accepted.
 
 ``assert_lifecycle_state()``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1446,10 +1472,46 @@ Checks for the state of a `lifecycle-managed <https://design.ros2.org/articles/n
      - If true, the action keeps running while the last state in the state_sequence remains
 
 
+``assert_realtime_factor()``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Compares the rate of the ROS clock (``/clock``) against wall time. If the check with ``comparison_operator`` gets false, the action ends with failure. The realtime factor is the ratio of elapsed simulation time to elapsed wall time over the last ``rolling_average_count`` samples, so a single outlier does not trigger a failure while a sustained deviation does. Samples received within ``grace_period`` after the action started are discarded, to skip the bring-up phase. ``/clock`` is subscribed directly, which makes the measurement independent of whether the scenario execution node uses simulation time, and independent of the simulator in use.
+
+The action never succeeds: it keeps monitoring until it fails or the scenario ends. Use it in a ``parallel`` branch alongside the actions that end the scenario.
+
+.. list-table::
+   :widths: 15 15 5 65
+   :header-rows: 1
+   :class: tight-table
+
+   * - Parameter
+     - Type
+     - Default
+     - Description
+   * - ``realtime_factor``
+     - ``float``
+     -
+     - The realtime factor to compare against.
+   * - ``comparison_operator``
+     - ``comparison_operator``
+     - ``comparison_operator!ge``
+     - operator to compare the measured realtime factor against ``realtime_factor``.
+   * - ``rolling_average_count``
+     - ``int``
+     - ``10``
+     - check the realtime factor over the x latest samples. No check is done until that many samples are available.
+   * - ``grace_period``
+     - ``time``
+     - ``10s``
+     - samples received within this time after the action started are discarded.
+
+
 ``assert_tf_moving()``
 ^^^^^^^^^^^^^^^^^^^^^^
 
 Checks that a tf ``frame_id`` keeps moving in respect to a ``parent_frame_id``. If there is no movement within ``timeout`` the action with failure. Speeds below ``threshold_translation`` and ``threshold_rotation`` are discarded. By default the action waits for the first transform to get available before starting the timeout timer. This can be changed by setting ``wait_for_first_transform`` to ``false``. If the tf topics are not available on ``/tf`` and ``/tf_static`` you can specify a namespace by setting ``tf_topic_namespace``.
+
+The action never succeeds: it keeps monitoring until it fails or the scenario ends. Use it in a ``parallel`` branch alongside the actions that end the scenario.
 
 .. list-table:: 
    :widths: 15 15 5 65
@@ -1488,15 +1550,17 @@ Checks that a tf ``frame_id`` keeps moving in respect to a ``parent_frame_id``. 
      - ``string``
      - ``''``
      - namespace of `tf` and `tf_static` topic.
-   * - ``use_sim_time``
+   * - ``latest_transform``
      - ``bool``
      - ``false``
-     - In simulation, we need to look up the transform at a different time as the scenario execution node is not allowed to use the sim time
+     - Look the transform up at the latest available stamp, instead of at the node's current time
 
 ``assert_topic_latency()``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Check the latency of the specified topic (in system time). If the check with ``comparison_operator`` gets true, the action ends with failure.
+Check the latency of the specified topic (in system time). If the check with ``comparison_operator`` gets false, the action ends with failure.
+
+The action never succeeds: it keeps monitoring until it fails or the scenario ends. Use it in a ``parallel`` branch alongside the actions that end the scenario.
 
 .. list-table:: 
    :widths: 15 15 5 65
@@ -1577,7 +1641,9 @@ If ``timestamp_suffix`` is set to ``true``, the ROS bag directory ``rosbag2`` wi
 
 If ``topics`` is specified, this action waits for all topics to be subscribed until it returns with success otherwise it immediately returns. The recording is active until the end of the scenario.
 
-A common topic to record is ``/scenario_execution/snapshots`` which publishes changes within the behavior tree. When replaying the bag-file, this allows to visualize the current state of the scenario in RViz, using the ``scenario_execution_rviz`` plugin.
+The ROS runner always publishes ``/scenario_execution/snapshots``, which reports changes within the behavior tree. Recording that topic allows to visualize the state of the scenario in RViz while replaying the bag-file, using the ``scenario_execution_rviz`` plugin.
+
+To capture only what the behavior tree did, use ``--bt-log`` instead (see :ref:`behavior_tree_status_log`). It records status changes rather than republishing the whole tree per snapshot, needs no bag, and works without ROS. The bundled examples therefore no longer record the snapshots topic.
 
 .. list-table:: 
    :widths: 15 15 5 65
@@ -1591,7 +1657,7 @@ A common topic to record is ``/scenario_execution/snapshots`` which publishes ch
    * - ``topics``
      - ``list of string``
      - 
-     - List of topics to capture
+     - List of topics to capture. A hidden topic (a name segment starting with ``_``, e.g. an action's ``/_action/`` topics) is captured too; an empty list captures all topics
    * - ``timestamp_suffix``
      - ``bool``
      - ``true``
@@ -1599,7 +1665,7 @@ A common topic to record is ``/scenario_execution/snapshots`` which publishes ch
    * - ``hidden_topics``
      - ``bool``
      - ``false``
-     - Whether to record hidden topics
+     - Whether to record hidden topics when all topics are recorded
    * - ``storage``
      - ``string``
      - ``''``
@@ -1607,7 +1673,7 @@ A common topic to record is ``/scenario_execution/snapshots`` which publishes ch
    * - ``use_sim_time``
      - ``bool``
      - ``false``
-     - Use simulation time for message timestamps by subscribing to the /clock topic
+     - Stamp messages with simulation time even when the scenario execution node runs on host time
 
 
 ``check_data()``
@@ -1767,10 +1833,6 @@ Wait until a TF frame is close to a defined reference point.
      - ``string``
      - ``base_link``
      - Defines the TF frame id of the robot
-   * - ``sim``
-     - ``bool``
-     - ``false``
-     - In simulation, we need to look up the transform parent_frame_id --> robot_frame_id at a different time as the scenario execution node is not allowed to use the sim time
    * - ``namespace_override``
      - ``string``
      - ``''``
@@ -2261,16 +2323,16 @@ Spawn an entity in the simulation.
      - Description
    * - ``entity_name``
      - ``string``
-     -
-     - Name to give to the spawned entity
+     - ``''``
+     - Name to give to the spawned entity; empty takes the resource's own
    * - ``uri``
      - ``string``
      -
      - URI of the resource to spawn
    * - ``initial_pose``
      - ``pose_3d``
-     -
-     - Initial pose for the entity
+     - ``pose_3d()``
+     - Initial pose for the entity, in the world frame
    * - ``allow_renaming``
      - ``bool``
      - ``false``

@@ -7,11 +7,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 permissions: read-all
-env:
-  ROS_DISTRO: jazzy
 jobs:
   build-and-push-production:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ros_distro: [jazzy, lyrical]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/humble' || github.ref == 'refs/heads/jazzy')
     permissions:
       packages: write
@@ -32,6 +34,9 @@ jobs:
         context: .
         file: .github/workflows/Dockerfile.production
         push: true
-        tags: ghcr.io/cps-test-lab/scenario-execution:latest
+        # One image per distro; `latest` stays the Jazzy one.
+        tags: |
+          ghcr.io/cps-test-lab/scenario-execution:${{ matrix.ros_distro }}
+          ${{ matrix.ros_distro == 'jazzy' && 'ghcr.io/cps-test-lab/scenario-execution:latest' || '' }}
         build-args: |
-          ROS_DISTRO=${{ env.ROS_DISTRO }}
+          ROS_DISTRO=${{ matrix.ros_distro }}

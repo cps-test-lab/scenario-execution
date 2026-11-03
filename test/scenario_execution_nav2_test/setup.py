@@ -17,19 +17,27 @@
 """ Setup python package """
 from glob import glob
 import os
+import re
+from pathlib import Path
 from setuptools import find_packages, setup
 
 PACKAGE_NAME = 'scenario_execution_nav2_test'
 
+# The version lives in package.xml alone: the ROS tooling reads it there and nowhere else,
+# so a release bumps one file per package and this can never disagree with it.
+VERSION = re.search(r"<version>\s*([^<\s]+)\s*</version>",
+                    (Path(__file__).resolve().parent / "package.xml").read_text(encoding="utf-8")).group(1)
+
 setup(
     name=PACKAGE_NAME,
-    version='1.5.0',
+    version=VERSION,
     packages=find_packages(),
     data_files=[
         ('share/ament_index/resource_index/packages',
             ['resource/' + PACKAGE_NAME]),
         ('share/' + PACKAGE_NAME, ['package.xml']),
         (os.path.join('share', PACKAGE_NAME, 'scenarios'), glob('scenarios/*.osc')),
+        (os.path.join('share', PACKAGE_NAME, 'launch'), glob('launch/*launch.py')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -37,6 +45,6 @@ setup(
     maintainer_email='fred-labs@mailbox.org',
     description='Tests for Scenario Execution library for Nav2',
     license='Apache License 2.0',
-    tests_require=['pytest'],
+    extras_require={'test': ['pytest']},
     entry_points={},
 )

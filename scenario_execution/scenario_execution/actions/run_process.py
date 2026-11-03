@@ -20,7 +20,20 @@ from threading import Thread, Lock
 from collections import deque
 import signal
 from scenario_execution.actions.base_action import BaseAction
+from scenario_execution.simulation import HostClock
 import os
+
+
+def _command_text(command):
+    """A command rendered the way a human reads it, for a log line.
+
+    ``command`` is normally a list of argv tokens, but a subclass may not have set it yet, so this
+    falls back to ``str()`` rather than assuming ``join()`` applies. Matches how ``ros_launch``
+    already reports its command.
+    """
+    if isinstance(command, (list, tuple)):
+        return " ".join(str(part) for part in command)
+    return str(command)
 
 
 class RunProcess(BaseAction):
@@ -32,17 +45,32 @@ class RunProcess(BaseAction):
         super().__init__()
         self.command = None
         self.wait_for_shutdown = None
-        self.shutdown_timeout = None
-        self.shutdown_signal = None
+        # The same defaults execute() has: a subclass that overrides execute() to set its command
+        # never calls it, and its process still has to be stopped at shutdown.
+        self.shutdown_timeout = 10
+        self.shutdown_signal = signal.SIGTERM
         self.executed = False
         self.process = None
+        #: The command the currently running process was actually started with. Kept separately from
+        #: ``command``, which a re-initialise overwrites before ``update()`` gets to compare them.
+        self.started_command = None
         self.log_stdout_thread = None
         self.log_stderr_thread = None
         self.output = deque()
         self.output_lock = Lock()
         self.process_registry = None
+        #: Set once a cancel has been asked for. The signal cannot always be sent at that moment --
+        #: a cancel can arrive before the process is spawned -- so update() carries it out.
+        self.cancel_requested = False
+        self.cancel_signal_sent = False
+        self.cancel_kill_deadline = None
+        self.host_clock = HostClock()
 
     def setup(self, **kwargs):
+        # Host time: this deadline bounds an OS process, which knows nothing of a simulated
+        # clock, and it runs during teardown -- often with the simulator as the very process
+        # being killed. Measured against that simulator's clock it could never expire.
+        self.host_clock = kwargs.get('host_clock', HostClock())
         self.process_registry = kwargs.get('process_registry')
         has_label = self._model is not None and self._model.name
         if self.process_registry is not None and has_label:
@@ -54,6 +82,47 @@ class RunProcess(BaseAction):
         self.shutdown_timeout = shutdown_timeout
         self.shutdown_signal = shutdown_signal[1]
         self.executed = False
+        self.cancel_requested = False
+        self.cancel_signal_sent = False
+        self.cancel_kill_deadline = None
+
+    def request_cancel(self) -> bool:
+        """Stop the process before it exits on its own.
+
+        Unlike shutdown(), this must not block: it runs inside a tick, and waiting here would stall
+        every other branch of the scenario. The signal is sent, and _apply_cancel() escalates to
+        SIGKILL on a later tick if the process ignores it -- the same two-stage stop shutdown()
+        performs, spread across ticks instead of blocking in one.
+        """
+        self.cancel_requested = True
+        self._apply_cancel()
+        return True
+
+    def _apply_cancel(self):
+        """Carry out a requested cancel as far as the current tick allows.
+
+        Called from request_cancel() and again from update(), because a cancel can arrive before
+        there is a process to signal -- on the very tick that spawns it. Signalling only at request
+        time would drop the cancel entirely.
+        """
+        if not self.cancel_requested or self.process is None or self.process.poll() is not None:
+            return
+
+        try:
+            pgid = os.getpgid(self.process.pid)
+            if not self.cancel_signal_sent:
+                self.logger.info(f'Cancel requested, sending {signal.Signals(self.shutdown_signal).name} to process...')
+                os.killpg(pgid, self.shutdown_signal)
+                self.cancel_signal_sent = True
+                self.cancel_kill_deadline = self.host_clock.now() + (self.shutdown_timeout or 0)
+            elif self.cancel_kill_deadline is not None and self.host_clock.now() >= self.cancel_kill_deadline:
+                self.logger.info('Process ignored the shutdown signal, sending SIGKILL...')
+                os.killpg(pgid, signal.SIGKILL)
+                self.cancel_kill_deadline = None
+        except ProcessLookupError:
+            # Exited between the poll above and the signal. Nothing left to stop.
+            self.cancel_signal_sent = True
+            self.cancel_kill_deadline = None
 
     def update(self) -> py_trees.common.Status:
         """
@@ -64,47 +133,72 @@ class RunProcess(BaseAction):
         """
         if not self.executed:
             self.executed = True
-            try:
-                self.process = subprocess.Popen(
-                    self.command,
-                    start_new_session=True,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                )
-            except Exception as e:  # pylint: disable=broad-except
-                self.logger.error(str(e))
-                return py_trees.common.Status.FAILURE
-
-            self.feedback_message = f"Executing '{self.command}'"  # pylint: disable= attribute-defined-outside-init
-            self.logger.debug(f"Executing '{self.command}'")
-            self.on_executed()
-
-            def log_output(out, log_fct, buffer):
+            # py_trees re-initialises every child that is not RUNNING, and initialise() calls
+            # execute(), which re-arms this branch. For an action parked in SUCCESS
+            # (wait_for_shutdown: false) that happens on the tick after the root succeeds -- so
+            # spawning again here would rebind self.process to the newborn and lose the handle on the
+            # real child. shutdown() would then signal the newborn's process group and report success
+            # while the real one keeps running, and a simulator that writes its results only on a
+            # clean stop is later killed with nothing written. Keep the process we already own.
+            if self.process is not None and self.process.poll() is None:
+                if self.command != self.started_command:
+                    # Not the benign re-initialise: a *different* process was asked for while the
+                    # previous one runs. Say so; silently running the old one hides the divergence.
+                    self.logger.warning(
+                        f"Re-initialised with a different command while still running "
+                        f"'{_command_text(self.started_command)}'; keeping it and ignoring "
+                        f"'{_command_text(self.command)}'.")
+                else:
+                    self.logger.debug('Re-initialised while still running; keeping the process.')
+                # Deliberately no early return: the checks below are the one place that turns a
+                # process state into a status, and on_executed()/the reader threads must not run
+                # again for a process that is already going (the on_executed() overrides reset
+                # current_state to a *waiting* state, which this process is long past).
+            else:
                 try:
-                    for line in iter(out.readline, b''):
-                        msg = line.decode().strip()
-                        if log_fct:
-                            log_fct(msg)
-                        with self.output_lock:
-                            buffer.append(msg)
-                    out.close()
-                except ValueError:
-                    pass
+                    self.process = subprocess.Popen(
+                        self.command,
+                        start_new_session=True,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                    )
                 except Exception as e:  # pylint: disable=broad-except
-                    self.logger.error(f"Error while logging output: {e}")
-            self.log_stdout_thread = Thread(target=log_output, args=(
-                self.process.stdout, self.get_logger_stdout(), self.output))
-            self.log_stdout_thread.daemon = True  # die with the program
-            self.log_stdout_thread.start()
+                    self.logger.error(str(e))
+                    return py_trees.common.Status.FAILURE
+                self.started_command = self.command
 
-            self.log_stderr_thread = Thread(target=log_output, args=(
-                self.process.stderr, self.get_logger_stderr(), self.output))
-            self.log_stderr_thread.daemon = True  # die with the program
-            self.log_stderr_thread.start()
+                self.feedback_message = f"Executing '{self.command}'"  # pylint: disable= attribute-defined-outside-init
+                self.logger.debug(f"Executing '{self.command}'")
+                self.on_executed()
+
+                def log_output(out, log_fct, buffer):
+                    try:
+                        for line in iter(out.readline, b''):
+                            msg = line.decode().strip()
+                            if log_fct:
+                                log_fct(msg)
+                            with self.output_lock:
+                                buffer.append(msg)
+                        out.close()
+                    except ValueError:
+                        pass
+                    except Exception as e:  # pylint: disable=broad-except
+                        self.logger.error(f"Error while logging output: {e}")
+                self.log_stdout_thread = Thread(target=log_output, args=(
+                    self.process.stdout, self.get_logger_stdout(), self.output))
+                self.log_stdout_thread.daemon = True  # die with the program
+                self.log_stdout_thread.start()
+
+                self.log_stderr_thread = Thread(target=log_output, args=(
+                    self.process.stderr, self.get_logger_stderr(), self.output))
+                self.log_stderr_thread.daemon = True  # die with the program
+                self.log_stderr_thread.start()
 
         if self.process is None:
             self.process = None
             return py_trees.common.Status.FAILURE
+
+        self._apply_cancel()
 
         ret = self.process.poll()
 

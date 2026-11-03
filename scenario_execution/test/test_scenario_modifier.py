@@ -21,6 +21,7 @@ import unittest
 import py_trees
 from scenario_execution.scenario_execution_base import ScenarioExecution
 from scenario_execution.model.osc2_parser import OpenScenario2Parser
+from scenario_execution.model.model_blackboard import create_py_tree_blackboard
 from scenario_execution.model.model_to_py_tree import create_py_tree
 from .common import DebugLogger
 from antlr4.InputStream import InputStream
@@ -39,6 +40,7 @@ class TestOSC2Parser(unittest.TestCase):
     def execute(self, scenario_content):
         parsed_tree = self.parser.parse_input_stream(InputStream(scenario_content))
         model = self.parser.create_internal_model(parsed_tree, self.tree, "test.osc", False)
+        create_py_tree_blackboard(model, self.tree, self.parser.logger, False)
         self.tree = create_py_tree(model, self.tree, self.parser.logger, False)
         self.scenario_execution.scenarios_list = [(self.tree, {}, None)]
         self.scenario_execution.run()
@@ -200,6 +202,51 @@ scenario test:
         self.assertTrue(self.scenario_execution.process_results())
 
         self.assertEqual(1, len([i for i in self.logger.logs_info if i == "RETRY"]))
+
+    @staticmethod
+    def attempt_until(condition, modifiers):
+        """A sub-tree that logs RETRY and fails on every attempt until *condition* holds."""
+        return f"""
+import osc.helpers
+
+scenario test:
+    var attempts: int = 0
+    do serial:
+        serial:
+            increment(attempts)
+            log("RETRY")
+            serial:
+                wait {condition}
+            with:
+                running_is_failure()
+        with:
+{modifiers}
+"""
+
+    def test_retry_without_count_succeeds_after_failures(self):
+        self.execute(self.attempt_until("attempts == 6", "            retry()"))
+        self.assertTrue(self.scenario_execution.process_results())
+        self.assertEqual(6, len([i for i in self.logger.logs_info if i == "RETRY"]))
+
+    def test_retry_without_count_ends_with_enclosing_timeout(self):
+        self.execute(self.attempt_until("attempts == -1", "            timeout(1s)\n            retry()"))
+        self.assertFalse(self.scenario_execution.process_results())
+        # One attempt per tick for a second: far more than any count, so nothing but the timeout
+        # ended it.
+        self.assertGreater(len([i for i in self.logger.logs_info if i == "RETRY"]), 5)
+
+    def test_retry_without_count_ends_with_enclosing_until(self):
+        self.execute(self.attempt_until("attempts == -1", "            retry()\n            until elapsed(1s)"))
+        self.assertTrue(self.scenario_execution.process_results())
+        self.assertGreater(len([i for i in self.logger.logs_info if i == "RETRY"]), 5)
+
+    def test_retry_with_count_runs_at_most_count_times(self):
+        self.execute(self.attempt_until("attempts == 6", "            retry(4)"))
+        self.assertFalse(self.scenario_execution.process_results())
+        self.assertEqual(4, len([i for i in self.logger.logs_info if i == "RETRY"]))
+
+    def test_retry_with_count_zero_is_refused(self):
+        self.assertRaises(ValueError, self.execute, self.attempt_until("attempts == 6", "            retry(0)"))
 
     def test_multi_inverter(self):
         scenario_content = """

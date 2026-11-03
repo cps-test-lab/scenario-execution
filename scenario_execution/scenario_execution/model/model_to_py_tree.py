@@ -18,15 +18,66 @@
 import copy
 import py_trees
 from py_trees.common import Access, Status
+import os
+from functools import lru_cache
 from importlib.metadata import entry_points
+from importlib.resources import files
 import inspect
+import math
 
-from scenario_execution.model.types import KeepConstraintDeclaration, visit_expression, ActionDeclaration, BinaryExpression, EventReference, Expression, FunctionApplicationExpression, ModifierInvocation, ScenarioDeclaration, DoMember, WaitDirective, EmitDirective, BehaviorInvocation, EventCondition, EventDeclaration, RelationExpression, LogicalExpression, ElapsedExpression, PhysicalLiteral, ModifierDeclaration
+from scenario_execution.model.types import KeepConstraintDeclaration, visit_expression, expression_operand, ActionDeclaration, declarations_named, BinaryExpression, EventReference, Expression, FunctionApplicationExpression, ModifierInvocation, ScenarioDeclaration, DoMember, UntilDirective, WaitDirective, EmitDirective, BehaviorInvocation, EventCondition, EventDeclaration, RelationExpression, LogicalExpression, ElapsedExpression, RiseExpression, FallExpression, PhysicalLiteral, ModifierDeclaration, IdentifierReference
 from scenario_execution.clock_behaviors import ClockTimer, ClockTimeout
 from scenario_execution.model.model_base_visitor import ModelBaseVisitor
 from scenario_execution.model.error import OSC2ParsingError
 from scenario_execution.actions.base_action import BaseAction
 from scenario_execution.actions.base_action_subtree import BaseActionSubtree
+
+
+@lru_cache(maxsize=1)
+def _library_dist_by_file() -> dict:
+    """``{absolute lib_osc file: distribution name}`` for every registered OSC library.
+
+    Built by asking each ``scenario_execution.osc_libraries`` entry point where its ``.osc`` lives,
+    which is the same computation ``ModelBuilder`` does to import it -- so a declaration's own file
+    path is enough to say which package it came from. Cached: this is stable for the life of the
+    process, and it is consulted only when two plugins share a name.
+    """
+    mapping = {}
+    for ep in entry_points(group='scenario_execution.osc_libraries'):
+        dist = getattr(ep, "dist", None)
+        dist_name = getattr(dist, "name", None) if dist is not None else None
+        if not dist_name:
+            continue
+        try:
+            resource, filename = ep.load()()
+            path = os.path.join(str(files(resource).joinpath('lib_osc')), filename)
+        except Exception:  # pylint: disable=broad-except
+            # A library that cannot be located cannot disambiguate anything, and this runs while
+            # reporting a different error -- so it must not raise one of its own.
+            continue
+        mapping[os.path.realpath(path)] = dist_name
+    return mapping
+
+
+def _plugins_declaring(plugins: list, declaration) -> list:
+    """The subset of *plugins* shipped by the package whose library declares *declaration*.
+
+    Empty when the declaring file is not a registered library's (a scenario declaring its own
+    action) or when the declaration's origin cannot be read -- the caller then reports the
+    ambiguity rather than guessing, because picking one would bind an action to an implementation
+    the author never named.
+    """
+    ctx = declaration.get_ctx()
+    source = ctx[3] if isinstance(ctx, (tuple, list)) and len(ctx) > 3 else None
+    if not source:
+        return []
+    dist_name = _library_dist_by_file().get(os.path.realpath(str(source)))
+    if not dist_name:
+        return []
+    return [
+        p for p in plugins
+        if getattr(getattr(p, "dist", None), "name", None) == dist_name
+    ]
 
 
 def create_py_tree(model, tree, logger, log_tree):
@@ -104,18 +155,85 @@ class TopicPublish(py_trees.behaviour.Behaviour):
         return Status.SUCCESS
 
 
-class ExpressionBehavior(BaseAction):  # py_trees.behaviour.Behaviour):
+def _is_boolean(value) -> bool:
+    """A Python bool, or numpy's, which a comparison of numpy numbers returns."""
+    if isinstance(value, bool):
+        return True
+    value_type = type(value)
+    return value_type.__module__ == 'numpy' and value_type.__name__ in ('bool', 'bool_')
+
+
+def _require_boolean(node):
+    """Refuse a condition, or an operand of its and/or/not, whose type is known and not bool."""
+    if isinstance(node, LogicalExpression):
+        for child in node.get_children():
+            _require_boolean(child)
+        return
+    if isinstance(node, RelationExpression):
+        return
+    if not hasattr(node, 'get_type_string'):
+        # A node with no type to report; evaluation checks its value.
+        return
+    type_string = node.get_type_string()
+    if type_string is not None and type_string != 'bool':
+        raise OSC2ParsingError(
+            msg=f"Event condition '{node.get_ctx()[2]}' is of type {type_string}, not bool. "
+                f"Compare it to a value instead, for example '{node.get_ctx()[2]} == ...'.",
+            context=node.get_ctx())
+
+
+class ExpressionBehavior(BaseAction):
+    """Succeeds on the first tick its boolean condition holds.
+
+    A value that is not a bool fails the behavior, naming the condition: a number or a string used
+    as a condition is a mistake in the scenario, and reading it by truthiness would hide it.
+    """
 
     def __init__(self, name: "ExpressionBehavior", expression: Expression, model, logger):
         super().__init__(resolve_variable_reference_arguments_in_execute=False)
         self._set_base_properities(name, model, logger)
         self.expression = expression
 
+    def evaluate(self):
+        """The condition's value, or None -- with the reason set as feedback -- if it is not a bool."""
+        value = self.expression.eval(self.get_blackboard_client())
+        if _is_boolean(value):
+            return bool(value)
+        self.feedback_message = (f"Condition '{self.name}' is not boolean: it evaluated to {value!r} "
+                                 f"({type(value).__name__}).")
+        self.logger.error(self.feedback_message)
+        return None
+
     def update(self):
-        if self.expression.eval(self.get_blackboard_client()):
-            return Status.SUCCESS
-        else:
-            return Status.RUNNING
+        value = self.evaluate()
+        if value is None:
+            return Status.FAILURE
+        return Status.SUCCESS if value else Status.RUNNING
+
+
+class EdgeBehavior(ExpressionBehavior):
+    """``rise()`` or ``fall()``: succeeds on the tick its condition changes to *target*.
+
+    The value on the first tick is the reference, so a condition that already holds when the wait
+    starts is not a rise -- it has to become false and then true again.
+    """
+
+    def __init__(self, name, expression: Expression, model, logger, target: bool):
+        super().__init__(name, expression, model, logger)
+        self.target = target
+        self.previous = None
+
+    def initialise(self):
+        super().initialise()
+        self.previous = None
+
+    def update(self):
+        value = self.evaluate()
+        if value is None:
+            return Status.FAILURE
+        changed = self.previous is not None and self.previous != value
+        self.previous = value
+        return Status.SUCCESS if changed and value == self.target else Status.RUNNING
 
 
 class ModelToPyTree(object):
@@ -142,16 +260,39 @@ class ModelToPyTree(object):
                 raise ValueError("ModelToPyTree requires a py-tree sequence as input")
             self.tree = tree
             self.__cur_behavior = tree
+            # One entry per subtree currently being built, each holding the `with:` members that
+            # apply to it. A subtree nests, so this is a stack.
+            self.__with_blocks = []
+
+        @staticmethod
+        def stamp_source(behavior, node):
+            """Record which .osc element a behaviour came from, as (file, line, column).
+
+            Only plugin actions can be traced back today, and only indirectly, via the
+            model they keep in BaseAction._model. Composites, decorators and the built-in
+            behaviours below are plain py_trees objects with no model reference at all, so
+            anything reading a tree at runtime -- a status log, a debugger -- cannot say
+            which line of the scenario a node came from. Stamping every behaviour here
+            keeps that uniform. Line is 1-based, column 0-based, straight from ANTLR.
+
+            The file comes from the model element rather than the entry scenario because
+            an imported .osc carries its own name (model_builder passes current_file).
+            """
+            line, column, _, filename = node.get_ctx()
+            behavior.osc_source = (filename, line, column)
 
         def visit_scenario_declaration(self, node: ScenarioDeclaration):
             scenario_name = node.qualified_behavior_name
 
             self.__cur_behavior.name = scenario_name
+            self.stamp_source(self.__cur_behavior, node)
 
             self.blackboard = self.__cur_behavior.attach_blackboard_client(
                 name="ModelToPyTree")
 
+            self._push_with_block()
             super().visit_scenario_declaration(node)
+            self._apply_with_block(self.__cur_behavior)
 
         def visit_do_member(self, node: DoMember):
             composition_operator = node.composition_operator
@@ -167,33 +308,59 @@ class ModelToPyTree(object):
             else:
                 raise NotImplementedError(f"scenario operator {composition_operator} not yet supported.")
 
+            self.stamp_source(behavior, node)
             parent = self.__cur_behavior
             self.__cur_behavior.add_child(behavior)
             self.__cur_behavior = behavior
+            self._push_with_block()
             self.visit_children(node)
+            self._apply_with_block(behavior)
             self.__cur_behavior = parent
 
+        def condition_behavior(self, node, directive):
+            """The behaviour a ``wait`` or an ``until`` waits on, from its event specification.
+
+            An event reference, a condition, or -- written as ``@event if <condition>`` -- both, in
+            which case the two are checked together on every tick. ``memory=False`` is what keeps
+            the guard live: an event is a flag that stays set once emitted, so a Sequence with
+            memory would latch on it and stop re-checking the condition beside it.
+            """
+            children = list(node.get_children())  # a generator, and it is walked twice below
+            if not children or not all(isinstance(child, (EventCondition, EventReference)) for child in children):
+                raise OSC2ParsingError(msg=f"Invalid {directive} directive.", context=node.get_ctx())
+
+            behaviors = [self.visit(child) for child in children]
+            if len(behaviors) == 1:
+                return behaviors[0]
+
+            guarded = py_trees.composites.Sequence(name=f"{directive} guarded", memory=False)
+            for behavior in behaviors:
+                guarded.add_child(behavior)
+            return guarded
+
         def visit_wait_directive(self, node: WaitDirective):
-            child = node.get_only_child()
+            behavior = self.condition_behavior(node, "wait")
+            self.stamp_source(behavior, node)
+            self.__cur_behavior.add_child(behavior)
 
-            if isinstance(child, (EventCondition, EventReference)):
-                behavior = self.visit(child)
-
-                self.__cur_behavior.add_child(behavior)
-            else:
-                raise OSC2ParsingError(msg="Invalid wait directive.", context=node.get_ctx())
+        def visit_until_directive(self, node: UntilDirective):
+            behavior = self.condition_behavior(node, "until")
+            self.stamp_source(behavior, node)
+            self.__with_blocks[-1][1].append((behavior, node))
 
         def visit_emit_directive(self, node: EmitDirective):
             if node.event_name in ['start', 'end', 'fail']:
                 scenario_elem = node
                 while scenario_elem is not None and not isinstance(scenario_elem, ScenarioDeclaration):
                     scenario_elem = scenario_elem.get_parent()
-                self.__cur_behavior.add_child(TopicPublish(
-                    name=f"emit {node.event_name}", key=f"/{scenario_elem.name}/{node.event_name}", msg=True))
+                behavior = TopicPublish(
+                    name=f"emit {node.event_name}", key=f"/{scenario_elem.name}/{node.event_name}", msg=True)
             else:
                 qualified_name = node.event.get_qualified_name()
-                self.__cur_behavior.add_child(TopicPublish(
-                    name=f"emit {node.event_name}", key=qualified_name, msg=True))
+                behavior = TopicPublish(
+                    name=f"emit {node.event_name}", key=qualified_name, msg=True)
+            self.stamp_source(behavior, node)
+            self.__cur_behavior.add_child(behavior)
 
         def compare_method_arguments(self, method, expected_args, behavior_name, node):
             method_args = inspect.getfullargspec(method).args
@@ -211,8 +378,18 @@ class ModelToPyTree(object):
                     missing_args.remove(element)
             return method_args, unexpected_args, missing_args
 
-        def create_decorator(self, node: ModifierDeclaration, resolved_values):
-            available_modifiers = ["repeat", "inverter", "timeout", "retry", "failure_is_running", "failure_is_success",
+        def build_decorator(self, node: ModifierDeclaration, resolved_values, child, invocation=None):
+            """Construct the decorator a modifier stands for, wrapping *child*.
+
+            Building and placing are separate: a ``with:`` block is applied as a whole once its
+            subtree is complete, so nothing here touches a parent.
+            """
+            # *node* is the modifier's declaration, which for a built-in modifier lives in
+            # an imported library -- useless as a source anchor. *invocation* is the call
+            # site in the scenario, which is what a reader wants to be pointed at.
+            source_node = invocation if invocation is not None else node
+            available_modifiers = ["repeat", "inverter", "timeout", "retry",
+                                   "failure_is_running", "failure_is_success",
                                    "running_is_failure", "running_is_success", "success_is_failure", "success_is_running"]
             if node.name not in available_modifiers:
                 # fall back to installed modifier plugins
@@ -220,71 +397,105 @@ class ModelToPyTree(object):
                 for ep in modifier_eps:
                     if ep.name == node.name:
                         factory = ep.load()
-                        instance = factory(self.__cur_behavior, resolved_values)
-                        parent = self.__cur_behavior.parent
-                        if parent:
-                            parent.children.remove(self.__cur_behavior)
-                        if isinstance(parent, py_trees.composites.Composite):
-                            parent.add_child(instance)
-                        elif isinstance(parent, py_trees.decorators.Decorator):
-                            parent.children.append(instance)
-                            parent.decorated = instance
-                        elif not parent:
-                            instance.name = self.__cur_behavior.name
-                            self.__cur_behavior.parent = instance
-                            self.tree = instance
-                        else:
-                            raise OSC2ParsingError(
-                                msg=f'Modifier "{node.name}" found at unsupported location.', context=node.get_ctx())
-                        return
+                        instance = factory(child, resolved_values)
+                        self.stamp_source(instance, source_node)
+                        return instance
                 raise OSC2ParsingError(
                     msg=f'Unknown modifier "{node.name}". Available built-in modifiers: {available_modifiers}. No plugin found either.', context=node.get_ctx())
-            parent = self.__cur_behavior.parent
-            if parent:
-                parent.children.remove(self.__cur_behavior)
             if node.name == "repeat":
-                instance = py_trees.decorators.Repeat(name="repeat", child=self.__cur_behavior, num_success=resolved_values["count"])
+                instance = py_trees.decorators.Repeat(name="repeat", child=child, num_success=resolved_values["count"])
             elif node.name == "inverter":
-                instance = py_trees.decorators.Inverter(name="inverter", child=self.__cur_behavior)
+                instance = py_trees.decorators.Inverter(name="inverter", child=child)
             elif node.name == "timeout":
-                instance = ClockTimeout(name="timeout", child=self.__cur_behavior, duration=resolved_values["duration"])
+                instance = ClockTimeout(name="timeout", child=child, duration=resolved_values["duration"])
             elif node.name == "retry":
-                instance = py_trees.decorators.Retry(name="retry", child=self.__cur_behavior, num_failures=resolved_values["count"])
+                count = resolved_values["count"]
+                if count == -1:
+                    # No bound: only success, or a timeout or until around it, ends the retrying.
+                    count = math.inf
+                elif count < 1:
+                    raise ValueError(f"count must be at least 1, or -1 to retry until success, not {count}")
+                instance = py_trees.decorators.Retry(name="retry", child=child, num_failures=count)
             elif node.name == "failure_is_running":
-                instance = py_trees.decorators.FailureIsRunning(name="failure_is_running", child=self.__cur_behavior)
+                instance = py_trees.decorators.FailureIsRunning(name="failure_is_running", child=child)
             elif node.name == "failure_is_success":
-                instance = py_trees.decorators.FailureIsSuccess(name="failure_is_success", child=self.__cur_behavior)
+                instance = py_trees.decorators.FailureIsSuccess(name="failure_is_success", child=child)
             elif node.name == "running_is_failure":
-                instance = py_trees.decorators.RunningIsFailure(name="running_is_failure", child=self.__cur_behavior)
+                instance = py_trees.decorators.RunningIsFailure(name="running_is_failure", child=child)
             elif node.name == "running_is_success":
-                instance = py_trees.decorators.RunningIsSuccess(name="running_is_success", child=self.__cur_behavior)
+                instance = py_trees.decorators.RunningIsSuccess(name="running_is_success", child=child)
             elif node.name == "success_is_failure":
-                instance = py_trees.decorators.SuccessIsFailure(name="success_is_failure", child=self.__cur_behavior)
+                instance = py_trees.decorators.SuccessIsFailure(name="success_is_failure", child=child)
             elif node.name == "success_is_running":
-                instance = py_trees.decorators.SuccessIsRunning(name="success_is_running", child=self.__cur_behavior)
+                instance = py_trees.decorators.SuccessIsRunning(name="success_is_running", child=child)
             else:
                 raise ValueError('unknown modifier (should not reach here).')
 
+            self.stamp_source(instance, source_node)
+            return instance
+
+        def _push_with_block(self):
+            """Start collecting the ``with:`` members that apply to the subtree about to be built."""
+            self.__with_blocks.append(([], []))
+
+        def _apply_with_block(self, target):
+            """Wrap *target* in what its ``with:`` block collected, and put it in place once.
+
+            Modifiers nest, and the one written last ends up closest to the action, so the block is
+            applied back to front. Building the whole stack before touching the tree is what keeps
+            that order stated here rather than emerging from repeated re-parenting.
+            """
+            modifiers, untils = self.__with_blocks.pop()
+            if not modifiers and not untils:
+                return
+            parent = target.parent
+            if parent:
+                parent.children.remove(target)
+                target.parent = None
+
+            wrapped = target
+            for declaration, resolved_values, invocation, error_prefix in reversed(modifiers):
+                try:
+                    wrapped = self.build_decorator(declaration, resolved_values, wrapped, invocation)
+                except ValueError as e:
+                    raise OSC2ParsingError(msg=f'{error_prefix} {e}.', context=invocation.get_ctx()) from e
+
+            if untils:
+                # `until` is not a modifier -- it bounds the whole invocation -- so it ends up
+                # outside every one of them, however the block was written. The target is added
+                # first so it ticks before the conditions, and any condition reaching SUCCESS ends
+                # the branch: several `until` directives are the disjunction the standard asks for.
+                bounded = py_trees.composites.Parallel(
+                    name="until", policy=py_trees.common.ParallelPolicy.SuccessOnOne())
+                bounded.add_child(wrapped)
+                for condition, _ in untils:
+                    bounded.add_child(condition)
+                self.stamp_source(bounded, untils[0][1])
+                wrapped = bounded
+
+            if modifiers:
+                name, context = modifiers[0][0].name, modifiers[0][2]
+            else:
+                name, context = 'until', untils[0][1]
             if isinstance(parent, py_trees.composites.Composite):
-                parent.add_child(instance)
+                parent.add_child(wrapped)
             elif isinstance(parent, py_trees.decorators.Decorator):
-                parent.children.append(instance)
-                parent.decorated = instance
+                parent.children.append(wrapped)
+                parent.decorated = wrapped
+                wrapped.parent = parent
             elif not parent:
-                instance.name = self.__cur_behavior.name  # as name is used for blackboard variables later, use child-name for decorator
-                self.__cur_behavior.parent = instance
-                self.tree = instance
+                # the name is used as a blackboard key later, so the wrapper takes the child's
+                wrapped.name = target.name
+                self.tree = wrapped
             else:
                 raise OSC2ParsingError(
-                    msg=f'Modifier "{node.name}" found at unsupported location.', context=node.get_ctx())
+                    msg=f'Modifier "{name}" found at unsupported location.', context=context.get_ctx())
 
         def visit_behavior_invocation(self, node: BehaviorInvocation):
             if isinstance(node.behavior, ModifierDeclaration):
                 resolved_values = node.get_resolved_value(self.blackboard)
-                try:
-                    self.create_decorator(node.behavior, resolved_values)
-                except ValueError as e:
-                    raise OSC2ParsingError(msg=f'Modifier "{node.behavior.name}" {e}.', context=node.get_ctx()) from e
+                self.__with_blocks[-1][0].append(
+                    (node.behavior, resolved_values, node, f'Modifier "{node.behavior.name}"'))
             elif isinstance(node.behavior, ActionDeclaration):
                 behavior_name = node.behavior.name
                 available_plugins = []
@@ -300,15 +511,45 @@ class ModelToPyTree(object):
                         context=node.get_ctx()
                     )
                 if len(available_plugins) > 1:
-                    self.logger.error(f'More than one plugin is found for "{behavior_name}".')
-                    for available_plugin in available_plugins:
-                        self.logger.error(
-                            f'Found available plugin for "{behavior_name}" '
-                            f'in module "{available_plugin.module_name}".')
-                    raise OSC2ParsingError(
-                        msg=f'More than one plugin is found for "{behavior_name}".',
-                        context=node.get_ctx()
-                    )
+                    # An action name is only unique WITHIN a library. Two libraries may each
+                    # declare one -- two simulators both offering `spawn_entity` is the obvious
+                    # case -- so the implementation is taken from the package that declared the
+                    # action this invocation resolved to, rather than from whichever package
+                    # happens to register the name. Matching on the name alone made an action
+                    # name global across every installed package, so adding one already taken
+                    # broke every scenario using EITHER, including scenarios that import neither
+                    # of the colliding libraries.
+                    scoped = _plugins_declaring(available_plugins, node.behavior)
+                    declarations = declarations_named(node.behavior, behavior_name)
+                    if len(declarations) > 1:
+                        # Two imported libraries both declare this action, so the name alone does
+                        # not say which the author meant -- and OSC name resolution silently takes
+                        # the first. Reported rather than resolved: binding one would be a guess
+                        # about intent, and the two are not interchangeable (their parameters
+                        # differ).
+                        where = ", ".join(sorted(declarations))
+                        raise OSC2ParsingError(
+                            msg=f'Action "{behavior_name}" is declared by more than one imported '
+                                f'library ({where}). Import only the library whose '
+                                f'"{behavior_name}" you mean.',
+                            context=node.get_ctx()
+                        )
+                    if len(scoped) == 1:
+                        available_plugins = scoped
+                    else:
+                        for available_plugin in available_plugins:
+                            # `.value` (`module:Class`), not `.module_name`: EntryPoint has no such
+                            # attribute, so reporting the ambiguity raised an AttributeError of its
+                            # own and the caller saw that instead of the collision.
+                            self.logger.error(
+                                f'Found available plugin for "{behavior_name}" '
+                                f'in "{available_plugin.value}".')
+                        raise OSC2ParsingError(
+                            msg=f'More than one plugin is found for "{behavior_name}", and the '
+                                'library that declares this action does not identify one of them. '
+                                'Import only the library you mean, or rename the action.',
+                            context=node.get_ctx()
+                        )
                 behavior_cls = available_plugins[0].load()
 
                 if not issubclass(behavior_cls, BaseAction) and not issubclass(behavior_cls, BaseActionSubtree) :
@@ -385,15 +626,18 @@ class ModelToPyTree(object):
                     instance._external_init_args = remote_init_args  # pylint: disable=protected-access
                 except Exception as e:
                     raise OSC2ParsingError(msg=f'Error while initializing plugin {behavior_name}: {e}', context=node.get_ctx()) from e
+                self.stamp_source(instance, node)
                 self.__cur_behavior.add_child(instance)
                 previous = self.__cur_behavior
                 self.__cur_behavior = instance
+                self._push_with_block()
                 super().visit_behavior_invocation(node)
 
 		# For BaseActionSubtree, check create_subtree method instead of execute
                 create_subtree_method = getattr(behavior_cls, "create_subtree", None)
                 if issubclass(behavior_cls, BaseActionSubtree) and create_subtree_method is not None:
                     create_subtree_method(self.__cur_behavior)
+                self._apply_with_block(instance)
                 self.__cur_behavior = previous
 
         def visit_event_reference(self, node: EventReference):
@@ -402,17 +646,35 @@ class ModelToPyTree(object):
             return TopicEquals(key=name, msg=True)
 
         def visit_event_condition(self, node: EventCondition):
-            expression = ""
-            for child in node.get_children():
-                if isinstance(child, (RelationExpression, LogicalExpression)):
-                    expression = ExpressionBehavior(name=node.get_ctx()[2] or "wait", expression=self.visit(child), model=node, logger=self.logger)
-                elif isinstance(child, ElapsedExpression):
-                    elapsed_condition = self.visit_elapsed_expression(child)
-                    expression = ClockTimer(name=f"wait {elapsed_condition}s", duration=float(elapsed_condition))
-                else:
-                    raise OSC2ParsingError(
-                        msg=f'Invalid event condition {child}', context=node.get_ctx())
-            return expression
+            children = list(node.get_children())
+            if len(children) != 1:
+                raise OSC2ParsingError(msg='Invalid event condition.', context=node.get_ctx())
+            child = children[0]
+            name = node.get_ctx()[2] or "wait"
+            if isinstance(child, ElapsedExpression):
+                elapsed_condition = self.visit_elapsed_expression(child)
+                return ClockTimer(name=f"wait {elapsed_condition}s", duration=float(elapsed_condition))
+            if isinstance(child, (RiseExpression, FallExpression)):
+                operands = list(child.get_children())
+                if len(operands) != 1:
+                    raise OSC2ParsingError(msg='Invalid event condition.', context=child.get_ctx())
+                return EdgeBehavior(name=name, expression=self.condition_expression(operands[0]), model=node,
+                                    logger=self.logger, target=isinstance(child, RiseExpression))
+            return ExpressionBehavior(name=name, expression=self.condition_expression(child), model=node,
+                                      logger=self.logger)
+
+        def condition_expression(self, node):
+            """The Expression a condition evaluates on every tick.
+
+            Any boolean expression is a condition: a comparison, ``and``/``or``/``not``, a bool
+            variable, parameter or member, or a function returning bool. A part whose declared type
+            is known and not bool is refused here; what cannot be typed here is checked when it is
+            evaluated (ExpressionBehavior).
+            """
+            _require_boolean(node)
+            if isinstance(node, (RelationExpression, LogicalExpression, BinaryExpression)):
+                return visit_expression(node, self.blackboard)
+            return Expression(expression_operand(node, self.blackboard), None, lambda value: value)
 
         def visit_relation_expression(self, node: RelationExpression):
             return visit_expression(node, self.blackboard)
@@ -424,15 +686,56 @@ class ModelToPyTree(object):
             return visit_expression(node, self.blackboard)
 
         def visit_elapsed_expression(self, node: ElapsedExpression):
+            # A literal (`elapsed(3s)`), a call, or a PARAMETER (`elapsed(budget)`). The grammar
+            # has always allowed the last one -- `durationExpression : expression` -- and only this
+            # visitor refused it, so a scenario could not take its own time budget as a parameter
+            # and a campaign had no way to vary one.
             elem = node.find_first_child_of_type(PhysicalLiteral)
             if not elem:
                 elem = node.find_first_child_of_type(FunctionApplicationExpression)
+            if not elem:
+                elem = node.find_first_child_of_type(IdentifierReference)
 
             if not elem:
                 raise OSC2ParsingError(
-                    msg=f'Elapsed expression currently only supports PhysicalLiteral and FunctionApplicationExpression.', context=node.get_ctx())
+                    msg='Elapsed expression supports a physical literal (elapsed(3s)), a parameter '
+                        'holding one (elapsed(budget)), or a function application.',
+                    context=node.get_ctx())
 
-            return elem.get_resolved_value()
+            # ASAM OpenSCENARIO DSL: `duration-expression: expression`, so the FORM is
+            # unconstrained -- but it is a *duration*, and a physical quantity that is not a time
+            # is not one. Checked for the literal too, not only the parameter: `elapsed(7m)` was
+            # accepted and waited 7 seconds, which is the same silent unit error one level up.
+            #
+            # A function application is left unchecked: its return type is not introspectable
+            # here, and refusing what cannot be verified would reject working scenarios.
+            if not isinstance(elem, FunctionApplicationExpression):
+                try:
+                    type_string = elem.get_type_string()
+                except (AttributeError, IndexError):
+                    # Narrow on purpose: by here the model is resolved, so these are the two
+                    # shapes a reference can still be in that have no type to report -- a node
+                    # carrying no type at all, and an empty reference list. Anything else
+                    # raising is a defect worth seeing rather than reporting as "unknown type".
+                    type_string = None
+                if type_string != 'time':
+                    raise OSC2ParsingError(
+                        msg=f'Elapsed expression needs a duration, but this is '
+                            f'{type_string or "of unknown type"}. Use a time -- a literal like '
+                            f'`3s`, or a parameter declared `budget: time = 3s`.',
+                        context=node.get_ctx())
+
+            value = elem.get_resolved_value()
+            # Resolved here rather than left to the caller so the refusal names `elapsed` and this
+            # line, instead of a `float(None)` several frames away that cannot say where the value
+            # came from.
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                raise OSC2ParsingError(
+                    msg=f'Elapsed expression needs a duration; got {value!r}, which no time can '
+                        'be built from.',
+                    context=node.get_ctx()) from None
 
         def visit_event_declaration(self, node: EventDeclaration):
             if node.name in ['start', 'end', 'fail']:
@@ -447,10 +750,7 @@ class ModelToPyTree(object):
 
         def visit_modifier_invocation(self, node: ModifierInvocation):
             resolved_values = node.get_resolved_value()
-            try:
-                self.create_decorator(node.modifier, resolved_values)
-            except ValueError as e:
-                raise OSC2ParsingError(msg=f'ModifierDeclaration {e}.', context=node.get_ctx()) from e
+            self.__with_blocks[-1][0].append((node.modifier, resolved_values, node, 'ModifierDeclaration'))
 
         def visit_keep_constraint_declaration(self, node: KeepConstraintDeclaration):
             # skip relation-expression

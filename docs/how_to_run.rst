@@ -14,6 +14,10 @@ Runtime Parameters
      - Description
    * - ``-h`` ``--help``
      - show help message
+   * - ``--bt-log``
+     - Record behavior status over time to ``<output-dir>/behaviors.jsonl``. Requires ``--output-dir``. See `Behavior tree status log`_ for the file format.
+   * - ``--tick-log``
+     - Record how fast the tree actually ticked, and how long each behavior's calls took, to ``<output-dir>/tick_timing.csv`` and ``<output-dir>/action_timing.csv``. Requires ``--output-dir``. See `Tick and action timing`_ for the file format.
    * - ``-d`` ``--debug``
      - (For debugging) print internal debugging output
    * - ``--dot``
@@ -32,8 +36,12 @@ Runtime Parameters
      - (For debugging) Show current state of py tree
    * - ``--post-run POST_RUN_COMMAND``
      - Command or script to run after scenario execution. The command will be called as ``<command> <output_dir>``. Can be specified multiple times; commands are executed in order with a timeout of 10 minutes each. Failures are logged but do not stop subsequent commands. Example: ``--post-run ./post.sh --post-run ./cleanup.sh``
+   * - ``-s STEP_DURATION`` ``--step-duration STEP_DURATION``
+     - Duration in seconds between behavior tree ticks (default: ``0.1``); ticks are paced to it, and a tick that runs longer is reported. With a step-based ``--simulation`` the simulation's ``dt`` governs the tick period instead. See `Tick and action timing`_ for recording whether the rate was actually held.
    * - ``--simulation MODULE:CLASS``
      - Step-based simulation interface to use. The value must be in ``module.path:ClassName`` format, where the class implements :class:`SimulationInterface <scenario_execution.SimulationInterface>` and is instantiated with no arguments. See `Step-based simulation`_ for details.
+   * - ``--snapshot-period SECONDS``
+     - Only with ``scenario_execution_ros``. How often to publish the behavior tree state on ``/scenario_execution/snapshots``. By default a snapshot is published only when a behavior's status changes. To record tree progress to a file instead, see `Behavior tree status log`_.
    * - ``--output-result-per-scenario``
      - When more than one scenario is executed (multiple ``scenario`` declarations in the ``.osc`` file, or multiple YAML documents in ``--scenario-parameter-file``), write a separate ``test.xml`` inside each scenario's output subdirectory instead of a single combined ``<output-dir>/test.xml``. Has no effect when only one scenario is executed. See `Per-scenario output directories`_ for details.
 
@@ -360,6 +368,164 @@ The ``-<index>`` suffix is appended automatically when more than one document
 is present; with a single document names stay as defined in the ``.osc`` file.
 All results are written as separate ``<testcase>`` entries in ``test.xml``.
 
+.. _behavior_tree_status_log:
+
+Behavior tree status log
+------------------------
+
+``--bt-log`` records how the behavior tree progressed over time to
+``<output-dir>/behaviors.jsonl``. It works the same with and without ROS 2 and needs no
+middleware. ``--output-dir`` is required. How it is implemented is described under
+:ref:`behavior_tree_status_log_internals`.
+
+The file is `JSON Lines <https://jsonlines.org>`__ — one JSON object per line, each complete
+in itself, so reading it is one ``json.loads`` per line with no state to carry and no join:
+
+.. code-block:: json
+
+   {"format":"behavior_tree_log","version":1,"scenario":"demo","scenario_file":"/scenarios/demo.osc","scenario_sha256":"e175a753…","tick_period":0.1,"clock":"SimulationClock","py_trees":"2.4.0","started_at":"2026-08-06T09:14:22Z"}
+   {"timestamp":0.0,"behavior_id":"0f2b1d8c-…","parent_id":null,"child_index":null,"behavior_name":"demo","class_name":"py_trees.composites.Sequence","type":"SEQUENCE","additional_detail":"","status":"INVALID","feedback_message":"","is_active":false,"tip_id":null,"osc_file":"/scenarios/demo.osc","osc_line":3,"osc_column":0}
+   {"timestamp":0.1,"behavior_id":"0f2b1d8c-…","parent_id":null,"child_index":null,"behavior_name":"demo","class_name":"py_trees.composites.Sequence","type":"SEQUENCE","additional_detail":"","status":"RUNNING","feedback_message":"","is_active":true,"tip_id":"e5182a6f-…","osc_file":"/scenarios/demo.osc","osc_line":3,"osc_column":0}
+
+**Line 1** is the metadata record, recognizable by its ``format`` key: which scenario file was
+run and its SHA-256, the tick period, which clock ``timestamp`` came from, and the py_trees
+version.
+
+**The following lines** describe one behavior each. Before the first tick, every node in the
+tree is written once at ``timestamp`` 0 with status ``INVALID``; afterwards a line is added
+whenever a behavior's **status** changes. ``feedback_message`` is captured at that moment but
+does not itself trigger a line.
+
+Because the initial snapshot covers the whole tree, the structure and the state at any point
+in time can be reconstructed from the file alone, including branches that never executed.
+
+.. list-table::
+   :header-rows: 1
+   :class: tight-table
+
+   * - Field
+     - Description
+   * - ``timestamp``
+     - Seconds since the scenario started. Simulated time when a clock is available (``--simulation``, or ROS with ``use_sim_time``), otherwise monotonic time. The metadata record's ``clock`` field says which.
+   * - ``behavior_id``, ``parent_id``
+     - py_trees' own UUIDs. ``parent_id`` is ``null`` for the root.
+   * - ``child_index``
+     - Position among the parent's children, ``null`` for the root. Needed to restore the order of a sequence's children, which ``parent_id`` alone does not give.
+   * - ``behavior_name``, ``class_name``
+     - Name given on construction, and the fully qualified class.
+   * - ``type``
+     - ``SEQUENCE``, ``SELECTOR``, ``PARALLEL``, ``DECORATOR`` or ``BEHAVIOUR``.
+   * - ``additional_detail``
+     - Extra information about the node, e.g. a parallel's policy.
+   * - ``status``
+     - ``INVALID``, ``RUNNING``, ``SUCCESS`` or ``FAILURE``.
+   * - ``feedback_message``
+     - The behavior's feedback message at that moment.
+   * - ``is_active``
+     - Whether the behavior was traversed by the tick that produced this record.
+   * - ``tip_id``
+     - The behavior that determined this subtree's status (py_trees' ``tip()``), so a failing root points straight at the action responsible. ``null`` on a leaf.
+   * - ``osc_file``, ``osc_line``, ``osc_column``
+     - Where the behavior came from in the scenario source. The file is per record because an imported ``.osc`` keeps its own name. Line is 1-based, column 0-based. ``null`` for a behavior with no source element, e.g. a subtree an action builds internally.
+   * - ``removed``
+     - Present and ``true`` only when a subtree was pruned at runtime; the record then carries just ``timestamp`` and ``behavior_id``.
+
+Records are flushed as they are written, so a scenario that is aborted or times out still
+leaves a readable file up to that point.
+
+.. _tick_and_action_timing:
+
+Tick and action timing
+----------------------
+
+``--tick-log`` records how fast the behavior tree actually ticked, and where the time inside a
+tick went. It works the same with and without ROS 2 and needs no middleware. ``--output-dir``
+is required. It is independent of ``--bt-log``: either can be used alone.
+
+Two questions, in order. **Was the tick rate held?** ``tick_timing.csv`` has one row per tick,
+with the interval since the previous tick and the period that was configured, so
+``interval_s / period_s`` is the achieved-against-intended ratio — dimensionless, and therefore
+comparable between a fast and a slow machine. **If it was not, where did the time go?**
+``action_timing.csv`` has one row per timed call, so a long tick can be attributed to the
+behavior that spent it. That second file is just as useful on its own, to find out which action
+in a scenario is slow.
+
+Only timing is recorded; no processor or memory usage is measured.
+
+.. code-block:: text
+
+   tick,wall_ts,timestamp,interval_s,duration_s,period_s,driver
+   87,1756450010.411000,10.408000,0.107000,0.023000,0.100000,ros_timer
+   88,1756450010.512000,10.509000,0.101000,0.417000,0.100000,ros_timer
+   89,1756450010.933000,10.930000,0.421000,0.004000,0.100000,ros_timer
+
+.. list-table::
+   :header-rows: 1
+   :class: tight-table
+
+   * - Field
+     - Description
+   * - ``tick``
+     - Tick number, counting from 1. Joins the two files.
+   * - ``wall_ts``
+     - Seconds since the epoch, advanced by a monotonic clock so that a step of the system clock during a run cannot make the series go backwards.
+   * - ``timestamp``
+     - Seconds since the scenario started, with exactly the meaning it has in ``behaviors.jsonl``: simulated time when a clock is available, otherwise monotonic time.
+   * - ``interval_s``
+     - Seconds since the previous tick started. Empty on the first tick, where there is no previous tick to measure against.
+   * - ``duration_s``
+     - Seconds spent inside this tick.
+   * - ``period_s``
+     - The configured tick period this tick was aiming for. Carried on every row so a ratio needs no lookup elsewhere.
+   * - ``driver``
+     - What ticked the tree: ``wall_loop`` (the plain runner), ``ros_timer`` (ROS), or ``sim_step`` (a step-based ``--simulation``). With ``sim_step`` the loop is unpaced, so ``interval_s`` says how fast the machine ran and not whether a rate was held.
+
+.. code-block:: text
+
+   tick,wall_ts,timestamp,behavior_id,behavior_name,class_name,phase,duration_s,status
+   87,1756450010.411000,10.408000,c204…,spawn_walker,…GazeboSpawnActor,execute,0.018000,INVALID
+   88,1756450010.512000,10.509000,c204…,spawn_walker,…GazeboSpawnActor,update,0.414100,RUNNING
+   88,1756450010.512000,10.509000,a17e…,drive_to_kitchen,…NavigateToPose,update,0.002100,RUNNING
+
+.. list-table::
+   :header-rows: 1
+   :class: tight-table
+
+   * - Field
+     - Description
+   * - ``tick``
+     - The tick this call belongs to. Empty for a call made before the first tick, which is where bring-up ``setup`` happens.
+   * - ``wall_ts``, ``timestamp``
+     - The moment of the tick this call belongs to, on the same two clocks as ``tick_timing.csv``.
+   * - ``behavior_id``, ``behavior_name``, ``class_name``
+     - Identity, spelled exactly as ``behaviors.jsonl`` spells it, so the files can be joined on ``behavior_id`` without translating either.
+   * - ``phase``
+     - ``setup`` (once per behavior, at bring-up), ``execute`` (once per activation: for an action, resolving its arguments and running its ``execute()``), or ``update`` (once per tick the behavior was ticked). Separate so a one-off cost is never read as a per-tick one.
+   * - ``duration_s``
+     - Seconds spent in this call.
+   * - ``status``
+     - The behavior's status after the call.
+
+Every leaf of the tree is recorded, not only the actions from the action libraries — a
+``wait elapsed()`` and an ``emit`` are behaviors too, and leaving them out would attribute their
+time to nothing. Composites are left out: they route ticks rather than do work.
+
+Reading the two files together, a tick whose ``duration_s`` is large with ``action_timing`` rows
+summing to most of it is time spent *inside* the tick, by a behavior these name. A large
+``interval_s`` where the previous tick was short and no rows account for the gap is time that
+passed *between* ticks, with nothing running.
+
+A summary is logged at the end of the run, and the same summary can be printed later from the
+files alone::
+
+   python -m scenario_execution.tick_report <output-dir>
+
+If ``behaviors.jsonl`` is present it is used to name the ``.osc`` file and line a slow behavior
+came from; without it everything else still works.
+
+Rows are buffered and written about once per second, so a scenario that is aborted keeps
+everything up to the last flush.
+
 .. _per_scenario_output_directories:
 
 Per-scenario output directories
@@ -469,7 +635,7 @@ Declare the OSC parameters you need directly as arguments on your ``reset()``
 override. The framework matches argument names to OSC parameter names and
 injects values automatically:
 
-.. code-block:: osc
+.. code-block::
 
    scenario my_scenario:
        object_start_x: float = 0.0   # metres
@@ -494,6 +660,12 @@ is used.  Struct parameters are passed as nested dictionaries.
 
 If a ``--scenario-parameter-file`` is supplied the overridden values are
 applied before ``reset()`` is called.
+
+One argument name is reserved for the runner: a ``reset()`` that declares
+``output_dir`` receives the directory the scenario's results go to (see
+:ref:`per_scenario_output_directories`), not a scenario parameter. A parameter file runs several scenarios in one process, each with its
+own directory, so a simulation that records each scenario separately takes its
+target from there.
 
 The ``SimulationInterface`` lifecycle is aligned with the
 `ros-simulation/simulation_interfaces <https://github.com/ros-simulation/simulation_interfaces>`_ standard:
@@ -556,3 +728,76 @@ simulation is active. No changes to the OSC scenario file are needed:
 Without a simulation interface the clock falls back to system wall-clock time,
 so existing scenarios continue to work unchanged.
 
+**Step-based simulation with the ROS runner**
+
+``--simulation`` works with both runners:
+
+* ``scenario_execution`` (non-ROS): the simulation drives the loop exclusively
+  (``run_with_simulation``); there is no ``rclpy``, so ROS behaviors are unavailable.
+* ``scenario_execution_ros`` (ROS): the ROS spin loop additionally ticks
+  ``simulation.step()``, so a step-based simulation runs **alongside** the ROS
+  behaviors that drive it. This lets a scenario bring up and drive a ROS stack
+  while the simulation advances time. A simulation that publishes ``/clock``
+  becomes the time source for every node, including this one, and stepping is
+  paced to real time (the pace can be removed for faster-than-real-time runs).
+
+  With the ROS runner, ``setup()``/``reset()``/``step()``/``shutdown()`` are
+  called **per scenario** (each scenario runs on its own ROS node), rather than
+  ``setup``/``shutdown`` once for the whole file as with the non-ROS runner.
+
+.. _ros_simulated_time_usage:
+
+Running a scenario against simulated time
+-----------------------------------------
+
+With the ROS runner, ``use_sim_time`` makes the scenario's own durations simulated seconds. It is
+off by default, so a scenario that does not ask for it counts host seconds exactly as before.
+
+.. code-block:: bash
+
+   ros2 launch scenario_execution_ros scenario_launch.py scenario:=example.osc use_sim_time:=True
+
+   # or, running the executable directly
+   ros2 run scenario_execution_ros scenario_execution_ros example.osc --ros-args -p use_sim_time:=true
+
+Under it the behavior tree ticks on ``/clock`` as well, so the same scenario produces the same ticks
+at the same points however fast the host happens to be. This is what a duration means in each case:
+
+.. list-table::
+   :widths: 40 60
+   :header-rows: 1
+   :class: tight-table
+
+   * - What
+     - Which clock
+   * - ``wait elapsed()``, ``until elapsed()``, ``timeout()``
+     - The scenario's. Simulated seconds under ``use_sim_time``.
+   * - ``action_call(cancel_after:)``
+     - The scenario's.
+   * - ``assert_tf_moving(timeout:)``
+     - The scenario's -- it is an assertion about the robot.
+   * - ``run_process``/``ros_launch``/``ros_run`` ``shutdown_timeout``
+     - Host. It bounds an OS process, and it runs during teardown.
+   * - ``assert_realtime_factor()``, ``assert_topic_latency()``
+     - Host. Both measure the host against something else, which is the point of them.
+   * - ``bag_record(use_sim_time:)``
+     - Sets ``--use-sim-time`` on ``ros2 bag record``. It follows this node, and the parameter
+       forces it on regardless.
+
+Something has to publish ``/clock``. If nothing does, the scenario fails at startup rather than
+measuring every duration from zero:
+
+.. code-block::
+
+   use_sim_time is set but /clock did not advance within 30.0s of host time.
+   Every duration in the scenario would be measured from zero.
+
+And because the tree ticks on ``/clock``, a simulator that stops or is reset mid-run stops the tree.
+That is reported rather than waited out:
+
+.. code-block::
+
+   /clock did not advance for 30.1s of host time. The behaviour tree ticks on ROS time
+   and has stopped ticking.
+
+   /clock stepped back by 5.000s: the simulation was reset underneath the running scenario.

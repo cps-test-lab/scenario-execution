@@ -141,9 +141,6 @@ def getIndentationCount(spaces):
             count += 1
     return count
 
-def atStartOfInput(self):
-    return Lexer.column.fget(self) == 0 and Lexer.line.fget(self) == 1
-
 }
 
 
@@ -600,9 +597,15 @@ integerLiteral : UintLiteral | HexUintLiteral | IntLiteral;
 // Lexer rules
 
 NEWLINE
- : ( {self.atStartOfInput()}?   SPACES
-   | ( '\r'? '\n' | '\r' | '\f' ) SPACES?
-   )
+ // Deliberately no start-of-input alternative. A `{...}?` predicate anywhere in this rule
+ // lands in mode 0's start closure, so ANTLR sets suppressEdge in matchATN and never
+ // memoizes dfa.s0 -- every token of every file then re-runs full ATN start-state
+ // simulation instead of reusing the DFA (that alone cost ~1.1s to lex types.osc).
+ // Leading whitespace on the first line is handled by SKIP_ below and therefore ignored,
+ // where the predicate used to turn it into an INDENT no rule could consume ("no viable
+ // alternative at input '    '"). That widens the accepted language very slightly -- an
+ // indented first line now parses -- and changes nothing for input that was already valid.
+ : ( '\r'? '\n' | '\r' | '\f' ) SPACES?
    {
 tempt = Lexer.text.fget(self)
 newLine = re.sub("[^\r\n\f]+", "", tempt)
@@ -614,7 +617,7 @@ try:
 except ValueError:          # End of file
     pass
 # Strip newlines inside open clauses except if we are near EOF. We keep NEWLINEs near EOF to
-# satisfy the final newline needed by the single_put rule used by the REPL.
+# give the final declaration its terminating NEWLINE.
 try:
     nextnext_la = self._input.LA(2)
     nextnext_la_char = chr(nextnext_la)

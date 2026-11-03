@@ -40,7 +40,6 @@ class TfCloseTo(BaseAction):
         namespace_override: str,
         reference_point,
         threshold: float,
-        sim: bool,
         robot_frame_id: str,
         parent_frame_id: str = 'map',
     ):
@@ -56,7 +55,6 @@ class TfCloseTo(BaseAction):
             self.namespace = namespace_override
         self.reference_point = reference_point
         self.threshold = threshold
-        self.sim = sim
         self.parent_frame_id = parent_frame_id
         if robot_frame_id:
             self.robot_frame_id = robot_frame_id

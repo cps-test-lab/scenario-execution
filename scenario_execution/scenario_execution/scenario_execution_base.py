@@ -20,19 +20,30 @@ import inspect
 import os
 import sys
 import time
+import traceback
 import argparse
 import signal
 from datetime import datetime, timedelta
 import py_trees
 from scenario_execution.model.osc2_parser import OpenScenario2Parser
 from scenario_execution.utils.logging import Logger
+from scenario_execution.utils import bt_logger
+from scenario_execution.utils import tick_recorder
+from scenario_execution import tick_report
 from scenario_execution.model.model_file_loader import ModelFileLoader
-from scenario_execution.simulation import SimulationClock
+from scenario_execution.simulation import HostClock, SimulationClock
 from scenario_execution.actions.process_registry import ProcessRegistry
 from dataclasses import dataclass
 from xml.sax.saxutils import escape  # nosec B406 # escape is only used on an internally generated error string
 from timeit import default_timer as timer
 import subprocess  # nosec B404
+
+
+#: ``reset()`` arguments the runner supplies itself, by name, rather than the scenario:
+#: ``output_dir`` is the directory the scenario's results go to. A simulation that
+#: declares it is told where this scenario writes, which is what lets it keep a
+#: recording per scenario when a parameter file runs several in one process.
+RUNNER_RESET_ARGS = ("output_dir",)
 
 
 def _get_missing_reset_params(simulation, scenario_params: dict) -> set:
@@ -41,12 +52,13 @@ def _get_missing_reset_params(simulation, scenario_params: dict) -> set:
 
     Only the concrete override of ``reset()`` is inspected — ``self`` is
     excluded.  Parameters that carry a default value are considered optional
-    and are not flagged.
+    and are not flagged, and neither is one the runner supplies
+    (:data:`RUNNER_RESET_ARGS`).
     """
     sig = inspect.signature(type(simulation).reset)
     missing = set()
     for name, param in sig.parameters.items():
-        if name == 'self':
+        if name == 'self' or name in RUNNER_RESET_ARGS:
             continue
         if param.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
             continue
@@ -56,12 +68,15 @@ def _get_missing_reset_params(simulation, scenario_params: dict) -> set:
     return missing
 
 
-def _build_reset_kwargs(simulation, scenario_params: dict) -> dict:
+def _build_reset_kwargs(simulation, scenario_params: dict, runner_args: dict) -> dict:
     """Build the keyword-argument dict for calling ``simulation.reset()``.
 
     Each named parameter in the concrete ``reset()`` override is looked up in
     *scenario_params* and forwarded so the implementation can use plain
-    Python parameter names instead of unpacking a dict manually.
+    Python parameter names instead of unpacking a dict manually. *runner_args*
+    are the values the runner supplies for :data:`RUNNER_RESET_ARGS`; a
+    ``reset()`` that declares one of those names receives the runner's value.
+    Every runner passes them, so none can leave a simulation without them.
     """
     sig = inspect.signature(type(simulation).reset)
     kwargs = {}
@@ -69,6 +84,9 @@ def _build_reset_kwargs(simulation, scenario_params: dict) -> dict:
         if name == 'self':
             continue
         if param.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
+            continue
+        if name in RUNNER_RESET_ARGS:
+            kwargs[name] = runner_args[name]
             continue
         value = (scenario_params or {}).get(name, param.default)
         if value is not inspect.Parameter.empty:
@@ -156,7 +174,9 @@ class ScenarioExecution(object):
                  logger=None,
                  register_signal=True,
                  simulation=None,
-                 output_result_per_scenario: bool = False) -> None:
+                 output_result_per_scenario: bool = False,
+                 bt_log: bool = False,
+                 tick_log: bool = False) -> None:
 
         def signal_handler(sig, frame):
             self.on_scenario_shutdown(False, "Aborted")
@@ -164,6 +184,16 @@ class ScenarioExecution(object):
         if register_signal:
             signal.signal(signal.SIGHUP, signal_handler)
             signal.signal(signal.SIGTERM, signal_handler)
+            # SIGINT too, and set unconditionally rather than left alone where it arrives
+            # ignored. A runner started as a background job by a shell without job control
+            # inherits SIGINT and SIGQUIT as SIG_IGN, and an ignored disposition is inherited
+            # through every exec below it -- so the actions' own children inherit it as well.
+            # A child that ignores SIGINT cannot be stopped by the one signal that asks it to
+            # finish what it is writing: `ros2 bag record` closes its bag on SIGINT and on
+            # nothing else, and a bag that was never closed has no metadata.yaml and can be
+            # opened by no reader. Taking the signal here restores it for every process this
+            # one spawns, because exec resets a HANDLED signal to its default.
+            signal.signal(signal.SIGINT, signal_handler)
 
         self.current_scenario_start = None
         self.current_scenario = None
@@ -210,6 +240,13 @@ class ScenarioExecution(object):
         self.blackboard = None
         self.behaviour_tree = None
         self.last_snapshot_visitor = None
+        self.bt_log = bt_log
+        self.bt_logger = None
+        self.tick_log = tick_log
+        self.tick_recorder = None
+        # Which loop is driving the tree. run()/run_with_simulation() set their own;
+        # a middleware runner overrides it before setup() (see ROSScenarioExecution).
+        self.tick_driver = tick_recorder.DRIVER_WALL_LOOP
         self.shutdown_requested = False
         self.results = []
         self.create_scenario_parameter_file_template = create_scenario_parameter_file_template
@@ -249,6 +286,8 @@ class ScenarioExecution(object):
         self.blackboard.fail = False
         self.behaviour_tree = self.setup_behaviour_tree(scenario)  # Get the behaviour_tree
         self.behaviour_tree.add_pre_tick_handler(self.pre_tick_handler)
+        self._setup_bt_logger(effective_output_dir, kwargs)
+        self._setup_tick_recorder(effective_output_dir, kwargs)
         self.behaviour_tree.add_post_tick_handler(self.post_tick_handler)
         self.last_snapshot_visitor = LastSnapshotVisitor()
         self.behaviour_tree.add_visitor(self.last_snapshot_visitor)
@@ -264,6 +303,10 @@ class ScenarioExecution(object):
             input_dir = os.path.dirname(self.scenario_file)
         setup_kwargs = dict(kwargs)
         setup_kwargs['process_registry'] = self.process_registry
+        # Host time, beside the scenario clock: the domain a deadline lives in when it has to
+        # expire even though a simulated clock has stopped. Created per scenario so it is
+        # zero-based like every other clock the framework hands out.
+        setup_kwargs.setdefault('host_clock', HostClock())
         self.behaviour_tree.setup(timeout=self.setup_timeout,
                                   logger=self.logger,
                                   input_dir=input_dir,
@@ -271,6 +314,93 @@ class ScenarioExecution(object):
                                   tick_period=self.tick_period,
                                   **setup_kwargs)
         self.post_setup()
+
+    def _setup_bt_logger(self, output_dir, setup_kwargs):
+        """Attach the behaviour-tree status log for this scenario, if --bt-log is set.
+
+        Middleware-independent: the ROS runner inherits this untouched and contributes
+        only the clock. There is one scenario clock and the log is stamped on it, so a
+        recorded status change and the timer that caused it are on the same timeline.
+        """
+        self.close_bt_logger()
+        if not self.bt_log:
+            return
+        if not output_dir:
+            raise ValueError("--bt-log requires --output-dir.")
+        clock = setup_kwargs.get('clock')
+        path = os.path.join(output_dir, bt_logger.DEFAULT_FILENAME)
+        meta = bt_logger.build_meta(
+            scenario_name=self.current_scenario.name,
+            scenario_file=self.scenario_file,
+            tick_period=self.tick_period,
+            clock=clock)
+        self.bt_logger = bt_logger.BehaviourTreeJsonlLogger(path, meta, clock)
+        self.behaviour_tree.add_visitor(self.bt_logger.snapshot_visitor)
+        # Before the first tick, so nodes that never run are still in the file.
+        self.bt_logger.write_initial_snapshot(self.behaviour_tree)
+        self.behaviour_tree.add_post_tick_handler(self.bt_logger)
+        self.logger.info(f"Recording behaviour tree status to {path}")
+
+    def close_bt_logger(self):
+        if self.bt_logger is not None:
+            self.bt_logger.close()
+            self.bt_logger = None
+
+    def _setup_tick_recorder(self, output_dir, setup_kwargs):
+        """Attach the tick and action timing records for this scenario, if --tick-log is set.
+
+        Everything the feature costs is installed here and nowhere else. Without
+        the flag this returns before touching anything, so a run that did not ask
+        for recording keeps exactly the handler set, and exactly the action
+        methods, that it has without the feature -- not a cheap check per tick,
+        but none.
+
+        Middleware-independent, like the behaviour-tree log beside it: the ROS
+        runner inherits this untouched and contributes only its clock and its
+        driver name. It is the same scenario clock, so ``timestamp`` means the
+        same thing in both files.
+
+        Ordering: the recorder's post-tick handler is registered here, i.e. before
+        :meth:`post_tick_handler`, because that one detects the end of the scenario
+        and closes the recorder. Registered after it, the tick that ends the run
+        would be the one tick never recorded.
+        """
+        self.close_tick_recorder()
+        if not self.tick_log:
+            return
+        if not output_dir:
+            raise ValueError("--tick-log requires --output-dir.")
+        clock = setup_kwargs.get('clock')
+        self.tick_recorder = tick_recorder.TickRecorder(
+            output_dir, self.tick_period, self.tick_driver, clock=clock)
+        # Before the tree is set up, so each action's own setup() cost is recorded.
+        self.tick_recorder.install_on_tree(self.behaviour_tree)
+        self.tick_recorder.watch_tree_updates(self.behaviour_tree)
+        self.behaviour_tree.add_pre_tick_handler(self.tick_recorder.pre_tick_handler)
+        self.behaviour_tree.add_post_tick_handler(self.tick_recorder)
+        self.logger.info(
+            f"Recording tick timing to {os.path.join(output_dir, tick_recorder.TICK_FILENAME)} "
+            f"and action timing to {os.path.join(output_dir, tick_recorder.ACTION_FILENAME)}")
+
+    def close_tick_recorder(self):
+        """Close the records and log what they say.
+
+        The summary is computed by reading the files back, not by counting while
+        ticking: one implementation of the arithmetic, shared with
+        ``python -m scenario_execution.tick_report``, and no bookkeeping in the tick
+        loop. A failure to summarise must not turn a finished scenario into a failed
+        one -- the records themselves are already on disk by then.
+        """
+        if self.tick_recorder is None:
+            return
+        output_dir = self.tick_recorder.output_dir
+        self.tick_recorder.close()
+        self.tick_recorder = None
+        try:
+            for line in tick_report.summarize(output_dir):
+                self.logger.info(line)
+        except Exception as e:  # pylint: disable=broad-except
+            self.logger.warning(f"Could not summarize timing records: {e}")
 
     def setup_behaviour_tree(self, tree):
         """
@@ -359,7 +489,7 @@ class ScenarioExecution(object):
             try:
                 self.setup(tree, current_output_dir=effective_output_dir)
             except Exception as e:  # pylint: disable=broad-except
-                self.on_scenario_shutdown(False, "Setup failed", f"{e}")
+                self.fail_from_exception("Setup failed", e)
                 return
 
             while not self.shutdown_requested:
@@ -395,6 +525,11 @@ class ScenarioExecution(object):
         """
         clock = SimulationClock(simulation.dt)
         self.tick_period = simulation.dt
+        # This loop is unpaced -- it ticks as fast as the simulation allows -- so a
+        # recorded interval says how fast the machine ran, not whether a rate was
+        # held. Naming the driver per row is what lets a reader tell the difference
+        # instead of computing a ratio that looks meaningful and is not.
+        self.tick_driver = tick_recorder.DRIVER_SIM_STEP
 
         try:
             simulation.setup(
@@ -403,7 +538,7 @@ class ScenarioExecution(object):
                 tick_period=self.tick_period,
             )
         except Exception as e:  # pylint: disable=broad-except
-            self.on_scenario_shutdown(False, "Simulation setup failed", f"{e}")
+            self.fail_from_exception("Simulation setup failed", e)
             return
 
         multiple_scenarios = len(self.scenarios_list) > 1
@@ -425,10 +560,11 @@ class ScenarioExecution(object):
                     return
 
                 try:
-                    reset_kwargs = _build_reset_kwargs(simulation, params)
+                    reset_kwargs = _build_reset_kwargs(
+                        simulation, params, {"output_dir": effective_output_dir})
                     simulation.reset(**reset_kwargs)
                 except Exception as e:  # pylint: disable=broad-except
-                    self.on_scenario_shutdown(False, "Simulation reset failed", f"{e}")
+                    self.fail_from_exception("Simulation reset failed", e)
                     return
 
                 clock.reset()
@@ -436,7 +572,7 @@ class ScenarioExecution(object):
                 try:
                     self.setup(tree, current_output_dir=effective_output_dir, simulation=simulation, clock=clock)
                 except Exception as e:  # pylint: disable=broad-except
-                    self.on_scenario_shutdown(False, "Setup failed", f"{e}")
+                    self.fail_from_exception("Setup failed", e)
                     return
 
                 try:
@@ -451,6 +587,8 @@ class ScenarioExecution(object):
                     self.on_scenario_shutdown(False, "Aborted")
                     return
         finally:
+            self.close_bt_logger()
+            self.close_tick_recorder()
             try:
                 simulation.shutdown()
             except Exception as e:  # pylint: disable=broad-except
@@ -604,10 +742,25 @@ class ScenarioExecution(object):
             if not self.shutdown_requested:
                 self.on_scenario_shutdown(result)
 
+    def fail_from_exception(self, failure_message, e):
+        """
+        Report a scenario failure caused by an exception, keeping the traceback.
+
+        The verdict carries only ``str(e)``, and for a whole class of errors that string names no
+        location: a RecursionError reports "maximum recursion depth exceeded" and nothing more, so
+        every run that dies that way produces an identical, unactionable verdict. Log the traceback
+        first, then report the message as before -- the recorded verdict is unchanged, what is added
+        is the one artifact that says where it happened.
+        """
+        self.logger.error(f"{failure_message}: {type(e).__name__}:\n{traceback.format_exc()}")
+        self.on_scenario_shutdown(False, failure_message, f"{e}")
+
     def on_scenario_shutdown(self, result, failure_message="", failure_output=""):
         self.shutdown_requested = True
         if self.behaviour_tree:
             self.behaviour_tree.interrupt()
+        self.close_bt_logger()
+        self.close_tick_recorder()
         if self.current_scenario:
             if result:
                 self.logger.info(f"Scenario '{self.current_scenario.name}' succeeded.")
@@ -642,6 +795,11 @@ class ScenarioExecution(object):
                             help='Produce tree output of parsed openscenario2 content')
         parser.add_argument('-t', '--live-tree', action='store_true',
                             help='For debugging: Show current state of py tree')
+        parser.add_argument('--bt-log', action='store_true',
+                            help=f'Record behaviour status over time to <output-dir>/{bt_logger.DEFAULT_FILENAME}')
+        parser.add_argument('--tick-log', action='store_true',
+                            help=f'Record tick timing to <output-dir>/{tick_recorder.TICK_FILENAME} and '
+                            f'per-action call timing to <output-dir>/{tick_recorder.ACTION_FILENAME}')
         parser.add_argument('-o', '--output-dir', type=str, help='Directory for output (e.g. test results)')
         parser.add_argument('-n', '--dry-run', action='store_true', help='Parse and resolve scenario, but do not execute')
         parser.add_argument('--dot', action='store_true', help='Render dot trees of resulting py-tree')
@@ -751,7 +909,9 @@ def main():
                                                create_scenario_parameter_file_template=args.create_scenario_parameter_file_template,
                                                post_run=args.post_run,
                                                simulation=simulation,
-                                               output_result_per_scenario=args.output_result_per_scenario)
+                                               output_result_per_scenario=args.output_result_per_scenario,
+                                               bt_log=args.bt_log,
+                                               tick_log=args.tick_log)
     except ValueError as e:
         print(f"Error while initializing: {e}")
         sys.exit(1)
