@@ -17,7 +17,7 @@
 
 import py_trees
 import yaml
-from scenario_execution.model.types import print_tree, deserialize
+from scenario_execution.model.types import ParameterDeclaration, ScenarioDeclaration, print_tree, deserialize
 from scenario_execution.model.model_to_py_tree import create_py_tree
 from scenario_execution.model.model_blackboard import create_py_tree_blackboard
 from scenario_execution.model.model_resolver import resolve_internal_model
@@ -34,7 +34,12 @@ class ModelFileLoader(object):
         resolve_internal_model(model, tree, self.logger, log_tree)
         create_py_tree_blackboard(model, tree, self.logger, debug)
         create_py_tree(model, tree, self.logger, log_tree)
-        return [(tree, {}, None)]
+        scenario = model.find_first_child_of_type(ScenarioDeclaration)
+        params = {
+            parameter.name: parameter.get_resolved_value()
+            for parameter in scenario.find_children_of_type(ParameterDeclaration)
+        }
+        return [(tree, params, None)]
 
     def load_file(self, file_name, log_tree):
         """Load a serialized internal model.

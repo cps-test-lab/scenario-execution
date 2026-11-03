@@ -66,6 +66,25 @@ scenario test_{variable}:
             self.assertEqual(tree.status, py_trees.common.Status.SUCCESS)
             self.assertIn("wait (source unavailable)", py_trees.display.unicode_tree(tree))
 
+    def test_serialized_scenario_parameters_reach_runner(self):
+        scenario = """\
+scenario test_params:
+    count: int = 7
+    do serial:
+        wait count == 7
+"""
+        logger = Logger('test', False)
+        parser = OpenScenario2Parser(logger)
+        parsed = parser.parse_input_stream(InputStream(scenario))
+        model = parser.load_internal_model(parsed, 'test.osc')
+        with tempfile.NamedTemporaryFile(suffix='.sce', mode='w') as model_file:
+            yaml.safe_dump(serialize(model)['CompilationUnit']['_children'], model_file)
+            model_file.flush()
+            runner = ScenarioExecution(debug=False, log_model=False, live_tree=False,
+                                       scenario_file=model_file.name, output_dir='')
+            self.assertTrue(runner.parse())
+            self.assertEqual(runner.scenario_params, {'count': 7})
+
     def setUp(self):
         self.tmp_dir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
         self.corrupt = os.path.join(self.tmp_dir.name, 'corrupt.sce')
