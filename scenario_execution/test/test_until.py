@@ -60,7 +60,7 @@ class TestUntil(unittest.TestCase):
 
     def execute(self, scenario_content):
         self.build(scenario_content)
-        self.scenario_execution.scenarios_list = [(self.tree, {}, None)]
+        self.scenario_execution.scenarios_list = [(self.tree, {}, None, {})]
         self.scenario_execution.run()
 
     def marker_path(self):

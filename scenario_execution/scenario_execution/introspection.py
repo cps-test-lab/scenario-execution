@@ -166,7 +166,7 @@ def _run_pipeline(file_path, level="full", debug=False):  # pylint: disable=too-
         return None, [_diagnostic(str(e), line=line, column=column,
                                   file=file_path, phase="semantic")], False
 
-    # process_file() returns one (py_tree, params, output_dir) tuple per scenario
+    # process_file() returns one (py_tree, params, output_dir, reset) tuple per scenario
     # declared in the file; a describe_scenario() caller wants the tree of "the"
     # scenario, so take the first one (the overwhelmingly common case is a single
     # ScenarioDeclaration per file, as validate()'s own docstring assumes too).
