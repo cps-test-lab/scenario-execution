@@ -27,9 +27,6 @@ import unittest
 import py_trees
 from antlr4.InputStream import InputStream
 
-import os
-import tempfile
-
 import yaml
 
 from scenario_execution.scenario_execution_base import (ScenarioExecution, _get_missing_reset_params,
