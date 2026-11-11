@@ -39,32 +39,43 @@ from timeit import default_timer as timer
 import subprocess  # nosec B404
 
 
-#: ``reset()`` arguments the runner supplies itself, by name, rather than the scenario:
+#: ``reset()`` arguments the runner always supplies itself, by name, rather than the scenario:
 #: ``output_dir`` is the directory the scenario's results go to. A simulation that
 #: declares it is told where this scenario writes, which is what lets it keep a
-#: recording per scenario when a parameter file runs several in one process.
+#: recording per scenario when a parameter file runs several in one process. A parameter
+#: document adds to these with its ``_reset`` mapping (:func:`refused_reset_arguments`).
 RUNNER_RESET_ARGS = ("output_dir",)
 
 
-def _get_missing_reset_params(simulation, scenario_params: dict) -> set:
+def _reset_parameters(simulation) -> dict:
+    """The named parameters of the concrete ``reset()`` override -- ``self`` and the
+    variadic ones left out -- by name."""
+    sig = inspect.signature(type(simulation).reset)
+    return {name: param for name, param in sig.parameters.items()
+            if name != 'self'
+            and param.kind not in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD)}
+
+
+def _runner_names(runner_args: dict = None) -> set:
+    """The ``reset()`` names the runner supplies: :data:`RUNNER_RESET_ARGS` and *runner_args*'."""
+    return set(RUNNER_RESET_ARGS) | set(runner_args or {})
+
+
+def _get_missing_reset_params(simulation, scenario_params: dict, runner_args: dict = None) -> set:
     """Return the set of parameter names that ``simulation.reset()`` requires
     but are absent from *scenario_params*.
 
     Only the concrete override of ``reset()`` is inspected — ``self`` is
     excluded.  Parameters that carry a default value are considered optional
     and are not flagged, and neither is one the runner supplies
-    (:data:`RUNNER_RESET_ARGS`).
+    (:data:`RUNNER_RESET_ARGS` and the names of *runner_args*).
     """
-    sig = inspect.signature(type(simulation).reset)
     missing = set()
-    for name, param in sig.parameters.items():
-        if name == 'self' or name in RUNNER_RESET_ARGS:
+    for name, param in _reset_parameters(simulation).items():
+        if name in _runner_names(runner_args):
             continue
-        if param.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
-            continue
-        if param.default is inspect.Parameter.empty:
-            if name not in (scenario_params or {}):
-                missing.add(name)
+        if param.default is inspect.Parameter.empty and name not in (scenario_params or {}):
+            missing.add(name)
     return missing
 
 
@@ -74,24 +85,51 @@ def _build_reset_kwargs(simulation, scenario_params: dict, runner_args: dict) ->
     Each named parameter in the concrete ``reset()`` override is looked up in
     *scenario_params* and forwarded so the implementation can use plain
     Python parameter names instead of unpacking a dict manually. *runner_args*
-    are the values the runner supplies for :data:`RUNNER_RESET_ARGS`; a
-    ``reset()`` that declares one of those names receives the runner's value.
-    Every runner passes them, so none can leave a simulation without them.
+    are the values the runner supplies -- :data:`RUNNER_RESET_ARGS` and the
+    document's ``_reset`` -- and a ``reset()`` that declares one of those names
+    receives the runner's value. Every runner passes :data:`RUNNER_RESET_ARGS`,
+    so none can leave a simulation without them.
     """
-    sig = inspect.signature(type(simulation).reset)
     kwargs = {}
-    for name, param in sig.parameters.items():
-        if name == 'self':
-            continue
-        if param.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
-            continue
-        if name in RUNNER_RESET_ARGS:
+    for name, param in _reset_parameters(simulation).items():
+        if name in _runner_names(runner_args):
             kwargs[name] = runner_args[name]
             continue
         value = (scenario_params or {}).get(name, param.default)
         if value is not inspect.Parameter.empty:
             kwargs[name] = value
     return kwargs
+
+
+def refused_reset_arguments(simulation, scenarios_list) -> str:
+    """Why the ``_reset`` mappings of *scenarios_list* cannot be passed to *simulation*, or ``""``.
+
+    Checked over every document before the first scenario runs, so a file that would fail at
+    its fourth document fails before its first. A name is refused when the simulation's
+    ``reset()`` does not declare it: a simulation that cannot act on the argument must not be
+    handed a document that depends on it, or every run would silently run against the
+    first one's state. It is refused when it is also a parameter of the scenario, since the
+    mapping is the runner's and a name is not both; and when it is the runner's own
+    ``output_dir``. Without a simulation nothing receives a ``_reset`` at all.
+    """
+    declared = _reset_parameters(simulation) if simulation is not None else {}
+    for tree, params, _, reset in scenarios_list:
+        if not reset:
+            continue
+        if simulation is None:
+            return (f"scenario '{tree.name}' carries _reset {sorted(reset)}, which only a "
+                    "--simulation receives; nothing here would act on it")
+        for name in reset:
+            if name in RUNNER_RESET_ARGS:
+                return f"scenario '{tree.name}': _reset names '{name}', which is the runner's own"
+            if name in (params or {}):
+                return (f"scenario '{tree.name}': _reset names '{name}', which is also a scenario "
+                        "parameter; a name is the scenario's or the runner's, not both")
+            if name not in declared:
+                return (f"scenario '{tree.name}': _reset names '{name}', which "
+                        f"{type(simulation).__name__}.reset() does not declare "
+                        f"(it declares {sorted(declared) or 'nothing'})")
+    return ""
 
 
 class ScenarioExecutionConfig:
@@ -468,20 +506,26 @@ class ScenarioExecution(object):
             return False
 
         if self.scenarios_list:
-            self.tree, self.scenario_params, _ = self.scenarios_list[0]
+            self.tree, self.scenario_params, _, __ = self.scenarios_list[0]
         if self.render_dot:
-            for tree, _, __ in self.scenarios_list:
+            for tree, *_ in self.scenarios_list:
                 self.logger.info(f"Writing py-trees dot files to {tree.name.lower()}.[dot|svg|png] ...")
                 py_trees.display.render_dot_tree(tree, target_directory=self.output_dir)
         return True
 
     def run(self):
+        # Every document's ``_reset`` is checked before anything is set up, so a document the
+        # simulation (or the absence of one) cannot act on fails the file before its first run.
+        refusal = refused_reset_arguments(self.simulation, self.scenarios_list)
+        if refusal:
+            self.on_scenario_shutdown(False, "Reset arguments refused", refusal)
+            return
         if self.simulation is not None:
             self.run_with_simulation(self.simulation)
             return
 
         multiple_scenarios = len(self.scenarios_list) > 1
-        for tree, _, scenario_output_dir_override in self.scenarios_list:
+        for tree, _, scenario_output_dir_override, __ in self.scenarios_list:
             effective_output_dir = self._resolve_scenario_output_dir(
                 tree.name, scenario_output_dir_override, multiple_scenarios)
             if effective_output_dir is None and multiple_scenarios and self.output_dir:
@@ -520,8 +564,12 @@ class ScenarioExecution(object):
 
         Lifecycle across all scenarios in the file:
             1. ``simulation.setup()`` — called once
-            2. For each scenario: ``simulation.reset()`` → tick loop
+            2. For each scenario: ``simulation.reset()`` with the scenario's parameters,
+               its output directory and its document's ``_reset`` arguments → tick loop
             3. ``simulation.shutdown()`` — called once in a ``finally`` block
+
+        :meth:`run` has checked every document's ``_reset`` against ``reset()`` before this
+        is entered, so a document the simulation cannot act on never reaches step 1.
         """
         clock = SimulationClock(simulation.dt)
         self.tick_period = simulation.dt
@@ -543,13 +591,14 @@ class ScenarioExecution(object):
 
         multiple_scenarios = len(self.scenarios_list) > 1
         try:
-            for tree, params, scenario_output_dir_override in self.scenarios_list:
+            for tree, params, scenario_output_dir_override, reset in self.scenarios_list:
                 effective_output_dir = self._resolve_scenario_output_dir(
                     tree.name, scenario_output_dir_override, multiple_scenarios)
                 if effective_output_dir is None and multiple_scenarios and self.output_dir:
                     return  # error already reported via on_scenario_shutdown
 
-                missing = _get_missing_reset_params(simulation, params)
+                runner_args = {"output_dir": effective_output_dir, **reset}
+                missing = _get_missing_reset_params(simulation, params, runner_args)
                 if missing:
                     self.on_scenario_shutdown(
                         False,
@@ -560,8 +609,7 @@ class ScenarioExecution(object):
                     return
 
                 try:
-                    reset_kwargs = _build_reset_kwargs(
-                        simulation, params, {"output_dir": effective_output_dir})
+                    reset_kwargs = _build_reset_kwargs(simulation, params, runner_args)
                     simulation.reset(**reset_kwargs)
                 except Exception as e:  # pylint: disable=broad-except
                     self.fail_from_exception("Simulation reset failed", e)

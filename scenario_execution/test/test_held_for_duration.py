@@ -101,7 +101,7 @@ class TestHeldForDuration(unittest.TestCase):
         sim = _SteppedSim()
         execution = ScenarioExecution(debug=False, log_model=False, live_tree=False, scenario_file='test.osc',
                                       output_dir="", logger=logger, simulation=sim)
-        execution.scenarios_list = [(tree, parser.scenario_params, None)]
+        execution.scenarios_list = [(tree, parser.scenario_params, None, {})]
         execution.run()
         return execution.process_results(), sim.steps * sim.dt
 
