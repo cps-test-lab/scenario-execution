@@ -24,7 +24,7 @@ from rclpy.parameter import Parameter  # pylint: disable=import-error
 import py_trees_ros
 from py_trees_ros_interfaces.srv import OpenSnapshotStream
 from scenario_execution import ScenarioExecution, ShutdownHandler
-from scenario_execution.scenario_execution_base import _load_simulation, _build_reset_kwargs
+from scenario_execution.scenario_execution_base import _load_simulation, _build_reset_kwargs, refused_reset_arguments
 from scenario_execution.simulation import Clock, HostClock
 from scenario_execution.utils import tick_recorder
 from .logging_ros import RosLogger
@@ -329,20 +329,24 @@ class ROSScenarioExecution(ScenarioExecution):
             self.logger.debug(f"Exception destroying bootstrap node: {e}")
 
         try:
+            refusal = refused_reset_arguments(self.simulation, self.scenarios_list)
+            if refusal:
+                self.on_scenario_shutdown(False, "Simulation reset arguments refused", refusal)
+                return
             multiple_scenarios = len(self.scenarios_list) > 1
-            for tree, params, scenario_output_dir_override in self.scenarios_list:
+            for tree, params, scenario_output_dir_override, reset in self.scenarios_list:
                 effective_output_dir = self._resolve_scenario_output_dir(
                     tree.name, scenario_output_dir_override, multiple_scenarios)
                 if effective_output_dir is None and multiple_scenarios and self.output_dir:
                     # Directory creation failed; failure already recorded.
                     continue
-                self._run_single_scenario(tree, effective_output_dir, params)
+                self._run_single_scenario(tree, effective_output_dir, params, reset)
                 if self._aborted:
                     break
         finally:
             rclpy.shutdown()
 
-    def _run_single_scenario(self, tree, effective_output_dir, scenario_params=None):
+    def _run_single_scenario(self, tree, effective_output_dir, scenario_params=None, reset=None):
         """Set up, tick and tear down one scenario's behaviour tree.
 
         Each scenario runs on its OWN ROS node and executor: py_trees_ros adopts
@@ -350,7 +354,8 @@ class ROSScenarioExecution(ScenarioExecution):
         be shared across scenarios.
 
         If a step-based ``--simulation`` is configured it is set up and reset for
-        this scenario, stepped once per spin-loop iteration (paced to realtime),
+        this scenario -- with the scenario's parameters and its document's ``_reset``
+        arguments -- stepped once per spin-loop iteration (paced to realtime),
         and shut down afterwards -- so the simulation advances alongside the ROS
         behaviours that drive it.
         """
@@ -377,7 +382,8 @@ class ROSScenarioExecution(ScenarioExecution):
                 self.simulation.setup(logger=self.logger, output_dir=effective_output_dir,
                                       tick_period=self.tick_period)
                 self.simulation.reset(**_build_reset_kwargs(
-                    self.simulation, scenario_params or {}, {"output_dir": effective_output_dir}))
+                    self.simulation, scenario_params or {},
+                    {"output_dir": effective_output_dir, **(reset or {})}))
                 sim_dt = self.simulation.dt
             except Exception as e:  # pylint: disable=broad-except
                 self.on_scenario_shutdown(False, "Simulation setup failed", f"{e}")

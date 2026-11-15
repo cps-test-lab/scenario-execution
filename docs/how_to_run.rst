@@ -564,6 +564,32 @@ inside the ``--scenario-parameter-file``.  Relative values are resolved relative
    Relative ``_output_dir`` paths must not start with ``..`` (i.e. they must not
    escape the root ``--output-dir``).
 
+A document may also carry a ``_reset`` mapping: arguments for the simulation's ``reset()``
+(`Step-based simulation`_) that are the runner's rather than the scenario's, passed for each
+name the simulation declares, beside the ``output_dir`` it already receives. This is how one
+parameter file runs its scenarios against different worlds in one process:
+
+.. code-block:: yaml
+
+   test_scenario:
+     _output_dir: cell_a/0
+     _reset:
+       world: worlds/a.yaml
+     speed: 1.5
+   ---
+   test_scenario:
+     _output_dir: cell_b/0
+     _reset:
+       world: worlds/b.yaml
+     speed: 1.5
+
+``_output_dir`` and ``_reset`` are the only keys a document reserves for the runner. Every
+other key must be a parameter the scenario declares, and a document is refused otherwise
+before any scenario runs -- so a file written for a newer runner fails as a whole rather than
+running with part of itself ignored. A ``_reset`` name the simulation's ``reset()`` does not
+declare is refused the same way, and so is one that is also a scenario parameter; without
+``--simulation`` a ``_reset`` is refused because nothing receives it.
+
 **Per-scenario test.xml**
 
 By default a single combined ``<output-dir>/test.xml`` is written.
@@ -661,11 +687,15 @@ is used.  Struct parameters are passed as nested dictionaries.
 If a ``--scenario-parameter-file`` is supplied the overridden values are
 applied before ``reset()`` is called.
 
-One argument name is reserved for the runner: a ``reset()`` that declares
+Two sources are the runner's rather than the scenario's. A ``reset()`` that declares
 ``output_dir`` receives the directory the scenario's results go to (see
-:ref:`per_scenario_output_directories`), not a scenario parameter. A parameter file runs several scenarios in one process, each with its
+:ref:`per_scenario_output_directories`), not a scenario parameter. A parameter
+file runs several scenarios in one process, each with its
 own directory, so a simulation that records each scenario separately takes its
-target from there.
+target from there. And a parameter document's ``_reset`` mapping (:ref:`per_scenario_output_directories`)
+is passed to ``reset()`` for each name it declares -- a ``world``, say -- so
+the runs of one file can each be built from a different world. A ``_reset`` name the
+``reset()`` does not declare is refused before any scenario runs.
 
 The ``SimulationInterface`` lifecycle is aligned with the
 `ros-simulation/simulation_interfaces <https://github.com/ros-simulation/simulation_interfaces>`_ standard:

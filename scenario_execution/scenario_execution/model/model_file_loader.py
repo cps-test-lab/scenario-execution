@@ -39,7 +39,7 @@ class ModelFileLoader(object):
             parameter.name: parameter.get_resolved_value()
             for parameter in scenario.find_children_of_type(ParameterDeclaration)
         }
-        return [(tree, params, None)]
+        return [(tree, params, None, {})]
 
     def load_file(self, file_name, log_tree):
         """Load a serialized internal model.

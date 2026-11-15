@@ -90,7 +90,7 @@ class TestTickLogEndToEnd(unittest.TestCase):
         execution = ScenarioExecution(debug=False, log_model=False, live_tree=False,
                                       scenario_file='test.osc', output_dir=self.dir,
                                       tick_period=0.05, **kwargs)
-        execution.scenarios_list = [(tree, {}, None)]
+        execution.scenarios_list = [(tree, {}, None, {})]
         execution.run()
         return execution
 

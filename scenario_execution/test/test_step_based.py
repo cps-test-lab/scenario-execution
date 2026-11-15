@@ -27,7 +27,10 @@ import unittest
 import py_trees
 from antlr4.InputStream import InputStream
 
-from scenario_execution.scenario_execution_base import ScenarioExecution, _get_missing_reset_params, _build_reset_kwargs
+import yaml
+
+from scenario_execution.scenario_execution_base import (ScenarioExecution, _get_missing_reset_params,
+                                                        _build_reset_kwargs, refused_reset_arguments)
 from scenario_execution.simulation import SimulationInterface, SimulationClock
 from scenario_execution.clock_behaviors import ClockTimer, ClockTimeout
 from scenario_execution.model.osc2_parser import OpenScenario2Parser
@@ -116,20 +119,54 @@ def _make_scenario_execution(sim=None, logger=None):
     return se
 
 
-def _parse_and_run(scenario_content, sim=None):
-    """Parse an inline OSC string and run it, returning (scenario_execution, logger)."""
-    logger = DebugLogger("")
+def _parse(scenario_content, logger):
+    """Parse an inline OSC string into one scenario entry's tree and parameters."""
     parser = OpenScenario2Parser(logger)
     tree = py_trees.composites.Sequence(name="", memory=True)
     parsed_tree = parser.parse_input_stream(InputStream(scenario_content))
     model = parser.create_internal_model(parsed_tree, tree, "test.osc", False)
-    tree = create_py_tree(model, tree, parser.logger, False)
+    return create_py_tree(model, tree, parser.logger, False), parser.scenario_params
+
+
+def _run_documents(scenario_content, resets, sim=None):
+    """Run the scenario once per entry of *resets*, each entry the ``_reset`` of a document."""
+    logger = DebugLogger("")
     se = _make_scenario_execution(sim=sim, logger=logger)
-    se.tree = tree
-    se.scenario_params = parser.scenario_params
-    se.scenarios_list = [(tree, parser.scenario_params, None)]
+    se.scenarios_list = []
+    for reset in resets:
+        tree, params = _parse(scenario_content, logger)
+        se.scenarios_list.append((tree, params, None, reset))
+    se.tree, se.scenario_params = se.scenarios_list[0][:2]
     se.run()
     return se, logger
+
+
+def _parse_and_run(scenario_content, sim=None):
+    """Parse an inline OSC string and run it, returning (scenario_execution, logger)."""
+    return _run_documents(scenario_content, [{}], sim=sim)
+
+
+def _process_parameter_file(scenario_content, documents):
+    """Parse *scenario_content* with a parameter file of *documents*; the parser's entries."""
+    with tempfile.TemporaryDirectory() as directory:
+        osc = os.path.join(directory, "test.osc")
+        with open(osc, "w", encoding="utf-8") as handle:
+            handle.write(scenario_content)
+        params = os.path.join(directory, "params.yaml")
+        with open(params, "w", encoding="utf-8") as handle:
+            handle.write(yaml.safe_dump_all(documents))
+        return OpenScenario2Parser(DebugLogger("")).process_file(osc, False, False, params)
+
+
+_SPEED_SCENARIO = """
+type time is SI(s: 1)
+unit s          of time is SI(s: 1, factor: 1)
+
+scenario test:
+    speed: float = 1.5
+    do serial:
+        wait elapsed(0.1s)
+"""
 
 
 # ---------------------------------------------------------------------------
@@ -266,7 +303,7 @@ class TestSimulationLifecycle(unittest.TestCase):
         se = _make_scenario_execution(sim=sim)
         success_behavior = py_trees.behaviours.Success(name="done")
         se.tree = success_behavior
-        se.scenarios_list = [(success_behavior, {}, None)]
+        se.scenarios_list = [(success_behavior, {}, None, {})]
         return se
 
     def test_lifecycle_order(self):
@@ -302,7 +339,7 @@ class TestSimulationLifecycle(unittest.TestCase):
         se = _make_scenario_execution(sim=sim)
         accessor = _SimAccessBehavior()
         se.tree = accessor
-        se.scenarios_list = [(accessor, {}, None)]
+        se.scenarios_list = [(accessor, {}, None, {})]
         se.run()
         self.assertIs(accessor.received_simulation, sim)
         self.assertIsInstance(accessor.received_clock, SimulationClock)
@@ -326,7 +363,7 @@ class TestSimulationLifecycle(unittest.TestCase):
         se = _make_scenario_execution(sim=sim)
         behavior = CountingBehavior()
         se.tree = behavior
-        se.scenarios_list = [(behavior, {}, None)]
+        se.scenarios_list = [(behavior, {}, None, {})]
         se.run()
         self.assertEqual(sim.step_calls, tick_count[0])
 
@@ -444,14 +481,80 @@ scenario test:
                 model = parser.create_internal_model(
                     parser.parse_input_stream(InputStream(scenario_content)), tree, "test.osc", False)
                 scenarios.append((create_py_tree(model, tree, parser.logger, False),
-                                  parser.scenario_params, override))
+                                  parser.scenario_params, override, {}))
             se = ScenarioExecution(debug=False, log_model=False, live_tree=False,
                                    scenario_file='test.osc', output_dir=out, logger=logger,
                                    simulation=_Sim())
-            se.tree, se.scenario_params, _ = scenarios[0]
+            se.tree, se.scenario_params, _, __ = scenarios[0]
             se.scenarios_list = scenarios
             se.run()
             self.assertEqual(received, [os.path.join(out, "cfg/0"), os.path.join(out, "cfg/1")])
+
+    def test_reset_receives_the_documents_reset_arguments(self):
+        """Each document's ``_reset`` reaches ``reset()`` for the names it declares, beside
+        ``output_dir``, so one file runs its scenarios against different worlds."""
+
+        class _Sim(_CountingSim):
+            def __init__(self):
+                super().__init__()
+                self.received = []
+
+            def reset(self, speed, world=None, output_dir=None):
+                self.received.append((speed, world, output_dir))
+
+        sim = _Sim()
+        se, _ = _run_documents(_SPEED_SCENARIO, [{"world": "a.yaml"}, {"world": "b.yaml"}], sim=sim)
+        self.assertEqual(sim.received, [(1.5, "a.yaml", se.output_dir), (1.5, "b.yaml", se.output_dir)])
+        self.assertTrue(all(r.result for r in se.results))
+
+    def test_a_reset_name_the_simulation_does_not_declare_is_refused_before_any_run(self):
+        """A simulation that cannot act on a document's argument must not be handed the
+        document: every run would silently run against the first's state. Refused before
+        ``setup()``, so a file that would fail at its second document fails before its first."""
+        sim = _CountingSim()
+        se, _ = _run_documents(_SPEED_SCENARIO, [{}, {"world": "b.yaml"}], sim=sim)
+        self.assertEqual((sim.setup_calls, sim.reset_calls), (0, 0))
+        self.assertFalse(se.results[-1].result)
+        self.assertIn("_reset names 'world'", se.results[-1].failure_output)
+        self.assertIn("reset() does not declare", se.results[-1].failure_output)
+
+    def test_a_reset_name_that_is_also_a_scenario_parameter_is_refused(self):
+        class _Sim(_CountingSim):
+            def reset(self, speed=1.0, output_dir=None):
+                super().reset()
+
+        sim = _Sim()
+        se, _ = _run_documents(_SPEED_SCENARIO, [{"speed": 2.0}], sim=sim)
+        self.assertEqual(sim.reset_calls, 0)
+        self.assertIn("also a scenario parameter", se.results[-1].failure_output)
+        self.assertIn("runner's own", refused_reset_arguments(
+            sim, [(py_trees.behaviours.Success(name="t"), {}, None, {"output_dir": "x"})]))
+
+    def test_a_reset_without_a_simulation_is_refused(self):
+        se, _ = _run_documents(_SPEED_SCENARIO, [{"world": "a.yaml"}], sim=None)
+        self.assertFalse(se.results[-1].result)
+        self.assertIn("only a --simulation receives", se.results[-1].failure_output)
+
+    def test_the_parser_strips_reset_from_the_documents_parameters(self):
+        entries = _process_parameter_file(_SPEED_SCENARIO, [
+            {"test": {"_output_dir": "a/0", "_reset": {"world": "a.yaml"}, "speed": 2.0}},
+            {"test": {"_output_dir": "b/0", "_reset": {"world": "b.yaml", "world_overrides": {"k": 1}}}},
+        ])
+        self.assertEqual([(e[2], e[3]) for e in entries], [
+            ("a/0", {"world": "a.yaml"}), ("b/0", {"world": "b.yaml", "world_overrides": {"k": 1}})])
+        self.assertEqual([e[1]["speed"] for e in entries], [2.0, 1.5])
+        self.assertTrue(all("_reset" not in e[1] for e in entries))
+
+    def test_a_reset_that_is_not_a_mapping_is_refused_by_the_parser(self):
+        with self.assertRaisesRegex(ValueError, "_reset for scenario 'test' must be a mapping"):
+            _process_parameter_file(_SPEED_SCENARIO, [{"test": {"_reset": "a.yaml"}}])
+
+    def test_a_reserved_key_the_parser_does_not_know_is_refused_as_an_unknown_parameter(self):
+        """The guard: a document written for a runner that reserves a key this one does not
+        fails at the document, naming the key, rather than running with it ignored. This is
+        the path a runner without ``_reset`` takes on a ``_reset`` document."""
+        with self.assertRaisesRegex(ValueError, r"unknown parameter\(s\): _other"):
+            _process_parameter_file(_SPEED_SCENARIO, [{"test": {"_other": {"world": "a.yaml"}}}])
 
     def test_no_params_reset_called(self):
         """reset() with no args is called once even when the scenario declares no params."""
