@@ -30,11 +30,13 @@ class ModelFileLoader(object):
 
     def process_file(self, file_name, log_tree: bool = False, debug: bool = False, _=None, create_scenario_parameter_file_template: bool=False):
         model = self.load_file(file_name, log_tree)
+        scenario = model.find_first_child_of_type(ScenarioDeclaration)
+        if scenario is None:
+            raise ValueError(f"No scenario defined in '{file_name}'.")
         tree = py_trees.composites.Sequence(name="", memory=True)
         resolve_internal_model(model, tree, self.logger, log_tree)
         create_py_tree_blackboard(model, tree, self.logger, debug)
         create_py_tree(model, tree, self.logger, log_tree)
-        scenario = model.find_first_child_of_type(ScenarioDeclaration)
         params = {
             parameter.name: parameter.get_resolved_value()
             for parameter in scenario.find_children_of_type(ParameterDeclaration)

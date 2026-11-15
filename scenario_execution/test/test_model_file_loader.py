@@ -115,6 +115,18 @@ scenario test_params:
             ModelFileLoader(Logger('test', False)).load_file(not_a_model, False)
         self.assertIn(not_a_model, str(ctx.exception))
 
+    def test_runner_model_without_scenario(self):
+        logger = Logger('test', False)
+        parser = OpenScenario2Parser(logger)
+        parsed = parser.parse_input_stream(InputStream("struct position:\n    x: int\n"))
+        model = parser.load_internal_model(parsed, 'test.osc')
+        no_scenario = os.path.join(self.tmp_dir.name, 'no_scenario.sce')
+        with open(no_scenario, 'w', encoding='utf-8') as model_file:
+            yaml.safe_dump(serialize(model)['CompilationUnit']['_children'], model_file)
+        result = self._parse(no_scenario)
+        self.assertIn("No scenario defined", result.failure_output)
+        self.assertIn(no_scenario, result.failure_output)
+
     def _parse(self, scenario_file):
         scenario_execution = ScenarioExecution(debug=False,
                                                log_model=False,
