@@ -173,6 +173,20 @@ scenario test_params:
                 self.assertIn(model_path, result.failure_output)
                 self.assertIn(".osc scenario", result.failure_output)
 
+    def test_runner_error_names_source_file(self):
+        logger = Logger('test', False)
+        parser = OpenScenario2Parser(logger)
+        source = os.path.join(self.tmp_dir.name, 'source_dir', 'counting.osc')
+        parsed = parser.parse_input_stream(InputStream("scenario test_count:\n    count: int = 7\n    do serial:\n        wait count\n"))
+        model = parser.load_internal_model(parsed, source)
+        model_path = os.path.join(self.tmp_dir.name, 'counting.sce')
+        with open(model_path, 'w', encoding='utf-8') as model_file:
+            yaml.safe_dump(serialize(model)['CompilationUnit']['_children'], model_file)
+        with open(model_path, encoding='utf-8') as model_file:
+            self.assertNotIn('source_dir', model_file.read())
+        result = self._parse(model_path)
+        self.assertIn("(line: 4, column: 13 in 'counting.osc') -> count:", result.failure_output)
+
     def _parse(self, scenario_file, **kwargs):
         scenario_execution = ScenarioExecution(debug=False,
                                                log_model=False,

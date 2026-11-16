@@ -32,8 +32,7 @@ class OSC2Error(Exception):
         error_str = ""
         if self.osc_ctx is not None:
             if len(self.osc_ctx) == 4:
-                # A deserialized model carries no source file, and one written without
-                # source context carries no line, column or text either.
+                # A model written without source context carries no line, column, text or file.
                 line, column, text, filename = self.osc_ctx
                 location = f"line: {line}, column: {column}"
                 if filename is not None:

@@ -17,6 +17,7 @@
 
 from typing import List
 from scenario_execution.model.error import OSC2ParsingError
+import os
 import sys
 import py_trees
 import operator as op
@@ -77,9 +78,9 @@ def serialize(elem):
     """A model element as a plain mapping, keyed by its type name.
 
     Beside the constructor arguments and the children, the mapping carries the element's
-    source line, column and text under ``_ctx`` where it has them, so an element loaded back
-    with deserialize() names its source as the parsed one does. The source file is left out:
-    it is a path on the host that wrote the model, not on the one that loads it.
+    source line, column, text and file under ``_ctx`` where it has them, so an element loaded
+    back with deserialize() names its source as the parsed one does. The file is kept by its
+    base name: its path is one on the host that wrote the model, not on the one that loads it.
     """
     result = {}
     children = elem.get_children()
@@ -96,9 +97,11 @@ def serialize(elem):
             result[type(elem).__name__]['_children'].append(serialize(child))
     else:
         result[type(elem).__name__] = {}
-    line, column, context, _ = elem.get_ctx()
-    if (line, column, context) != (None, None, None):
-        result[type(elem).__name__]['_ctx'] = {'line': line, 'column': column, 'context': context}
+    line, column, context, filename = elem.get_ctx()
+    if (line, column, context, filename) != (None, None, None, None):
+        result[type(elem).__name__]['_ctx'] = {
+            'line': line, 'column': column, 'context': context,
+            'filename': os.path.basename(filename) if filename else filename}
     return result
 
 
@@ -112,7 +115,7 @@ def deserialize(elem):
             inst = module(**elem_attributes)
             if '_ctx' in value:
                 ctx = value['_ctx']
-                inst.set_source(ctx['line'], ctx['column'], ctx['context'])
+                inst.set_source(ctx['line'], ctx['column'], ctx['context'], ctx.get('filename'))
             if '_children' in value:
                 children = deserialize(value['_children'])
                 for child_node in children.get_children():
@@ -252,11 +255,12 @@ class ModelElement(object):  # pylint: disable=too-many-public-methods
         self.__context = ctx.getText()
         self.__filename = filename
 
-    def set_source(self, line, column, context):
-        """Set the source line, column and text, as a deserialized model carries them."""
+    def set_source(self, line, column, context, filename=None):
+        """Set the source line, column, text and file, as a deserialized model carries them."""
         self.__line = line
         self.__column = column
         self.__context = context
+        self.__filename = filename
 
     def get_ctx(self):
         return self.__line, self.__column, self.__context, self.__filename
