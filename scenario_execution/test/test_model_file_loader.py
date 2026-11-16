@@ -154,12 +154,31 @@ scenario test_params:
         self.assertIn("No scenario defined", result.failure_output)
         self.assertIn(no_scenario, result.failure_output)
 
-    def _parse(self, scenario_file):
+    def test_runner_refuses_parameter_file_for_model(self):
+        logger = Logger('test', False)
+        parser = OpenScenario2Parser(logger)
+        parsed = parser.parse_input_stream(InputStream("scenario test_params:\n    count: int = 7\n"))
+        model = parser.load_internal_model(parsed, 'test.osc')
+        model_path = os.path.join(self.tmp_dir.name, 'params.sce')
+        with open(model_path, 'w', encoding='utf-8') as model_file:
+            yaml.safe_dump(serialize(model)['CompilationUnit']['_children'], model_file)
+        parameter_file = os.path.join(self.tmp_dir.name, 'overrides.yaml')
+        with open(parameter_file, 'w', encoding='utf-8') as overrides:
+            yaml.safe_dump({'test_params': {'count': 8}}, overrides)
+        for template in (False, True):
+            with self.subTest(template=template):
+                result = self._parse(model_path, scenario_parameter_file=parameter_file,
+                                     create_scenario_parameter_file_template=template)
+                self.assertIn(model_path, result.failure_output)
+                self.assertIn(".osc scenario", result.failure_output)
+
+    def _parse(self, scenario_file, **kwargs):
         scenario_execution = ScenarioExecution(debug=False,
                                                log_model=False,
                                                live_tree=False,
                                                scenario_file=scenario_file,
-                                               output_dir="")
+                                               output_dir="",
+                                               **kwargs)
         self.assertFalse(scenario_execution.parse())
         self.assertEqual(len(scenario_execution.results), 1)
         result = scenario_execution.results[0]

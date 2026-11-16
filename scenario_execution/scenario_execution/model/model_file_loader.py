@@ -28,7 +28,18 @@ class ModelFileLoader(object):
     def __init__(self, logger) -> None:
         self.logger = logger
 
-    def process_file(self, file_name, log_tree: bool = False, debug: bool = False, _=None, create_scenario_parameter_file_template: bool=False):
+    def process_file(self, file_name, log_tree: bool = False, debug: bool = False, scenario_parameter_file: str = None,
+                     create_scenario_parameter_file_template: bool = False):
+        """Load a serialized model and build its scenario's tree.
+
+        A serialized model is concrete, its parameters resolved when it was written, so a
+        scenario parameter file or a template for one is refused rather than ignored.
+        """
+        if create_scenario_parameter_file_template:
+            raise ValueError(f"A scenario parameter file template is created from an .osc scenario, not from '{file_name}'.")
+        if scenario_parameter_file:
+            raise ValueError(f"A scenario parameter file overrides an .osc scenario; '{file_name}' is a serialized "
+                             f"model whose parameters are resolved, so '{scenario_parameter_file}' is refused.")
         model = self.load_file(file_name, log_tree)
         scenario = model.find_first_child_of_type(ScenarioDeclaration)
         if scenario is None:
