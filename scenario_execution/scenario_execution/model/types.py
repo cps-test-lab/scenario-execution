@@ -74,6 +74,13 @@ def to_string(elem):
 
 
 def serialize(elem):
+    """A model element as a plain mapping, keyed by its type name.
+
+    Beside the constructor arguments and the children, the mapping carries the element's
+    source line, column and text under ``_ctx`` where it has them, so an element loaded back
+    with deserialize() names its source as the parsed one does. The source file is left out:
+    it is a path on the host that wrote the model, not on the one that loads it.
+    """
     result = {}
     children = elem.get_children()
     if children:
@@ -89,6 +96,9 @@ def serialize(elem):
             result[type(elem).__name__]['_children'].append(serialize(child))
     else:
         result[type(elem).__name__] = {}
+    line, column, context, _ = elem.get_ctx()
+    if (line, column, context) != (None, None, None):
+        result[type(elem).__name__]['_ctx'] = {'line': line, 'column': column, 'context': context}
     return result
 
 
@@ -97,9 +107,12 @@ def deserialize(elem):
     result = getattr(types_module, 'CompilationUnit')()
     for current in elem:
         for key, value in current.items():
-            elem_attributes = {k: v for k, v in value.items() if k != '_children'}
+            elem_attributes = {k: v for k, v in value.items() if k not in ('_children', '_ctx')}
             module = getattr(types_module, key)
             inst = module(**elem_attributes)
+            if '_ctx' in value:
+                ctx = value['_ctx']
+                inst.set_source(ctx['line'], ctx['column'], ctx['context'])
             if '_children' in value:
                 children = deserialize(value['_children'])
                 for child_node in children.get_children():
@@ -238,6 +251,12 @@ class ModelElement(object):  # pylint: disable=too-many-public-methods
         self.__column = ctx.start.column
         self.__context = ctx.getText()
         self.__filename = filename
+
+    def set_source(self, line, column, context):
+        """Set the source line, column and text, as a deserialized model carries them."""
+        self.__line = line
+        self.__column = column
+        self.__context = context
 
     def get_ctx(self):
         return self.__line, self.__column, self.__context, self.__filename

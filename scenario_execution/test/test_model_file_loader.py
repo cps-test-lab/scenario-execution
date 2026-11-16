@@ -47,18 +47,45 @@ class TestModelFileLoader(unittest.TestCase):
                 self._check_serialized_wait(variable, variable_type, initial_value, condition)
 
     def _check_serialized_wait(self, variable, variable_type, initial_value, condition):
-        with tempfile.NamedTemporaryFile(suffix='.sce', mode='w') as model_file:
-            scenario = f"""\
+        scenario = f"""\
 scenario test_{variable}:
     var {variable}: {variable_type} = {initial_value}
     do serial:
         wait {condition}
 """
-            logger = Logger('test', False)
-            parser = OpenScenario2Parser(logger)
-            parsed = parser.parse_input_stream(InputStream(scenario))
-            model = parser.load_internal_model(parsed, 'test.osc')
+        logger = Logger('test', False)
+        parser = OpenScenario2Parser(logger)
+        parsed = parser.parse_input_stream(InputStream(scenario))
+        model = parser.load_internal_model(parsed, 'test.osc')
+        with tempfile.NamedTemporaryFile(suffix='.sce', mode='w') as model_file:
             yaml.safe_dump(serialize(model)['CompilationUnit']['_children'], model_file)
+            model_file.flush()
+
+            tree = ModelFileLoader(logger).process_file(model_file.name)[0][0]
+            tree.tick_once()
+            self.assertEqual(tree.status, py_trees.common.Status.SUCCESS)
+            self.assertIn(condition.replace(" ", ""), py_trees.display.unicode_tree(tree))
+
+    def test_wait_in_serialized_model_without_source(self):
+        scenario = """\
+scenario test_no_source:
+    var ready: bool = true
+    do serial:
+        wait ready == true
+"""
+        logger = Logger('test', False)
+        parser = OpenScenario2Parser(logger)
+        parsed = parser.parse_input_stream(InputStream(scenario))
+        model = parser.load_internal_model(parsed, 'test.osc')
+
+        def without_source(node):
+            if isinstance(node, dict):
+                return {key: without_source(value) for key, value in node.items() if key != '_ctx'}
+            if isinstance(node, list):
+                return [without_source(value) for value in node]
+            return node
+        with tempfile.NamedTemporaryFile(suffix='.sce', mode='w') as model_file:
+            yaml.safe_dump(without_source(serialize(model)['CompilationUnit']['_children']), model_file)
             model_file.flush()
 
             tree = ModelFileLoader(logger).process_file(model_file.name)[0][0]
