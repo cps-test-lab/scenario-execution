@@ -27,6 +27,7 @@ from antlr4.InputStream import InputStream
 import py_trees
 import yaml
 
+from scenario_execution.model.error import OSC2ParsingError
 from scenario_execution.model.model_file_loader import ModelFileLoader
 from scenario_execution.model.osc2_parser import OpenScenario2Parser
 from scenario_execution.model.types import serialize
@@ -204,3 +205,15 @@ scenario test_params:
             text = report.read()
         self.assertIn('<failure', text)
         self.assertIn(self.corrupt, text)
+
+
+class TestErrorWithoutSource(unittest.TestCase):
+    # pylint: disable=missing-function-docstring
+
+    def test_error_from_deserialized_element(self):
+        error = OSC2ParsingError(msg='Invalid event condition.', context=(4, 13, 'count', None))
+        self.assertEqual(str(error), "(line: 4, column: 13) -> count: Invalid event condition.")
+
+    def test_error_from_element_without_source(self):
+        error = OSC2ParsingError(msg='Invalid event condition.', context=(None, None, None, None))
+        self.assertEqual(str(error), "(line: None, column: None): Invalid event condition.")
