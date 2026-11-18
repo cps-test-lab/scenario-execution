@@ -2,6 +2,18 @@
 Changelog for package scenario_execution
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.9.0 (2026-11-18)
+------------------
+* A serialized model names the source file of each element by its base name (`#150 <https://github.com/cps-test-lab/scenario-execution/issues/150>`_)
+* A .sce model initializes its variables, keeps its source positions and passes its parameters to the runner (`#148 <https://github.com/cps-test-lab/scenario-execution/issues/148>`_)
+* A ``.sce`` model refuses ``--scenario-parameter-file`` and ``--create-scenario-parameter-file-template`` instead of ignoring them, since its parameters are resolved (`#148 <https://github.com/cps-test-lab/scenario-execution/issues/148>`_)
+* A parameter document's _reset mapping carries runner arguments for reset() (`#149 <https://github.com/cps-test-lab/scenario-execution/issues/149>`_)
+* reset() receives the scenario's output directory when it declares output_dir (`#144 <https://github.com/cps-test-lab/scenario-execution/issues/144>`_)
+* retry() without a count retries until the sub-tree succeeds (`#141 <https://github.com/cps-test-lab/scenario-execution/issues/141>`_)
+* wait and until take any boolean expression, and rise() and fall() (`#140 <https://github.com/cps-test-lab/scenario-execution/issues/140>`_)
+* Document waiting until a condition has held for a duration (`#139 <https://github.com/cps-test-lab/scenario-execution/issues/139>`_)
+* Contributors: Florian Mirus, fred-labs
+
 1.8.0 (2026-09-28)
 ------------------
 * The action catalog lists enums with their members: ``list_actions`` has an ``enums`` group, each entry carrying ``values``, and ``get_action_details`` finds an enum by name (`#101 <https://github.com/cps-test-lab/scenario-execution/issues/101>`_)

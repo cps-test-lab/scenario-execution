@@ -2,6 +2,11 @@
 Changelog for package scenario_execution_nav2
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.9.0 (2026-11-18)
+------------------
+* A parameter document's _reset mapping carries runner arguments for reset() (`#149 <https://github.com/cps-test-lab/scenario-execution/issues/149>`_)
+* Contributors: fred-labs
+
 1.8.0 (2026-09-28)
 ------------------
 * ``follow_waypoints`` fails when nav2 reports missed waypoints, where it succeeded before; ``allow_missed_waypoints: true`` keeps the old verdict and logs them as a warning (`#127 <https://github.com/cps-test-lab/scenario-execution/issues/127>`_)
