@@ -29,9 +29,9 @@ Runtime Parameters
    * - ``-o OUTPUT_DIR`` ``--output-dir OUTPUT_DIR``
      - Directory for output (e.g. test results)
    * - ``--scenario-parameter-file YAML_FILE``
-     - Parameter definition used to override default scenario parameter definitions. See `Override scenario parameters`_ for details.
+     - Parameter definition used to override default scenario parameter definitions. See `Override scenario parameters`_ for details. Only for an ``.osc`` scenario: a ``.sce`` model's parameters are resolved, and it refuses the option.
    * - ``--create-scenario-parameter-file-template``
-     - Create a template yaml file for overriding scenario parameters. The file will be named like specified by ``--scenario-parameter-file``.
+     - Create a template yaml file for overriding scenario parameters. The file will be named like specified by ``--scenario-parameter-file``. Only for an ``.osc`` scenario.
    * - ``-t`` ``--live-tree``
      - (For debugging) Show current state of py tree
    * - ``--post-run POST_RUN_COMMAND``
