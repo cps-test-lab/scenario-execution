@@ -2,6 +2,13 @@
 Changelog for package scenario_execution_ros
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.9.0 (2026-11-18)
+------------------
+* A parameter document's _reset mapping carries runner arguments for reset() (`#149 <https://github.com/cps-test-lab/scenario-execution/issues/149>`_)
+* reset() receives the scenario's output directory when it declares output_dir (`#144 <https://github.com/cps-test-lab/scenario-execution/issues/144>`_)
+* The realtime-factor test's healthy clock runs at 10, far above the threshold (`#146 <https://github.com/cps-test-lab/scenario-execution/issues/146>`_)
+* Contributors: fred-labs
+
 1.8.0 (2026-09-28)
 ------------------
 * ``RosActionCall`` gains a ``check_result()`` hook: a message it returns for a succeeded goal fails the action (`#127 <https://github.com/cps-test-lab/scenario-execution/issues/127>`_)

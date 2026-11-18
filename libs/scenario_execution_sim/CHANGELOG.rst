@@ -2,6 +2,11 @@
 Changelog for package scenario_execution_sim
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.9.0 (2026-11-18)
+------------------
+* A parameter document's _reset mapping carries runner arguments for reset() (`#149 <https://github.com/cps-test-lab/scenario-execution/issues/149>`_)
+* Contributors: fred-labs
+
 1.8.0 (2026-09-28)
 ------------------
 * Default spawn_entity's name and pose to what SpawnEntity allows (`#126 <https://github.com/cps-test-lab/scenario-execution/issues/126>`_)
