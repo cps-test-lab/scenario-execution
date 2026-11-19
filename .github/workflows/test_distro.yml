@@ -793,7 +793,7 @@ jobs:
   test-scenario-execution-x11:
     needs: [build, build-and-push-testing]
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 10
     container:
       image: ${{ needs.build-and-push-testing.outputs.image_tag }}
       credentials:
@@ -806,6 +806,8 @@ jobs:
           key: ${{ runner.os }}-build-${{ github.run_number }}-${{ inputs.ros_distro }}
           path: .
       - name: Test Scenario Execution X11
+        # The job's limit also covers pulling the test image; this one is for the capture alone.
+        timeout-minutes: 3
         shell: bash
         run: |
           # shellcheck source=/dev/null
