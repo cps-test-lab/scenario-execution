@@ -167,7 +167,7 @@ action ros_run:
     shutdown_timeout: time = 10s         # (only used if wait_for_shutdown is false) time to wait between SIGINT and SIGKILL getting sent, if process is still running on scenario shutdown
 
 action service_call:
-    # Call a ROS service and wait for the reply.
+    # Call a ROS service and wait for the reply. The request is sent once the service is available.
     service_name: string                 # name of the service to connect to
     service_type: string                 # class of the message type (e.g. std_srvs.msg.Empty)
     data: string                         # call content

@@ -113,6 +113,11 @@ class RosServiceCall(BaseAction):
         self.logger.debug(f"Current State {self.current_state}")
         result = py_trees.common.Status.FAILURE
         if self.current_state == ServiceCallActionState.IDLE:
+            # A request sent before the client has matched the server can be lost, and the action
+            # would then wait for a response that never comes.
+            if not self.client.service_is_ready():
+                self.feedback_message = f"waiting for service {self.service_name}"  # pylint: disable= attribute-defined-outside-init
+                return py_trees.common.Status.RUNNING
             self.feedback_message = self.get_feedback_message()  # pylint: disable= attribute-defined-outside-init
             self.current_state = ServiceCallActionState.SERVICE_CALLED
             if self.future:
